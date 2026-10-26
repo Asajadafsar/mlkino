@@ -11,9 +11,9 @@ urlpatterns = [
     path("complete-register/", views.CompleteRegisterView.as_view(), name="complete-register"),
     path("login/password/", views.PasswordLoginView.as_view(), name="login-password"),
     path("change-password/", views.ChangePasswordView.as_view(), name="change-password"),
-
+    path("login/otp/", views.LoginWithOtpView.as_view(), name="login-otp"),
     # پروفایل
-    path("me/", views.MeView.as_view(), name="me"),
+    path("profile/", views.ProfileView.as_view(), name="profile"),
 
     # session
     path("logout/", views.LogoutView.as_view(), name="logout"),

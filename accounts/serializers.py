@@ -236,3 +236,15 @@ class PasswordResetCompleteSerializer(serializers.Serializer):
                 {"new_password_confirm": "رمز جدید و تکرار آن یکسان نیستند."}
             )
         return attrs
+
+
+
+# ==================================================================
+# لاگین با OTP (فقط برای کاربران ثبت‌نام‌شده)
+# ==================================================================
+class LoginOtpSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=11, validators=[validate_iranian_mobile])
+    code = serializers.CharField(min_length=4, max_length=6)
+
+    def validate_phone(self, value):
+        return validate_iranian_mobile(value)
