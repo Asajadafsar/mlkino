@@ -2,7 +2,10 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from accounts.services.jibit import (
+    JibitError,
+    normalize_postal_code,
+)
 from accounts.validators import (
     validate_iranian_mobile,
     validate_iranian_national_code,
@@ -68,31 +71,52 @@ class VerifyOtpSerializer(serializers.Serializer):
         return validate_iranian_mobile(value)
 
 
-# ==================================================================
-# تکمیل ثبت‌نام (کاربر عادی)
-# ==================================================================
+
+
 class CompleteRegisterSerializer(serializers.Serializer):
-    # شخصی
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
+
     national_code = serializers.CharField(
-        max_length=10, validators=[validate_iranian_national_code]
+        max_length=10,
+        validators=[validate_iranian_national_code],
     )
-    birth_date = serializers.DateField(required=False, allow_null=True)
-    avatar = serializers.ImageField(required=False, allow_null=True)
 
-    # مکان
-    province = serializers.CharField(max_length=50)
-    city = serializers.CharField(max_length=50)
-    postal_code = serializers.CharField(max_length=10)
-    address = serializers.CharField()
+    birth_date = serializers.DateField(
+        required=False,
+        allow_null=True,
+    )
 
-    # رمز
-    password = serializers.CharField(write_only=True, min_length=8)
-    password_confirm = serializers.CharField(write_only=True, min_length=8)
+    avatar = serializers.ImageField(
+        required=False,
+        allow_null=True,
+    )
 
-    # نوع
-    user_type = serializers.ChoiceField(choices=User.UserType.choices)
+    postal_code = serializers.CharField(
+        max_length=10,
+    )
+
+    password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+    )
+
+    password_confirm = serializers.CharField(
+        write_only=True,
+        min_length=8,
+    )
+
+    user_type = serializers.ChoiceField(
+        choices=User.UserType.choices,
+    )
+
+    def validate_postal_code(self, value):
+        try:
+            return normalize_postal_code(value)
+        except JibitError as exc:
+            raise serializers.ValidationError(
+                str(exc)
+            ) from exc
 
     def validate_national_code(self, value):
         return validate_iranian_national_code(value)
@@ -101,73 +125,112 @@ class CompleteRegisterSerializer(serializers.Serializer):
         user = self.context["request"].user
 
         if user.has_profile:
-            raise serializers.ValidationError("پروفایل شما قبلاً تکمیل شده است.")
+            raise serializers.ValidationError(
+                "پروفایل شما قبلاً تکمیل شده است."
+            )
 
         if attrs["password"] != attrs["password_confirm"]:
-            raise serializers.ValidationError(
-                {"password_confirm": "رمز عبور و تکرار آن یکسان نیستند."}
-            )
+            raise serializers.ValidationError({
+                "password_confirm":
+                    "رمز عبور و تکرار آن یکسان نیستند."
+            })
 
-        if (
-            User.objects.filter(national_code=attrs["national_code"])
-            .exclude(pk=user.pk)
-            .exists()
-        ):
-            raise serializers.ValidationError(
-                {"national_code": "این کد ملی قبلاً ثبت شده است."}
-            )
+        if User.objects.filter(
+            national_code=attrs["national_code"]
+        ).exclude(
+            pk=user.pk
+        ).exists():
+            raise serializers.ValidationError({
+                "national_code":
+                    "این کد ملی قبلاً ثبت شده است."
+            })
 
         return attrs
 
     @transaction.atomic
     def save(self, **kwargs):
         user = self.context["request"].user
-        d = self.validated_data
+        data = self.validated_data
 
-        user.first_name = d["first_name"]
-        user.last_name = d["last_name"]
-        user.national_code = d["national_code"]
-        user.birth_date = d.get("birth_date")
-        if d.get("avatar"):
-            user.avatar = d["avatar"]
-        user.province = d["province"]
-        user.city = d["city"]
-        user.postal_code = d["postal_code"]
-        user.address = d["address"]
-        user.user_type = d["user_type"]
-        user.set_password(d["password"])
+        postal = self.context["postal_address"]
+
+        user.first_name = data["first_name"]
+        user.last_name = data["last_name"]
+        user.national_code = data["national_code"]
+        user.birth_date = data.get("birth_date")
+
+        if data.get("avatar"):
+            user.avatar = data["avatar"]
+
+        user.postal_code = postal["postal_code"]
+        user.province = postal["province"]
+        user.city = postal["city"]
+        user.address = postal["address"]
+
+        user.user_type = data["user_type"]
+        user.set_password(data["password"])
+
         user.role = User.Role.USER
         user.national_code_verified = True
-        user.verification_status = User.VerificationStatus.VERIFIED
+        user.verification_status = (
+            User.VerificationStatus.VERIFIED
+        )
+
         user.save()
 
         return user
 
 
+
 # ==================================================================
 # ورود با رمز
 # ==================================================================
+
 class PasswordLoginSerializer(serializers.Serializer):
-    phone = serializers.CharField(max_length=11, validators=[validate_iranian_mobile])
-    password = serializers.CharField(write_only=True, min_length=6)
+    phone = serializers.CharField(
+        max_length=11,
+        validators=[validate_iranian_mobile],
+    )
+
+    password = serializers.CharField(
+        write_only=True,
+        min_length=6,
+        trim_whitespace=False,
+    )
 
     def validate(self, attrs):
         phone = validate_iranian_mobile(attrs["phone"])
         password = attrs["password"]
 
-        try:
-            user = User.objects.get(phone=phone)
-        except User.DoesNotExist:
-            raise serializers.ValidationError("شماره یا رمز عبور اشتباه است.")
+        user = User.objects.filter(phone=phone).first()
+
+        if user is None:
+            raise serializers.ValidationError(
+                {
+                    "phone": [
+                        serializers.ErrorDetail(
+                            "کاربری با این شماره ثبت‌نام نکرده است.",
+                            code="user_not_registered",
+                        )
+                    ]
+                }
+            )
 
         if not user.check_password(password):
-            raise serializers.ValidationError("شماره یا رمز عبور اشتباه است.")
-
-        if not user.is_active or user.account_status == User.AccountStatus.SUSPENDED:
-            raise serializers.ValidationError("حساب کاربری فعال نیست.")
+            raise serializers.ValidationError(
+                {
+                    "password": [
+                        serializers.ErrorDetail(
+                            "رمز عبور اشتباه است.",
+                            code="invalid_password",
+                        )
+                    ]
+                }
+            )
 
         attrs["user"] = user
         return attrs
+
 
 
 # ==================================================================
@@ -248,3 +311,142 @@ class LoginOtpSerializer(serializers.Serializer):
 
     def validate_phone(self, value):
         return validate_iranian_mobile(value)
+
+
+
+
+# ==================================================================
+# PROFILE UPDATE — PUT
+# ==================================================================
+
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    avatar = serializers.ImageField(
+        required=False,
+        allow_null=True,
+    )
+
+    email = serializers.EmailField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    birth_date = serializers.DateField(
+        required=False,
+        allow_null=True,
+    )
+
+    postal_code = serializers.CharField(
+        required=False,
+        max_length=10,
+    )
+
+    class Meta:
+        model = User
+
+        fields = [
+            "first_name",
+            "last_name",
+            "email",
+            "birth_date",
+            "avatar",
+            "postal_code",
+        ]
+
+        extra_kwargs = {
+            "first_name": {
+                "required": False,
+                "allow_blank": False,
+            },
+            "last_name": {
+                "required": False,
+                "allow_blank": False,
+            },
+        }
+
+    def validate_first_name(self, value):
+        value = value.strip()
+
+        if len(value) < 2:
+            raise serializers.ValidationError(
+                "نام باید حداقل ۲ کاراکتر باشد."
+            )
+
+        return value
+
+    def validate_last_name(self, value):
+        value = value.strip()
+
+        if len(value) < 2:
+            raise serializers.ValidationError(
+                "نام خانوادگی باید حداقل ۲ کاراکتر باشد."
+            )
+
+        return value
+
+    def validate_email(self, value):
+        if not value:
+            return None
+
+        value = value.strip().lower()
+
+        if User.objects.filter(
+            email__iexact=value
+        ).exclude(
+            pk=self.instance.pk
+        ).exists():
+            raise serializers.ValidationError(
+                "این ایمیل قبلاً ثبت شده است."
+            )
+
+        return value
+
+    def validate_postal_code(self, value):
+        try:
+            return normalize_postal_code(value)
+        except JibitError as exc:
+            raise serializers.ValidationError(
+                str(exc)
+            ) from exc
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        postal = self.context.get("postal_address")
+
+        if (
+            "postal_code" in validated_data
+            and postal is None
+        ):
+            raise serializers.ValidationError({
+                "postal_code":
+                    "استعلام کد پستی انجام نشده است."
+            })
+
+        for field, value in validated_data.items():
+            if field != "postal_code":
+                setattr(instance, field, value)
+
+        if postal:
+            instance.postal_code = postal["postal_code"]
+            instance.province = postal["province"]
+            instance.city = postal["city"]
+            instance.address = postal["address"]
+
+        instance.save()
+
+        return instance
+
+
+class PostalLookupSerializer(serializers.Serializer):
+    postal_code = serializers.CharField(
+        max_length=10,
+    )
+
+    def validate_postal_code(self, value):
+        try:
+            return normalize_postal_code(value)
+        except JibitError as exc:
+            raise serializers.ValidationError(
+                str(exc)
+            ) from exc

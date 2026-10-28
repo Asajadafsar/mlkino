@@ -14,8 +14,13 @@ urlpatterns = [
     path("login/otp/", views.LoginWithOtpView.as_view(), name="login-otp"),
     # پروفایل
     path("profile/", views.ProfileView.as_view(), name="profile"),
-
+    path(
+    "postal/lookup/",
+    views.PostalLookupView.as_view(),
+    name="postal-lookup",
+),
     # session
     path("logout/", views.LogoutView.as_view(), name="logout"),
     path("token/refresh/", views.RefreshTokenView.as_view(), name="refresh"),
+    path("activity/event/", views.RecordActivityEventView.as_view(), name="activity-event"),
 ]

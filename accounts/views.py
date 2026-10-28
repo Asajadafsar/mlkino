@@ -8,7 +8,13 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth import logout as django_logout
 from django.db import transaction
 from django.utils import timezone
+from accounts.services.jibit import (
+    JibitError,
+    shahkar_match,
+    postal_lookup,
+)
 
+from accounts.serializers import PostalLookupSerializer
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 
 from rest_framework.parsers import (
@@ -46,6 +52,7 @@ from accounts.serializers import (
     PasswordResetCompleteSerializer,
     PasswordResetSendOtpSerializer,
     PasswordResetVerifyOtpSerializer,
+    ProfileUpdateSerializer,
     SendOtpSerializer,
     UserSerializer,
     VerifyOtpSerializer,
@@ -117,12 +124,15 @@ def _user_is_blocked(user):
     )
 
 
+
 def _issue_login_response(user, message="ورود موفق."):
     tokens = build_tokens_for_user(user)
 
     response = success_response(
         message=message,
         data={
+            "is_logged_in": True,
+            "is_registered": True,
             "next_step": (
                 "dashboard"
                 if user.has_profile
@@ -137,6 +147,7 @@ def _issue_login_response(user, message="ورود موفق."):
         tokens["access"],
         tokens["refresh"],
     )
+
 
 
 def _find_valid_otp(phone, code):
@@ -407,6 +418,7 @@ class VerifyOtpView(APIView):
 # 3. COMPLETE REGISTRATION
 # ============================================================
 
+
 @extend_schema(
     tags=["احراز هویت"],
     summary="تکمیل ثبت‌نام",
@@ -451,11 +463,6 @@ class CompleteRegisterView(APIView):
             )
 
         except JibitError as exc:
-            logger.warning(
-                "Shahkar verification failed: %s",
-                exc,
-            )
-
             return error_response(
                 message=str(exc),
                 errors=[{
@@ -464,6 +471,23 @@ class CompleteRegisterView(APIView):
                 }],
                 status_code=400,
             )
+
+        try:
+            postal_address = postal_lookup(
+                serializer.validated_data["postal_code"]
+            )
+
+        except JibitError as exc:
+            return error_response(
+                message=str(exc),
+                errors=[{
+                    "field": "postal_code",
+                    "message": str(exc),
+                }],
+                status_code=400,
+            )
+
+        serializer.context["postal_address"] = postal_address
 
         new_avatar = serializer.validated_data.get(
             "avatar"
@@ -499,6 +523,7 @@ class CompleteRegisterView(APIView):
         )
 
 
+
 # ============================================================
 # 4. PASSWORD LOGIN
 # ============================================================
@@ -518,26 +543,85 @@ class PasswordLoginView(APIView):
         )
 
         if not serializer.is_valid():
-            return error_response(
-                message="شماره موبایل یا رمز عبور اشتباه است.",
-                errors=_serializer_errors_to_list(
-                    serializer.errors
-                ),
-                status_code=401,
+            errors = _serializer_errors_to_list(
+                serializer.errors
             )
+
+            phone_errors = serializer.errors.get("phone", [])
+            password_errors = serializer.errors.get("password", [])
+
+            is_not_registered = any(
+                getattr(error, "code", None)
+                == "user_not_registered"
+                for error in phone_errors
+            )
+
+            is_invalid_password = any(
+                getattr(error, "code", None)
+                == "invalid_password"
+                for error in password_errors
+            )
+
+            if is_not_registered:
+                message = "این شماره موبایل هنوز ثبت‌نام نکرده است."
+                status_code = 404
+                is_registered = False
+                error_code = "user_not_registered"
+
+            elif is_invalid_password:
+                message = "رمز عبور اشتباه است."
+                status_code = 401
+                is_registered = True
+                error_code = "invalid_password"
+
+            else:
+                message = "اطلاعات ارسالی معتبر نیست."
+                status_code = 400
+                is_registered = None
+                error_code = "validation_error"
+
+            response = error_response(
+                message=message,
+                errors=errors,
+                status_code=status_code,
+            )
+
+            response.data["data"] = {
+                "is_logged_in": False,
+                "is_registered": is_registered,
+                "error_code": error_code,
+                "next_step": (
+                    "register"
+                    if is_not_registered
+                    else None
+                ),
+            }
+
+            return response
 
         user = serializer.validated_data["user"]
 
         if _user_is_blocked(user):
-            return error_response(
-                message="حساب کاربری غیرفعال است.",
+            response = error_response(
+                message="حساب کاربری غیرفعال یا تعلیق شده است.",
                 status_code=403,
             )
+
+            response.data["data"] = {
+                "is_logged_in": False,
+                "is_registered": True,
+                "error_code": "account_blocked",
+                "next_step": None,
+            }
+
+            return response
 
         user.last_login = timezone.now()
         user.save(update_fields=["last_login"])
 
         return _issue_login_response(user)
+
+
 
 
 # ============================================================
@@ -955,16 +1039,24 @@ class RefreshTokenView(APIView):
 # 13. PROFILE
 # ============================================================
 
+# ============================================================
+# 13. PROFILE — GET + PUT
+# ============================================================
+
 @extend_schema(
     tags=["پروفایل"],
-    summary="دریافت اطلاعات کامل پروفایل",
+    summary="دریافت و ویرایش اطلاعات پروفایل",
 )
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        user = request.user
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+        JSONParser,
+    ]
 
+    def _get_profile_data(self, request, user):
         avatar_url = None
 
         if user.avatar:
@@ -972,7 +1064,7 @@ class ProfileView(APIView):
                 user.avatar.url
             )
 
-        data = {
+        return {
             "id": user.id,
             "phone": user.phone,
             "email": user.email,
@@ -987,26 +1079,181 @@ class ProfileView(APIView):
             "postal_code": user.postal_code,
             "address": user.address,
             "user_type": user.user_type,
-            "user_type_display": user.get_user_type_display(),
+            "user_type_display":
+                user.get_user_type_display(),
             "role": user.role,
-            "role_display": user.get_role_display(),
+            "role_display":
+                user.get_role_display(),
             "account_status": user.account_status,
-            "account_status_display": user.get_account_status_display(),
-            "verification_status": user.verification_status,
-            "verification_status_display": user.get_verification_status_display(),
+            "account_status_display":
+                user.get_account_status_display(),
+            "verification_status":
+                user.verification_status,
+            "verification_status_display":
+                user.get_verification_status_display(),
             "phone_verified": user.phone_verified,
-            "national_code_verified": user.national_code_verified,
+            "national_code_verified":
+                user.national_code_verified,
             "is_active": user.is_active,
             "is_staff": user.is_staff,
             "is_superuser": user.is_superuser,
-            
             "admin_level": user.admin_level,
             "has_profile": user.has_profile,
             "last_login": user.last_login,
             "date_joined": user.date_joined,
         }
 
+    @extend_schema(
+        tags=["پروفایل"],
+        summary="دریافت اطلاعات کامل پروفایل",
+        responses={200: UserSerializer},
+    )
+    def get(self, request):
         return success_response(
             message="اطلاعات پروفایل",
-            data=data,
+            data=self._get_profile_data(
+                request,
+                request.user,
+            ),
         )
+
+    @extend_schema(
+        tags=["پروفایل"],
+        summary="ویرایش اطلاعات پروفایل",
+        request=ProfileUpdateSerializer,
+        responses={200: UserSerializer},
+    )
+    def put(self, request):
+        user = request.user
+
+        serializer = ProfileUpdateSerializer(
+            instance=user,
+            data=request.data,
+            context={
+                "request": request,
+            },
+        )
+
+        if not serializer.is_valid():
+            errors = _serializer_errors_to_list(
+                serializer.errors
+            )
+
+            message = (
+                errors[0]["message"]
+                if errors
+                else "اطلاعات ارسالی معتبر نیست."
+            )
+
+            return error_response(
+                message=message,
+                errors=errors,
+                status_code=400,
+            )
+
+        if "postal_code" in serializer.validated_data:
+            try:
+                postal_address = postal_lookup(
+                    serializer.validated_data["postal_code"]
+                )
+
+            except JibitError as exc:
+                return error_response(
+                    message=str(exc),
+                    errors=[{
+                        "field": "postal_code",
+                        "message": str(exc),
+                    }],
+                    status_code=400,
+                )
+
+            serializer.context[
+                "postal_address"
+            ] = postal_address
+
+        user = serializer.save()
+        user.refresh_from_db()
+
+        return success_response(
+            message="اطلاعات پروفایل با موفقیت ویرایش شد.",
+            data=self._get_profile_data(
+                request,
+                user,
+            ),
+        )
+
+
+
+
+@extend_schema(
+    tags=["پروفایل"],
+    summary="استعلام آدرس با کد پستی از جیبیت",
+    parameters=[PostalLookupSerializer],
+)
+class PostalLookupView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = PostalLookupSerializer(
+            data=request.query_params
+        )
+
+        if not serializer.is_valid():
+            errors = _serializer_errors_to_list(
+                serializer.errors
+            )
+
+            return error_response(
+                message=(
+                    errors[0]["message"]
+                    if errors
+                    else "کد پستی نامعتبر است."
+                ),
+                errors=errors,
+                status_code=400,
+            )
+
+        try:
+            result = postal_lookup(
+                serializer.validated_data["postal_code"]
+            )
+
+        except JibitError as exc:
+            return error_response(
+                message=str(exc),
+                errors=[{
+                    "field": "postal_code",
+                    "message": str(exc),
+                }],
+                status_code=400,
+            )
+
+        return success_response(
+            message="آدرس کد پستی دریافت شد.",
+            data=result,
+        )
+
+
+
+
+
+# ============================================================
+# BUSINESS AUDIT EVENTS (SERVER-SIDE, AUTHENTICATED)
+# ============================================================
+class RecordActivityEventView(APIView):
+    permission_classes = [IsAuthenticated]
+    ALLOWED_EVENTS = {"profile.view", "dashboard.open", "property.view", "property.search", "notification.read"}
+
+    def post(self, request):
+        from accounts.models import ActivityLog
+        event = request.data.get("event")
+        if event not in self.ALLOWED_EVENTS:
+            return error_response("رویداد نامعتبر است.", status_code=400)
+        ActivityLog.objects.create(
+            actor=request.user, event=event, category="business",
+            method="EVENT", path=request.path[:500], status_code=200,
+            ip_address=request.META.get("REMOTE_ADDR") or None,
+            user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
+            metadata={},
+        )
+        return success_response("رویداد ثبت شد.", data={"recorded": True})
