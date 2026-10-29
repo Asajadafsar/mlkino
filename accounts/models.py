@@ -602,3 +602,49 @@ class ActivityLog(models.Model):
     class Meta:
         ordering = ["-created_at", "-id"]
         indexes = [models.Index(fields=["category", "created_at"]), models.Index(fields=["actor", "created_at"])]
+
+
+# Role-specific details: do not duplicate fields already present on User.
+class AgencyProfile(models.Model):
+    class Occupancy(models.TextChoices):
+        OWNER = "owner", "مالک"
+        TENANT = "tenant", "مستأجر"
+
+    manager = models.OneToOneField("accounts.User", on_delete=models.CASCADE, related_name="agency_profile")
+    agency_name = models.CharField(max_length=200)
+    occupancy_type = models.CharField(max_length=10, choices=Occupancy.choices)
+    lease_end_date = models.DateField(null=True, blank=True)
+    logo = models.ImageField(upload_to="agencies/logos/", null=True, blank=True)
+    has_business_license = models.BooleanField(default=False)
+    license_number = models.CharField(max_length=100, blank=True)
+    license_image = models.ImageField(upload_to="agencies/licenses/", null=True, blank=True)
+    class MaritalStatus(models.TextChoices):
+        SINGLE = "single", "مجرد"
+        MARRIED = "married", "متأهل"
+    marital_status = models.CharField(max_length=10, choices=MaritalStatus.choices, blank=True)
+    landline = models.CharField(max_length=20, blank=True)
+    office_address = models.TextField()
+    office_verification_status = models.CharField(max_length=20, choices=User.VerificationStatus.choices, default=User.VerificationStatus.NOT_STARTED)
+    latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.agency_name
+
+
+class ExpertProfile(models.Model):
+    user = models.OneToOneField("accounts.User", on_delete=models.CASCADE, related_name="expert_profile")
+    expert_code = models.CharField(max_length=40, unique=True, null=True, blank=True)
+    job_title = models.CharField(max_length=150, blank=True)
+    specialties = models.JSONField(default=list, blank=True)
+    experience_years = models.PositiveSmallIntegerField(default=0)
+    professional_document = models.FileField(upload_to="experts/documents/", null=True, blank=True)
+    job_details = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.user.full_name or self.user.phone

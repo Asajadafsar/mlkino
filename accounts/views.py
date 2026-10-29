@@ -1064,7 +1064,9 @@ class ProfileView(APIView):
                 user.avatar.url
             )
 
+        from panel.serializers import role_profile_data
         return {
+            **role_profile_data(user, {"request": request}),
             "id": user.id,
             "phone": user.phone,
             "email": user.email,

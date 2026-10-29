@@ -136,3 +136,106 @@ class ImpersonationAudit(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+# ============================================================
+# SUPPORT TICKETS
+# ============================================================
+class SupportTicket(models.Model):
+    class Category(models.TextChoices):
+        COMPLAINT = "complaint", "شکایت"
+        TECHNICAL = "technical", "سوالات فنی درمورد ملکینو"
+        OTHER = "other", "متفرقه"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "باز"
+        IN_PROGRESS = "in_progress", "در حال بررسی"
+        WAITING_USER = "waiting_user", "در انتظار پاسخ کاربر"
+        ANSWERED = "answered", "پاسخ داده شده"
+        CLOSED = "closed", "بسته شده"
+
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="support_tickets")
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_support_tickets")
+    category = models.CharField(max_length=20, choices=Category.choices, db_index=True)
+    subject = models.CharField(max_length=200)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-id"]
+        indexes = [models.Index(fields=["creator", "status"])]
+
+    def __str__(self):
+        return f"#{self.pk} - {self.subject}"
+
+
+class SupportTicketMessage(models.Model):
+    ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name="messages")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="support_ticket_messages")
+    body = models.TextField(blank=True)
+    attachment = models.FileField(upload_to="private_tickets/%Y/%m/", null=True, blank=True)
+    is_internal = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        indexes = [models.Index(fields=["ticket", "created_at"])]
+
+
+# Personal reminders and private member messaging
+class PersonalReminder(models.Model):
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="personal_reminders")
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    remind_at = models.DateTimeField(db_index=True)
+    is_done = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        ordering = ["remind_at", "id"]
+        indexes = [models.Index(fields=["owner", "remind_at"])]
+
+class DirectConversation(models.Model):
+    user1 = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="direct_chats_1")
+    user2 = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="direct_chats_2")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user1", "user2"], name="unique_direct_pair"), models.CheckConstraint(condition=~Q(user1=F("user2")), name="different_direct_members")]
+        ordering = ["-updated_at"]
+
+class DirectMessage(models.Model):
+    conversation = models.ForeignKey(DirectConversation, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="sent_direct_messages")
+    body = models.TextField(blank=True)
+    attachment = models.FileField(upload_to="private_chat/%Y/%m/", null=True, blank=True)
+    attachment_kind = models.CharField(max_length=10, choices=[("file","فایل"),("voice","ویس")], default="file")
+    reply_to = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    class Meta:
+        ordering = ["id"]
+        indexes = [models.Index(fields=["conversation", "id"])]
+
+class ChatBlock(models.Model):
+    blocker = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="chat_blocks_made")
+    blocked = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="chat_blocks_received")
+    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["blocker", "blocked"], name="unique_chat_block")]
+
+class ChatReport(models.Model):
+    reporter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="chat_reports_sent")
+    conversation = models.ForeignKey(DirectConversation, on_delete=models.PROTECT, related_name="reports")
+    message = models.ForeignKey(DirectMessage, on_delete=models.SET_NULL, null=True, blank=True)
+    reason = models.CharField(max_length=200)
+    details = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=[("pending","در انتظار بررسی"),("reviewed","بررسی شده"),("dismissed","رد شده")], default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_chat_reports")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+from .settings_models import PanelSettings

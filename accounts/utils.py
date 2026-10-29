@@ -47,6 +47,45 @@ from django.http import JsonResponse
 _audit_logger = logging.getLogger("mlkino.audit")
 
 
+
+
+def get_client_ip(request):
+    """Trust forwarding only from explicitly configured reverse proxies."""
+    import os
+    import ipaddress
+    def parse(value):
+        try:
+            return ipaddress.ip_address(str(value).strip())
+        except (ValueError, TypeError):
+            return None
+    remote = parse(request.META.get("REMOTE_ADDR"))
+    # Some WSGI servers using Unix sockets omit REMOTE_ADDR. Only trust
+    # forwarded headers in that case when explicitly opted in AND the app
+    # is reachable solely through a trusted reverse proxy.
+    if remote is None:
+        if os.environ.get("MLKINO_TRUST_PROXY_HEADERS_WITHOUT_REMOTE") != "1":
+            return None
+        real = parse(request.META.get("HTTP_X_REAL_IP"))
+        return str(real) if real is not None else None
+    networks = []
+    for value in os.environ.get("MLKINO_TRUSTED_PROXIES", "").split(","):
+        try:
+            if value.strip():
+                networks.append(ipaddress.ip_network(value.strip(), strict=False))
+        except ValueError:
+            pass
+    trusted = lambda ip: any(ip in network for network in networks)
+    if not trusted(remote):
+        return str(remote)
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    hops = [parse(part) for part in forwarded.split(",")] if forwarded else []
+    if not hops or any(ip is None for ip in hops):
+        return str(remote)
+    for ip in reversed(hops):
+        if not trusted(ip):
+            return str(ip)
+    return str(hops[0])
+
 class ActivityAuditMiddleware:
     """Logs HTTP requests without recording credentials, request bodies, cookies or query strings."""
     def __init__(self, get_response):
@@ -102,7 +141,7 @@ class ActivityAuditMiddleware:
                 event=event, category=category, method=request.method[:12],
                 path=request.path[:500], status_code=status_code,
                 duration_ms=max(0, int((time.monotonic()-start)*1000)),
-                ip_address=request.META.get("REMOTE_ADDR") or None,
+                ip_address=get_client_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
                 request_id=uuid.uuid4(),
                 metadata={"impersonated": bool(session), "authenticated": actor_id is not None},

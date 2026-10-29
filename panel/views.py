@@ -1,17 +1,22 @@
+import ipaddress
+import logging
+import uuid
+from accounts.models import ActivityLog
 
 from datetime import date
 
 from django.contrib.auth import get_user_model
-from django.db import models, transaction
+from django.db import models, transaction, IntegrityError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from rest_framework import status
+from rest_framework import status, serializers
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 
-from accounts.models import Announcement, AgencyExpert
+from accounts.models import Announcement, AgencyExpert, AgencyProfile, ExpertProfile
 from accounts.permissions import IsSuperAdmin
 from accounts.utils import success_response, error_response
 
@@ -30,10 +35,102 @@ from panel.serializers import (
     TaskUpdateSerializer,
     TaskStatusSerializer,
     AgencyExpertLinkSerializer,
+    AgencyProfileSerializer, ExpertProfileSerializer,
 )
 
 
 User = get_user_model()
+
+# ============================================================
+# ACTIVITY AUDIT HELPERS
+# ============================================================
+"""Human-readable activity labels and explicit business audit events.
+Never store request bodies, passwords, tokens, or personal identification numbers.
+"""
+
+LABELS = {
+    "announcement.create": "ایجاد اطلاعیه", "announcement.update": "ویرایش اطلاعیه", "announcement.delete": "حذف اطلاعیه",
+    "user.create": "ایجاد کاربر", "user.update": "ویرایش کاربر", "user.deactivate": "غیرفعال‌سازی کاربر",
+    "task.create": "ایجاد کار مهم", "task.update": "ویرایش کار مهم", "task.delete": "حذف کار مهم",
+    "task.status_change": "تغییر وضعیت کار", "task.view_list": "مشاهده کارهای مهم امروز",
+    "user.view_list": "مشاهده کاربران", "user.view_detail": "مشاهده جزئیات کاربر",
+    "activity.view_list": "مشاهده گزارش فعالیت‌ها", "activity.view_detail": "مشاهده جزئیات فعالیت",
+    "dashboard.view": "مشاهده پیشخوان", "announcement.view_list": "مشاهده اطلاعیه‌ها",
+    "expert.link": "اتصال کارشناس به دفتر", "expert.unlink": "قطع ارتباط کارشناس",
+    "impersonation.start": "شروع ورود مدیریتی", "impersonation.stop": "پایان ورود مدیریتی",
+    "ticket.create": "ثبت تیکت", "ticket.reply": "پاسخ به تیکت",
+    "ticket.status_change": "تغییر وضعیت تیکت", "ticket.assign": "ارجاع تیکت",
+    "ticket.view_list": "مشاهده تیکت‌ها", "ticket.view_detail": "مشاهده جزئیات تیکت",
+    "http.request": "درخواست سامانه",
+}
+
+
+def _ip(request):
+    from accounts.utils import get_client_ip
+    return get_client_ip(request)
+
+
+def record_activity(request, *, event, target_type="", target_id=None, target_label="", description="", changes=None):
+    """Explicit successful business action. Call only after a successful write."""
+    actor = getattr(request, "user", None)
+    if not actor or not actor.is_authenticated:
+        return None
+    metadata = {"description": description, "target_type": target_type,
+                "target_id": target_id, "target_label": str(target_label or "")[:180]}
+    if changes:
+        metadata["changes"] = changes  # Only pass pre-sanitized, non-sensitive changes.
+    try:
+        return ActivityLog.objects.create(
+            actor=actor, event=event, category="business", method=request.method,
+            path=request.path[:500], status_code=200, ip_address=_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", "")[:500], metadata=metadata,
+            request_id=uuid.uuid4(),
+        )
+    except Exception:
+        logging.getLogger(__name__).exception("Failed to write business activity audit")
+        return None
+
+
+def describe_http_activity(obj):
+    meta = obj.metadata if isinstance(obj.metadata, dict) else {}
+    event = obj.event
+    if event == "http.request":
+        path = obj.path.split("?", 1)[0].rstrip("/") + "/"
+        method = obj.method.upper()
+        if path == "/panel/tasks/" and method == "GET":
+            event = "task.view_list"
+        elif path == "/panel/users/" and method == "GET":
+            event = "user.view_list"
+        elif path == "/panel/activity-logs/" and method == "GET":
+            event = "activity.view_list"
+        elif path == "/panel/dashboard/" and method == "GET":
+            event = "dashboard.view"
+        elif path == "/panel/announcements/" and method == "GET":
+            event = "announcement.view_list"
+        elif path == "/panel/tickets/" and method == "GET":
+            event = "ticket.view_list"
+        elif path.startswith("/panel/tickets/") and method == "GET":
+            event = "ticket.view_detail"
+        elif path.startswith("/panel/users/") and method == "GET":
+            event = "user.view_detail"
+        elif path.startswith("/panel/activity-logs/") and method == "GET":
+            event = "activity.view_detail"
+    title = LABELS.get(event, "فعالیت سامانه")
+    actor_name = getattr(obj.actor, "full_name", "") or "کاربر ناشناس"
+    description = meta.get("description")
+    if not description:
+        if obj.event == "http.request" and event == "http.request":
+            description = f"{actor_name} درخواست {obj.method} به مسیر {obj.path} ارسال کرد."
+        else:
+            description = f"{actor_name}: {title}"
+    label = meta.get("target_label")
+    if label and obj.event != "http.request":
+        description = f"{actor_name}: {title} — {label}"
+    return {"action": event, "action_display": title, "description": description,
+            "target_type": meta.get("target_type"), "target_id": meta.get("target_id"),
+            "changes": meta.get("changes", {})}
+
+
 
 
 # ============================================================
@@ -156,19 +253,103 @@ def _visible_tasks(user):
 
 
 def _task_response_data(task, viewer):
+    task = ImportantTask.objects.select_related("created_by").prefetch_related("assignments__assignee").get(pk=task.pk)
     data = TaskReadSerializer(task).data
-
-    if (
-        not _is_superadmin(viewer)
-        and task.created_by_id != viewer.id
-    ):
+    assignments = list(task.assignments.all())
+    can_manage = _is_superadmin(viewer) or (
+        task.created_by_id == viewer.pk and _can_assign_tasks(viewer)
+    )
+    if not can_manage:
         data["assignments"] = [
-            item
-            for item in data["assignments"]
-            if item["assignee"] == viewer.id
+            item for item in data["assignments"] if item["assignee"] == viewer.pk
         ]
-
+        assignments = [a for a in assignments if a.assignee_id == viewer.pk]
+    statuses = [a.status for a in assignments]
+    if statuses and all(s == TaskAssignment.Status.DONE for s in statuses):
+        overall = TaskAssignment.Status.DONE
+    elif any(s != TaskAssignment.Status.PENDING for s in statuses):
+        overall = TaskAssignment.Status.IN_PROGRESS
+    else:
+        overall = TaskAssignment.Status.PENDING
+    data["status"] = overall
+    data["status_display"] = dict(TaskAssignment.Status.choices).get(overall, overall)
+    data["is_completed"] = bool(statuses) and all(s == TaskAssignment.Status.DONE for s in statuses)
+    data["completed_count"] = sum(s == TaskAssignment.Status.DONE for s in statuses)
+    data["assignments_count"] = len(statuses)
     return data
+
+
+def _task_requested_status(request):
+    """Validate an optional status or boolean is_completed; never silently ignore it."""
+    has_status = "status" in request.data
+    has_bool = "is_completed" in request.data
+    if not (has_status or has_bool):
+        return None, None
+    value = request.data.get("is_completed")
+    if has_bool and type(value) is not bool:
+        if isinstance(value, str) and value.strip().lower() in ("true", "false", "1", "0"):
+            value = value.strip().lower() in ("true", "1")
+        else:
+            return None, error_response(message="وضعیت انتخاب‌شده معتبر نیست.", status_code=400)
+    selected = (TaskAssignment.Status.DONE if value else TaskAssignment.Status.PENDING) if has_bool else None
+    if has_status:
+        serializer = TaskStatusSerializer(data={"status": request.data.get("status")})
+        if not serializer.is_valid():
+            return None, error_response(message="وضعیت انتخاب‌شده معتبر نیست.", status_code=400)
+        if selected is not None and selected != serializer.validated_data["status"]:
+            return None, error_response(message="لطفاً فقط یک وضعیت برای کار انتخاب کنید.", status_code=400)
+        selected = serializer.validated_data["status"]
+    return selected, None
+
+
+def _update_task_assignments(request, task, new_status, *, assignee_id=None, apply_to_all=False):
+    """Only the task's manager can modify others; a recipient modifies their own."""
+    user = request.user
+    can_manage = _is_superadmin(user) or (
+        task.created_by_id == user.pk and _can_assign_tasks(user)
+    )
+    qs = TaskAssignment.objects.select_for_update().filter(task_id=task.pk)
+    if can_manage:
+        if assignee_id is not None:
+            try:
+                assignee_id = int(assignee_id)
+            except (ValueError, TypeError):
+                return error_response(message="کاربر انتخاب‌شده معتبر نیست.", status_code=400)
+            qs = qs.filter(assignee_id=assignee_id)
+        elif not apply_to_all:
+            qs = qs.filter(assignee_id=user.pk)
+            if not qs.exists():
+                qs = TaskAssignment.objects.select_for_update().filter(task_id=task.pk)
+    else:
+        if assignee_id is not None and str(assignee_id) != str(user.pk):
+            return error_response(message="امکان تغییر وضعیت این کار را ندارید.", status_code=403)
+        qs = qs.filter(assignee_id=user.pk)
+    assignments = list(qs)
+    if not assignments:
+        # A legacy task may have been created without any TaskAssignment rows.
+        # Only its creator can explicitly take responsibility for such a task.
+        # Never create an assignment for an unrelated user implicitly.
+        if (can_manage and task.created_by_id == user.pk
+                and assignee_id is None
+                and not TaskAssignment.objects.filter(task_id=task.pk).exists()):
+            assignment, _ = TaskAssignment.objects.get_or_create(
+                task=task, assignee=user,
+                defaults={"status": TaskAssignment.Status.PENDING},
+            )
+            assignments = [assignment]
+        else:
+            return error_response(
+                message="برای این کار هنوز دریافت‌کننده‌ای مشخص نشده است.",
+                status_code=404,
+            )
+    now = timezone.now()
+    for assignment in assignments:
+        assignment.status = new_status
+        assignment.completed_at = now if new_status == TaskAssignment.Status.DONE else None
+        assignment.save(update_fields=["status", "completed_at", "updated_at"])
+    record_activity(request, event="task.status_change", target_type="task",
+                    target_id=task.pk, target_label=task.title, description="وضعیت کار تغییر کرد.")
+    return None
 
 
 # ============================================================
@@ -233,6 +414,8 @@ class AnnouncementListCreateView(APIView):
             updated_by=request.user,
         )
 
+        record_activity(request, event="announcement.create", target_type="announcement", target_id=announcement.pk, target_label=announcement.title, description="اطلاعیه جدید ثبت شد.")
+
         return success_response(
             message="اطلاعیه با موفقیت ایجاد شد.",
             data=AnnouncementDetailSerializer(
@@ -283,6 +466,8 @@ class AnnouncementDetailView(APIView):
             updated_by=request.user,
         )
 
+        record_activity(request, event="announcement.update", target_type="announcement", target_id=announcement.pk, target_label=announcement.title, description="اطلاعیه ویرایش شد.")
+
         return success_response(
             message="اطلاعیه با موفقیت ویرایش شد.",
             data=AnnouncementDetailSerializer(
@@ -298,6 +483,8 @@ class AnnouncementDetailView(APIView):
         )
 
         announcement.delete()
+
+        record_activity(request, event="announcement.delete", target_type="announcement", target_id=announcement.pk, target_label=announcement.title, description="اطلاعیه حذف شد.")
 
         return success_response(
             message="اطلاعیه با موفقیت حذف شد.",
@@ -365,7 +552,83 @@ class PanelUserGroupsView(APIView):
         )
 
 
+class PanelUserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=8, trim_whitespace=False)
+    agency_id = serializers.IntegerField(required=False, min_value=1, write_only=True)
+
+    class Meta:
+        model = User
+        fields = (
+            "phone", "password", "first_name", "last_name", "email",
+            "role", "agency_id", "user_type", "national_code",
+            "birth_date", "province", "city", "postal_code", "address", "avatar",
+        )
+        extra_kwargs = {
+            "role": {"required": True},
+            "phone": {"required": True},
+            "first_name": {"required": True},
+            "last_name": {"required": True},
+        }
+
+    def validate_phone(self, value):
+        if User.objects.filter(phone=value).exists():
+            raise serializers.ValidationError("این شماره موبایل قبلاً ثبت شده است.")
+        return value
+
+    def validate_email(self, value):
+        if not value:
+            return None
+        value = value.strip().lower()
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("این ایمیل قبلاً ثبت شده است.")
+        return value
+
+    def validate(self, attrs):
+        request = self.context["request"]
+        role = attrs.get("role")
+        if role not in (User.Role.AGENCY, User.Role.EXPERT, User.Role.USER):
+            raise serializers.ValidationError({"role": "ایجاد این نقش مجاز نیست."})
+        if _is_agency(request.user):
+            if role != User.Role.EXPERT:
+                raise serializers.ValidationError({"role": "املاکی فقط می‌تواند کارشناس ایجاد کند."})
+            if "agency_id" in attrs and attrs["agency_id"] != request.user.pk:
+                raise serializers.ValidationError({"agency_id": "اجازه افزودن کارشناس به دفتر دیگری را ندارید."})
+            attrs["agency_id"] = request.user.pk
+        elif not _is_superadmin(request.user):
+            raise serializers.ValidationError("دسترسی غیرمجاز.")
+        if role == User.Role.EXPERT:
+            if not attrs.get("agency_id"):
+                raise serializers.ValidationError({"agency_id": "شناسه دفتر املاک برای کارشناس الزامی است."})
+            agency = User.objects.filter(
+                pk=attrs["agency_id"], role=User.Role.AGENCY,
+                is_active=True, account_status=User.AccountStatus.ACTIVE,
+            ).first()
+            if agency is None:
+                raise serializers.ValidationError({"agency_id": "دفتر املاک فعال و معتبر پیدا نشد."})
+        elif "agency_id" in attrs:
+            raise serializers.ValidationError({"agency_id": "این فیلد فقط برای نقش کارشناس قابل استفاده است."})
+        return attrs
+
+
+def _role_profile_payload(request, role, partial=False, instance=None, data_override=None):
+    field_name = "agency_profile" if role == User.Role.AGENCY else "expert_profile"
+    cls = AgencyProfileSerializer if role == User.Role.AGENCY else ExpertProfileSerializer
+    payload = data_override if data_override is not None else request.data
+    data = payload.get(field_name)
+    if data is None:
+        data = {key: payload[key] for key in cls.Meta.fields if key in payload and key not in ("manager_id", "manager_name", "agency_id", "office_verification_status", "agency_name")}
+        # agency_name is writable for agencies, not for experts
+        if role == User.Role.AGENCY and "agency_name" in payload:
+            data["agency_name"] = payload["agency_name"]
+    if not isinstance(data, dict):
+        raise serializers.ValidationError({field_name: "اطلاعات پروفایل باید به صورت آبجکت ارسال شود."})
+    serializer = cls(instance=instance, data=data, partial=partial, context={"request": request})
+    serializer.is_valid(raise_exception=True)
+    return serializer
+
+
 class PanelUserListView(APIView):
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_classes = [
         IsAuthenticated,
         CanManageUsers,
@@ -376,7 +639,7 @@ class PanelUserListView(APIView):
             request.user
         ).order_by("-id")
 
-        group = (request.query_params.get("group") or request.query_params.get("role") or "").strip().lower()
+        group = (request.query_params.get("group") or request.query_params.get("role") or "").strip().strip("/").lower()
         group = {"super_admin": "superadmin", "super-admin": "superadmin", "admin": "superadmin", "agencies": "agency", "agencys": "agency", "agents": "agency", "experts": "expert", "users": "user", "normal": "user", "consumer": "user", "all": ""}.get(group, group)
 
         if group:
@@ -441,7 +704,49 @@ class PanelUserListView(APIView):
         )
 
 
+    @transaction.atomic
+    def post(self, request):
+        serializer = PanelUserCreateSerializer(
+            data=request.data, context={"request": request}
+        )
+        if not serializer.is_valid():
+            return _validation_error(serializer)
+
+        values = dict(serializer.validated_data)
+        role = values["role"]
+        profile_serializer = None
+        if role in (User.Role.AGENCY, User.Role.EXPERT):
+            profile_serializer = _role_profile_payload(request, role)
+        password = values.pop("password")
+        agency_id = values.pop("agency_id", None)
+        values["is_staff"] = False
+        values["is_superuser"] = False
+        values["is_active"] = True
+        values["account_status"] = User.AccountStatus.ACTIVE
+        try:
+            user = User.objects.create_user(password=password, **values)
+            if user.role == User.Role.EXPERT:
+                AgencyExpert.objects.create(agency_id=agency_id, expert=user)
+                profile_serializer.save(user=user)
+            elif user.role == User.Role.AGENCY:
+                profile_serializer.save(manager=user)
+        except IntegrityError:
+            return error_response(
+                message="شماره موبایل، ایمیل یا کد ملی تکراری است یا ارتباط کارشناس قابل ثبت نیست.",
+                status_code=400,
+            )
+
+        record_activity(request, event="user.create", target_type="user", target_id=user.pk, target_label=getattr(user, "full_name", ""), description="کاربر جدید ایجاد شد.")
+
+        return success_response(
+            message="کاربر با موفقیت ایجاد شد.",
+            data=PanelUserDetailSerializer(user, context={"request": request}).data,
+            status_code=201,
+        )
+
+
 class PanelUserDetailView(APIView):
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_classes = [
         IsAuthenticated,
         CanManageUsers,
@@ -461,6 +766,7 @@ class PanelUserDetailView(APIView):
             ).data,
         )
 
+    @transaction.atomic
     def patch(self, request, user_id):
         user = get_object_or_404(
             _managed_users(request.user),
@@ -476,13 +782,39 @@ class PanelUserDetailView(APIView):
                 status_code=403,
             )
 
+        # Normalize legacy frontend alias without modifying DRF request internals.
+        payload = request.data.copy()
+        if "ownership_type" in payload:
+            if user.role != User.Role.AGENCY:
+                return error_response(message="ownership_type فقط برای پروفایل املاکی مجاز است.", status_code=400)
+            alias_value = payload.get("ownership_type")
+            if "occupancy_type" in payload and payload.get("occupancy_type") != alias_value:
+                return error_response(message="مقادیر ownership_type و occupancy_type مغایرت دارند.", status_code=400)
+            if "agency_profile" in payload and isinstance(payload["agency_profile"], dict):
+                nested = dict(payload["agency_profile"])
+                if "occupancy_type" in nested and nested["occupancy_type"] != alias_value:
+                    return error_response(message="مقدار نوع مالکیت در پروفایل مغایرت دارد.", status_code=400)
+                nested["occupancy_type"] = alias_value
+                payload["agency_profile"] = nested
+            else:
+                payload["occupancy_type"] = alias_value
+            payload.pop("ownership_type", None)
+
         # جلوگیری از ارسال فیلدهای خارج از محدوده ویرایش
         allowed_fields = set(
             PanelUserUpdateSerializer.Meta.fields
         )
 
-        submitted_fields = set(request.data.keys())
-        unknown_fields = submitted_fields - allowed_fields
+        submitted_fields = set(payload.keys())
+        role_profile_key = "agency_profile" if user.role == User.Role.AGENCY else "expert_profile" if user.role == User.Role.EXPERT else None
+        extra_fields = {"avatar"}
+        if is_admin:
+            extra_fields.update({"is_staff", "is_superuser"})
+        if role_profile_key:
+            extra_fields.add(role_profile_key)
+            profile_cls = AgencyProfileSerializer if user.role == User.Role.AGENCY else ExpertProfileSerializer
+            extra_fields.update(profile_cls.Meta.fields)
+        unknown_fields = submitted_fields - allowed_fields - extra_fields
 
         if unknown_fields:
             return error_response(
@@ -499,7 +831,7 @@ class PanelUserDetailView(APIView):
             agency_allowed_fields = {
                 "first_name",
                 "last_name",
-                "email",
+                "email", "avatar", "expert_profile", "expert_code", "job_title", "specialties", "experience_years", "professional_document", "job_details",
             }
 
             forbidden_fields = (
@@ -517,7 +849,7 @@ class PanelUserDetailView(APIView):
 
         # جلوگیری از غیرفعال کردن حساب خود
         if user.pk == request.user.pk:
-            if request.data.get("is_active") is False:
+            if payload.get("is_active") is False:
                 return error_response(
                     message=(
                         "نمی‌توانید حساب کاربری "
@@ -527,8 +859,8 @@ class PanelUserDetailView(APIView):
                 )
 
             if (
-                "role" in request.data
-                and request.data["role"] != User.Role.SUPER_ADMIN
+                "role" in payload
+                and payload["role"] != User.Role.SUPER_ADMIN
             ):
                 return error_response(
                     message=(
@@ -538,17 +870,51 @@ class PanelUserDetailView(APIView):
                     status_code=400,
                 )
 
-        # جلوگیری از تغییر نقش سوپریوزر
-        if user.is_superuser and "role" in request.data:
-            if request.data["role"] != User.Role.SUPER_ADMIN:
-                return error_response(
-                    message="نقش سوپریوزر قابل تغییر نیست.",
-                    status_code=403,
-                )
+        profile_serializer = None
+        if role_profile_key and submitted_fields.intersection(extra_fields - {"avatar"}):
+            profile = (AgencyProfile.objects.filter(manager=user).first() if user.role == User.Role.AGENCY else ExpertProfile.objects.filter(user=user).first())
+            profile_serializer = _role_profile_payload(request, user.role, partial=True, instance=profile, data_override=payload)
+        # Explicitly validate all permission flags. Do not silently accept no-op updates.
+        flag_data = {}
+        if is_admin:
+            from rest_framework.fields import BooleanField
+            for key in ("is_staff", "is_superuser"):
+                if key in payload:
+                    try:
+                        flag_data[key] = BooleanField().run_validation(payload[key])
+                    except serializers.ValidationError:
+                        return error_response(message=f"مقدار {key} نامعتبر است.", status_code=400)
 
+            if flag_data and not request.user.is_superuser:
+                return error_response(message="فقط سوپریوزر واقعی اجازه تغییر مجوزهای سیستمی را دارد.", status_code=403)
+
+            desired_superuser = flag_data.get("is_superuser", user.is_superuser)
+            desired_staff = flag_data.get("is_staff", user.is_staff)
+            desired_role = payload.get("role", user.role)
+
+            # Keep the administrator's own login and the platform's root access safe.
+            if user.pk == request.user.pk and (not desired_superuser or not desired_staff or desired_role != User.Role.SUPER_ADMIN):
+                return error_response(message="امکان حذف دسترسی مدیریتی حساب خودتان وجود ندارد. از حساب سوپریوزر دیگری استفاده کنید.", status_code=403)
+            if user.is_superuser and not desired_superuser:
+                remaining = User.objects.filter(is_superuser=True, is_active=True).exclude(pk=user.pk).exists()
+                if not remaining:
+                    return error_response(message="آخرین سوپریوزر فعال سامانه را نمی‌توان تنزل داد.", status_code=403)
+            if desired_superuser and not desired_staff:
+                return error_response(message="سوپریوزر باید is_staff=true داشته باشد.", status_code=400)
+            if desired_superuser and desired_role != User.Role.SUPER_ADMIN:
+                return error_response(message="نقش سوپریوزر باید superadmin باشد.", status_code=400)
+            if desired_role == User.Role.SUPER_ADMIN and not desired_staff:
+                return error_response(message="نقش superadmin نیازمند is_staff=true است.", status_code=400)
+            if user.is_superuser and desired_role != User.Role.SUPER_ADMIN and desired_superuser:
+                return error_response(message="برای تغییر نقش سوپریوزر باید is_superuser=false نیز ارسال شود.", status_code=400)
+        else:
+            if "is_staff" in payload or "is_superuser" in payload:
+                return error_response(message="شما اجازه تغییر دسترسی سیستمی را ندارید.", status_code=403)
+
+        base_data = {key: payload[key] for key in allowed_fields if key in payload}
         serializer = PanelUserUpdateSerializer(
             user,
-            data=request.data,
+            data=base_data,
             partial=True,
             context={"request": request},
         )
@@ -556,9 +922,38 @@ class PanelUserDetailView(APIView):
         if not serializer.is_valid():
             return _validation_error(serializer)
 
+        if profile_serializer is not None and not profile_serializer.is_valid():
+            return _validation_error(profile_serializer)
+        # A role downgrade must also revoke the Django superuser flag explicitly.
+        if "role" in serializer.validated_data and serializer.validated_data["role"] != User.Role.SUPER_ADMIN and user.is_superuser and flag_data.get("is_superuser") is not False:
+            return error_response(message="برای تنزل نقش سوپریوزر، is_superuser=false را هم ارسال کنید.", status_code=400)
         serializer.save()
+        if "role" in serializer.validated_data and "is_staff" not in flag_data:
+            user.is_staff = user.role == User.Role.SUPER_ADMIN
+            user.save(update_fields=["is_staff"])
+        if "account_status" in serializer.validated_data and "is_active" not in serializer.validated_data:
+            user.is_active = user.account_status == User.AccountStatus.ACTIVE
+            user.save(update_fields=["is_active"])
+        if "is_active" in serializer.validated_data and "account_status" not in serializer.validated_data:
+            user.account_status = User.AccountStatus.ACTIVE if user.is_active else User.AccountStatus.INACTIVE
+            user.save(update_fields=["account_status"])
+        if flag_data:
+            for flag, value in flag_data.items():
+                setattr(user, flag, value)
+            user.save(update_fields=list(flag_data))
+        if "avatar" in payload:
+            avatar = serializers.ImageField(allow_null=True).run_validation(payload["avatar"])
+            user.avatar = avatar
+            user.save(update_fields=["avatar"])
+        if profile_serializer:
+            if user.role == User.Role.AGENCY:
+                profile_serializer.save(manager=user)
+            else:
+                profile_serializer.save(user=user)
 
         user.refresh_from_db()
+
+        record_activity(request, event="user.update", target_type="user", target_id=user.pk, target_label=getattr(user, "full_name", ""), description="اطلاعات کاربر ویرایش شد.")
 
         return success_response(
             message="اطلاعات کاربر با موفقیت ویرایش شد.",
@@ -566,6 +961,26 @@ class PanelUserDetailView(APIView):
                 user,
                 context={"request": request},
             ).data,
+        )
+
+
+    @transaction.atomic
+    def delete(self, request, user_id):
+        target = get_object_or_404(_managed_users(request.user), pk=user_id)
+        if target.pk == request.user.pk or target.is_superuser or _is_superadmin(target):
+            return error_response(message="غیرفعال‌سازی حساب مدیریتی یا حساب خودتان مجاز نیست.", status_code=403)
+        if _is_agency(request.user) and target.role != User.Role.EXPERT:
+            return error_response(message="فقط کارشناسان دفتر خودتان قابل مدیریت هستند.", status_code=403)
+        target.is_active = False
+        target.account_status = User.AccountStatus.INACTIVE
+        target.save(update_fields=["is_active", "account_status"])
+        if target.role == User.Role.EXPERT:
+            AgencyExpert.objects.filter(expert=target).update(is_active=False)
+        record_activity(request, event="user.deactivate", target_type="user", target_id=target.pk, target_label=getattr(target, "full_name", ""), description="حساب کاربر غیرفعال شد.")
+
+        return success_response(
+            message="حساب کاربر غیرفعال شد؛ اطلاعات و سوابق حذف نشده‌اند.",
+            data={"id": target.pk, "is_active": False, "account_status": target.account_status},
         )
 
 
@@ -674,6 +1089,7 @@ class AgencyExpertLinkView(APIView):
             )
             created = True
 
+        record_activity(request, event="expert.link", target_type="agency_expert", target_id=link.pk, target_label=str(expert.pk), description="ارتباط کارشناس و دفتر ثبت یا فعال شد.")
         return success_response(
             message="ارتباط کارشناس ثبت شد.",
             data={
@@ -706,6 +1122,7 @@ class AgencyExpertLinkView(APIView):
             ]
         )
 
+        record_activity(request, event="expert.unlink", target_type="agency_expert", target_id=link.pk, target_label=str(link.expert_id), description="عضویت کارشناس در دفتر غیرفعال شد.")
         return success_response(
             message="عضویت کارشناس غیرفعال شد.",
             data={
@@ -843,6 +1260,8 @@ class ImportantTaskListCreateView(APIView):
             "assignments__assignee"
         ).get(pk=task.id)
 
+        record_activity(request, event="task.create", target_type="task", target_id=task.pk, target_label=task.title, description="کار مهم جدید ایجاد شد.")
+
         return success_response(
             message="تسک ایجاد شد.",
             data=_task_response_data(
@@ -870,39 +1289,37 @@ class ImportantTaskDetailView(APIView):
             ),
         )
 
+    @transaction.atomic
     def patch(self, request, task_id):
-        task = get_object_or_404(
-            ImportantTask,
-            pk=task_id,
-        )
-
-        if (
-            task.created_by_id != request.user.id
-            or not _can_assign_tasks(request.user)
-        ):
-            return error_response(
-                message="اجازه ویرایش ندارید.",
-                status_code=403,
-            )
-
-        serializer = TaskUpdateSerializer(
-            task,
-            data=request.data,
-            partial=True,
-        )
-
+        task = get_object_or_404(ImportantTask, pk=task_id)
+        if task.created_by_id != request.user.pk or not _can_assign_tasks(request.user):
+            return error_response(message="اجازه ویرایش ندارید.", status_code=403)
+        new_status, error = _task_requested_status(request)
+        if error is not None:
+            return error
+        allowed = {"title", "description", "due_date", "status", "is_completed", "assignee_id", "apply_to_all"}
+        unknown = set(request.data.keys()) - allowed
+        if unknown:
+            return error_response(message="اطلاعات ارسالی برای ویرایش این کار معتبر نیست.", status_code=400)
+        update_data = {key: request.data[key] for key in ("title", "description", "due_date") if key in request.data}
+        serializer = TaskUpdateSerializer(task, data=update_data, partial=True)
         if not serializer.is_valid():
             return _validation_error(serializer)
-
-        task = serializer.save()
-
-        return success_response(
-            message="تسک ویرایش شد.",
-            data=_task_response_data(
-                task,
-                request.user,
-            ),
-        )
+        if new_status is not None:
+            result = _update_task_assignments(
+                request, task, new_status,
+                assignee_id=request.data.get("assignee_id"),
+                apply_to_all=request.data.get("assignee_id") is None,
+            )
+            if result is not None:
+                return result
+        task = serializer.save() if update_data else task
+        if not update_data and new_status is None:
+            return error_response(message="تغییری برای ذخیره انتخاب نشده است.", status_code=400)
+        if update_data:
+            record_activity(request, event="task.update", target_type="task", target_id=task.pk,
+                            target_label=task.title, description="کار مهم ویرایش شد.")
+        return success_response(message="تسک ویرایش شد.", data=_task_response_data(task, request.user))
 
     def delete(self, request, task_id):
         task = get_object_or_404(
@@ -921,6 +1338,8 @@ class ImportantTaskDetailView(APIView):
 
         task.delete()
 
+        record_activity(request, event="task.delete", target_type="task", target_id=task.pk, target_label=task.title, description="کار مهم حذف شد.")
+
         return success_response(
             message="تسک حذف شد.",
             data={"deleted_id": task_id},
@@ -930,13 +1349,16 @@ class ImportantTaskDetailView(APIView):
 class TaskAssignmentStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def post(self, request, assignment_id):
+        return self.patch(request, assignment_id)
+
     def patch(self, request, assignment_id):
         assignment = get_object_or_404(
             TaskAssignment,
             pk=assignment_id,
         )
 
-        if assignment.assignee_id != request.user.id:
+        if not (assignment.assignee_id == request.user.id or _is_superadmin(request.user) or (assignment.task.created_by_id == request.user.id and _can_assign_tasks(request.user))):
             return error_response(
                 message=(
                     "فقط دریافت‌کننده می‌تواند "
@@ -945,14 +1367,13 @@ class TaskAssignmentStatusView(APIView):
                 status_code=403,
             )
 
-        serializer = TaskStatusSerializer(
-            data=request.data
-        )
-
-        if not serializer.is_valid():
-            return _validation_error(serializer)
-
-        new_status = serializer.validated_data["status"]
+        new_status, error = _task_requested_status(request)
+        if error is not None:
+            return error
+        if new_status is None:
+            new_status = (TaskAssignment.Status.PENDING
+                          if assignment.status == TaskAssignment.Status.DONE
+                          else TaskAssignment.Status.DONE)
 
         assignment.status = new_status
 
@@ -969,6 +1390,8 @@ class TaskAssignmentStatusView(APIView):
                 "updated_at",
             ]
         )
+
+        record_activity(request, event="task.status_change", target_type="task", target_id=assignment.task_id, target_label=assignment.task.title, description="وضعیت کار تغییر کرد.")
 
         return success_response(
             message="وضعیت تسک تغییر کرد.",
@@ -1088,7 +1511,9 @@ class DashboardView(APIView):
                 "is_completed": is_completed,
                 "completed_at": assignment.completed_at,
                 "created_at": task.created_at,
-                "created_by": task.created_by_id,
+                "created_by": task.created_by.full_name or task.created_by.phone,
+                "created_by_id": task.created_by_id,
+                "status_display": assignment.get_status_display(),
             })
 
         return success_response(
@@ -1115,61 +1540,79 @@ class DashboardView(APIView):
 # ============================================================
 
 class DashboardTaskToggleView(APIView):
+    """POST toggles a task when no status is provided; explicit values also work.
+
+    URL identifier is a task ID by default. For a user's own assignment ID,
+    use assignment_id in the request body to avoid collisions.
+    """
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+    def post(self, request, assignment_id):
+        return self._change(request, assignment_id)
 
     def patch(self, request, assignment_id):
-        assignment = get_object_or_404(
-            TaskAssignment.objects.select_related("task"),
-            pk=assignment_id,
-            assignee=request.user,
+        return self._change(request, assignment_id)
+
+    @transaction.atomic
+    def _change(self, request, assignment_id):
+        user = request.user
+        # URL convention: task id. Preserve legacy assignment-id calls only
+        # when no matching visible task exists.
+        task = _visible_tasks(user).filter(pk=assignment_id).first()
+        own_assignment = None
+        if task is None:
+            own_assignment = (TaskAssignment.objects.select_related("task")
+                              .filter(pk=assignment_id, assignee=user).first())
+            if own_assignment:
+                task = own_assignment.task
+        if task is None:
+            return error_response(message="این کار برای شما پیدا نشد.", status_code=404)
+
+        manager = _is_superadmin(user) or (
+            task.created_by_id == user.pk and _can_assign_tasks(user)
         )
+        assignee_id = request.data.get("assignee_id")
+        if assignee_id in ("", None):
+            assignee_id = None
+        elif str(assignee_id).isdigit():
+            assignee_id = int(assignee_id)
+        else:
+            return error_response(message="کاربر انتخاب‌شده معتبر نیست.", status_code=400)
 
-        is_completed = request.data.get("is_completed")
+        if not manager:
+            if assignee_id is not None and assignee_id != user.pk:
+                return error_response(message="امکان تغییر وضعیت این کار را ندارید.", status_code=403)
+            assignee_id = user.pk
 
-        if not isinstance(is_completed, bool):
-            return error_response(
-                message=(
-                    "فیلد is_completed باید "
-                    "از نوع boolean باشد."
-                ),
-                status_code=400,
+        new_status, error = _task_requested_status(request)
+        if error is not None:
+            return error
+        if new_status is None:
+            # A checkbox click with an empty POST body means toggle.
+            # For managers, use the aggregate state of all assignments.
+            qs = TaskAssignment.objects.filter(task_id=task.pk)
+            if not manager or assignee_id is not None:
+                qs = qs.filter(assignee_id=assignee_id)
+            statuses = list(qs.values_list("status", flat=True))
+            all_done = bool(statuses) and all(
+                s == TaskAssignment.Status.DONE for s in statuses
             )
+            new_status = (TaskAssignment.Status.PENDING if all_done
+                          else TaskAssignment.Status.DONE)
 
-        new_status = (
-            TaskAssignment.Status.DONE
-            if is_completed
-            else TaskAssignment.Status.PENDING
+        result = _update_task_assignments(
+            request, task, new_status,
+            assignee_id=assignee_id,
+            apply_to_all=manager and assignee_id is None,
         )
-
-        assignment.status = new_status
-
-        assignment.completed_at = (
-            timezone.now()
-            if is_completed
-            else None
-        )
-
-        assignment.save(
-            update_fields=[
-                "status",
-                "completed_at",
-                "updated_at",
-            ]
-        )
-
+        if result is not None:
+            return result
+        data = _task_response_data(task, user)
         return success_response(
-            message=(
-                "کار با موفقیت تکمیل شد."
-                if is_completed
-                else "کار به وضعیت انجام‌نشده برگشت."
-            ),
-            data={
-                "id": assignment.task_id,
-                "assignment_id": assignment.id,
-                "status": assignment.status,
-                "is_completed": is_completed,
-                "completed_at": assignment.completed_at,
-            },
+            message=("کار با موفقیت انجام شد." if data["is_completed"]
+                     else "وضعیت کار با موفقیت تغییر کرد."),
+            data=data,
         )
 
 
@@ -1253,10 +1696,11 @@ class StartImpersonationView(APIView):
                 actor=request.user, target=target,
                 token_hash=hashlib.sha256(raw.encode()).hexdigest(),
                 expires_at=timezone.now() + timedelta(seconds=IMPERSONATION_MAX_AGE),
-                ip_address=request.META.get("REMOTE_ADDR") or None,
+                ip_address=_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
             )
             _imp_audit(session, "START", request)
+        record_activity(request, event="impersonation.start", target_type="user", target_id=target.pk, description="ورود مدیریتی به حساب کاربر آغاز شد.")
         return _imp_cookie(success_response("ورود مدیریتی آغاز شد.", data={
             "active": True, "session_id": str(session.pk), "actor_id": session.actor_id,
             "target_id": session.target_id, "target_role": target.role,
@@ -1305,6 +1749,7 @@ class StopImpersonationView(APIView):
                     session.revoked_at = timezone.now()
                     session.save(update_fields=["revoked_at"])
                     _imp_audit(session, "STOP", request)
+                    record_activity(request, event="impersonation.stop", target_type="user", target_id=session.target_id, description="ورود مدیریتی پایان یافت.")
         return _imp_cookie(success_response("به پنل مدیریت بازگشتید.", data={"active": False}))
 
 
@@ -1336,7 +1781,11 @@ class ActivityLogListView(APIView):
         if params.get("status_code"):
             qs = qs.filter(status_code=params["status_code"])
         if params.get("search"):
-            qs = qs.filter(models.Q(path__icontains=params["search"]) | models.Q(event__icontains=params["search"]))
+            qs = qs.filter(models.Q(path__icontains=params["search"]) | models.Q(event__icontains=params["search"]) | models.Q(metadata__description__icontains=params["search"]) | models.Q(metadata__target_label__icontains=params["search"]))
+        if params.get("action"):
+            qs = qs.filter(event=params["action"])
+        if params.get("target_type"):
+            qs = qs.filter(metadata__target_type=params["target_type"])
         paginator = UserPagination()
         page = paginator.paginate_queryset(qs, request, view=self)
         from panel.serializers import ActivityLogSerializer
@@ -1358,3 +1807,421 @@ class ActivityLogDetailView(APIView):
         from panel.serializers import ActivityLogSerializer
         obj = get_object_or_404(ActivityLog.objects.select_related("actor", "real_actor"), pk=log_id)
         return success_response("جزئیات فعالیت", data=ActivityLogSerializer(obj).data)
+
+# ============================================================
+# SUPPORT TICKETS (all business logic remains in views.py)
+# ============================================================
+from django.db.models import Count
+from panel.models import SupportTicket, SupportTicketMessage
+from panel.serializers import (TicketSerializer, TicketDetailSerializer, TicketCreateSerializer,
+                               TicketReplySerializer, TicketStatusSerializer, TicketAssignSerializer)
+
+
+def _ticket_admin(request):
+    return _is_superadmin(request.user)
+
+
+def _ticket_queryset(request):
+    qs = SupportTicket.objects.select_related("creator", "assigned_to")
+    if not _ticket_admin(request):
+        qs = qs.filter(creator=request.user)
+    return qs
+
+
+def _ticket_detail(ticket, request):
+    return TicketDetailSerializer(ticket, context={"is_admin": _ticket_admin(request), "request": request}).data
+
+
+def _ticket_audit(request, event, ticket, description):
+    record_activity(request, event=event, target_type="ticket", target_id=ticket.pk,
+                    target_label=ticket.subject, description=description)
+
+
+class TicketListCreateView(APIView):
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = _ticket_queryset(request)
+        if request.query_params.get("status"):
+            val = request.query_params["status"]
+            if val not in SupportTicket.Status.values:
+                return error_response(message="وضعیت نامعتبر است.", status_code=400)
+            qs = qs.filter(status=val)
+        if request.query_params.get("category"):
+            val = request.query_params["category"]
+            if val not in SupportTicket.Category.values:
+                return error_response(message="دسته‌بندی نامعتبر است.", status_code=400)
+            qs = qs.filter(category=val)
+        if request.query_params.get("search"):
+            term = request.query_params["search"].strip()
+            qs = qs.filter(models.Q(subject__icontains=term) | models.Q(messages__body__icontains=term, messages__is_internal=False)).distinct()
+        if request.query_params.get("creator_id") and _ticket_admin(request):
+            try:
+                qs = qs.filter(creator_id=int(request.query_params["creator_id"]))
+            except (TypeError, ValueError):
+                return error_response(message="شناسه کاربر نامعتبر است.", status_code=400)
+        qs = qs.annotate(messages_count=Count("messages", distinct=True))
+        paginator = UserPagination()
+        page = paginator.paginate_queryset(qs.order_by("-updated_at", "-id"), request, view=self)
+        return success_response(message="لیست تیکت‌ها", data={
+            "total_results": paginator.page.paginator.count,
+            "page": paginator.page.number,
+            "page_size": paginator.get_page_size(request),
+            "results": TicketSerializer(page, many=True).data,
+        })
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = TicketCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _validation_error(serializer)
+        data = serializer.validated_data
+        ticket = SupportTicket.objects.create(creator=request.user, category=data["category"], subject=data["subject"])
+        SupportTicketMessage.objects.create(ticket=ticket, author=request.user, body=data["message"], attachment=data.get("attachment"))
+        _ticket_audit(request, "ticket.create", ticket, "تیکت جدید ثبت شد.")
+        return success_response(message="تیکت ثبت شد.", data=_ticket_detail(ticket, request), status_code=201)
+
+
+class TicketDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, ticket_id):
+        ticket = get_object_or_404(_ticket_queryset(request), pk=ticket_id)
+        return success_response(message="جزئیات تیکت", data=_ticket_detail(ticket, request))
+
+
+class TicketReplyView(APIView):
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, ticket_id):
+        ticket = get_object_or_404(_ticket_queryset(request).select_for_update(), pk=ticket_id)
+        serializer = TicketReplySerializer(data=request.data)
+        if not serializer.is_valid():
+            return _validation_error(serializer)
+        admin = _ticket_admin(request)
+        if serializer.validated_data["is_internal"] and not admin:
+            return error_response(message="یادداشت داخلی فقط برای مدیریت مجاز است.", status_code=403)
+        if ticket.status == SupportTicket.Status.CLOSED:
+            return error_response(message="تیکت بسته است؛ ابتدا آن را باز کنید.", status_code=409)
+        msg = SupportTicketMessage.objects.create(ticket=ticket, author=request.user,
+            body=serializer.validated_data["message"], attachment=serializer.validated_data.get("attachment"), is_internal=serializer.validated_data["is_internal"])
+        if not msg.is_internal:
+            ticket.status = SupportTicket.Status.ANSWERED if admin else SupportTicket.Status.OPEN
+        ticket.save(update_fields=["status", "updated_at"])
+        _ticket_audit(request, "ticket.reply", ticket, "یادداشت داخلی ثبت شد." if msg.is_internal else "پاسخ جدید به تیکت ثبت شد.")
+        return success_response(message="پیام ثبت شد.", data=_ticket_detail(ticket, request), status_code=201)
+
+
+class TicketStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def patch(self, request, ticket_id):
+        ticket = get_object_or_404(_ticket_queryset(request).select_for_update(), pk=ticket_id)
+        serializer = TicketStatusSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _validation_error(serializer)
+        new = serializer.validated_data["status"]
+        admin = _ticket_admin(request)
+        if not admin and new not in (SupportTicket.Status.CLOSED, SupportTicket.Status.OPEN):
+            return error_response(message="کاربر فقط می‌تواند تیکت را ببندد یا باز کند.", status_code=403)
+        if not admin and new == SupportTicket.Status.OPEN and ticket.status != SupportTicket.Status.CLOSED:
+            return error_response(message="بازگشایی فقط برای تیکت بسته‌شده مجاز است.", status_code=409)
+        if ticket.status == new:
+            return success_response(message="وضعیت تغییری نکرد.", data=_ticket_detail(ticket, request))
+        previous = ticket.status
+        ticket.status = new
+        ticket.closed_at = timezone.now() if new == SupportTicket.Status.CLOSED else None
+        ticket.save(update_fields=["status", "closed_at", "updated_at"])
+        _ticket_audit(request, "ticket.status_change", ticket, f"وضعیت تیکت از {previous} به {new} تغییر کرد.")
+        return success_response(message="وضعیت تیکت تغییر کرد.", data=_ticket_detail(ticket, request))
+
+
+class TicketAssignView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def patch(self, request, ticket_id):
+        if not _ticket_admin(request):
+            return error_response(message="فقط سوپرادمین می‌تواند تیکت را ارجاع دهد.", status_code=403)
+        ticket = get_object_or_404(SupportTicket.objects.select_for_update(), pk=ticket_id)
+        serializer = TicketAssignSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _validation_error(serializer)
+        assignee_id = serializer.validated_data["assigned_to"]
+        if assignee_id is not None:
+            user = User.objects.filter(pk=assignee_id, is_active=True, role=User.Role.SUPER_ADMIN).first()
+            if not user:
+                return error_response(message="مسئول باید سوپرادمین فعال باشد.", status_code=400)
+        if ticket.assigned_to_id == assignee_id:
+            return success_response(message="مسئول تغییری نکرد.", data=_ticket_detail(ticket, request))
+        ticket.assigned_to_id = assignee_id
+        ticket.save(update_fields=["assigned_to", "updated_at"])
+        _ticket_audit(request, "ticket.assign", ticket, "مسئول رسیدگی به تیکت تغییر کرد.")
+        return success_response(message="تیکت ارجاع داده شد.", data=_ticket_detail(ticket, request))
+
+# ============================================================
+# PERSONAL REMINDERS / DIRECT CHAT (text, voice/file, receipts)
+# ============================================================
+from panel.models import PersonalReminder, DirectConversation, DirectMessage, ChatBlock, ChatReport
+from panel.serializers import ReminderSerializer, ChatMessageSerializer, ChatConversationSerializer, ChatReportSerializer
+from django.db.models import Q
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import FileExtensionValidator
+from django.http import FileResponse, Http404
+
+
+def _chat_qs(user):
+    return DirectConversation.objects.filter(Q(user1=user) | Q(user2=user)).select_related("user1", "user2")
+
+def _chat_access(user, chat_id):
+    return get_object_or_404(_chat_qs(user), pk=chat_id)
+
+def _chat_blocked(a, b):
+    return ChatBlock.objects.filter(Q(blocker=a, blocked=b) | Q(blocker=b, blocked=a)).exists()
+
+def _chat_audit(request, event, target_id):
+    # No message content or attachments in audit metadata.
+    record_activity(request, event=event, target_type="chat", target_id=target_id)
+
+class ReminderListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        qs = PersonalReminder.objects.filter(owner=request.user)
+        if request.query_params.get("is_done") in ("true", "false"):
+            qs = qs.filter(is_done=request.query_params["is_done"] == "true")
+        return success_response("یادآوری‌های من", data={"results": ReminderSerializer(qs[:200], many=True).data, "total_results": qs.count()})
+    def post(self, request):
+        ser = ReminderSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        obj = ser.save(owner=request.user)
+        record_activity(request, event="reminder.create", target_type="reminder", target_id=obj.pk)
+        return success_response("یادآوری ثبت شد", data=ReminderSerializer(obj).data, status_code=201)
+
+class ReminderDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    def _obj(self, request, reminder_id):
+        return get_object_or_404(PersonalReminder, pk=reminder_id, owner=request.user)
+    def get(self, request, reminder_id):
+        return success_response("یادآوری", data=ReminderSerializer(self._obj(request, reminder_id)).data)
+    def patch(self, request, reminder_id):
+        obj = self._obj(request, reminder_id)
+        ser = ReminderSerializer(obj, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        record_activity(request, event="reminder.update", target_type="reminder", target_id=obj.pk)
+        return success_response("ویرایش شد", data=ser.data)
+    def delete(self, request, reminder_id):
+        obj = self._obj(request, reminder_id)
+        pk = obj.pk
+        obj.delete()
+        record_activity(request, event="reminder.delete", target_type="reminder", target_id=pk)
+        return success_response("حذف شد")
+
+class ChatConversationListView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        qs = _chat_qs(request.user)[:100]
+        return success_response("گفتگوها", data=ChatConversationSerializer(qs, many=True, context={"request": request}).data)
+    def post(self, request):
+        try:
+            peer_id = int(request.data.get("user_id"))
+        except (TypeError, ValueError):
+            return error_response("شناسه کاربر نامعتبر است", status_code=400)
+        if peer_id == request.user.pk:
+            return error_response("گفتگو با خودتان مجاز نیست", status_code=400)
+        peer = get_object_or_404(User, pk=peer_id, is_active=True)
+        if _chat_blocked(request.user, peer):
+            return error_response("امکان گفتگو وجود ندارد", status_code=403)
+        a, b = sorted((request.user.pk, peer_id))
+        chat, created = DirectConversation.objects.get_or_create(user1_id=a, user2_id=b)
+        if created:
+            _chat_audit(request, "chat.create", chat.pk)
+        return success_response("گفتگو", data=ChatConversationSerializer(chat, context={"request": request}).data, status_code=201 if created else 200)
+
+class ChatConversationDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, chat_id):
+        obj = _chat_access(request.user, chat_id)
+        return success_response("گفتگو", data=ChatConversationSerializer(obj, context={"request": request}).data)
+
+class ChatMessagesView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    def get(self, request, chat_id):
+        chat = _chat_access(request.user, chat_id)
+        try:
+            before = int(request.query_params.get("before", "0"))
+        except ValueError:
+            return error_response("before نامعتبر است")
+        qs = chat.messages.select_related("sender").order_by("-id")
+        if before > 0:
+            qs = qs.filter(pk__lt=before)
+        rows = list(qs[:50])
+        return success_response("پیام‌ها", data={"results": ChatMessageSerializer(rows, many=True, context={"request": request}).data, "has_more": len(rows) == 50})
+    def post(self, request, chat_id):
+        chat = _chat_access(request.user, chat_id)
+        peer = chat.user2 if chat.user1_id == request.user.pk else chat.user1
+        if _chat_blocked(request.user, peer):
+            return error_response("گفتگو مسدود شده است", status_code=403)
+        body = str(request.data.get("body", "")).strip()
+        upload = request.FILES.get("attachment")
+        if not body and not upload:
+            return error_response("متن یا فایل لازم است", status_code=400)
+        if len(body) > 10000:
+            return error_response("متن بیش از حد طولانی است")
+        kind = request.data.get("attachment_kind", "file")
+        if kind not in ("file", "voice"):
+            return error_response("نوع پیوست نامعتبر است")
+        if upload:
+            if upload.size > 10 * 1024 * 1024:
+                return error_response("حداکثر حجم فایل ۱۰ مگابایت است")
+            import os
+            ext = os.path.splitext(upload.name)[1].lower()
+            allowed = {".jpg", ".jpeg", ".png", ".webp", ".pdf", ".docx", ".xlsx", ".zip", ".mp3", ".ogg", ".wav", ".m4a", ".webm"}
+            if ext not in allowed or (kind == "voice" and ext not in {".mp3", ".ogg", ".wav", ".m4a", ".webm"}):
+                return error_response("فرمت پیوست مجاز نیست")
+            import uuid as _uuid
+            upload.name = str(_uuid.uuid4()) + ext
+        reply_id = request.data.get("reply_to")
+        reply = None
+        if reply_id:
+            reply = get_object_or_404(DirectMessage, pk=reply_id, conversation=chat)
+        obj = DirectMessage.objects.create(conversation=chat, sender=request.user, body=body, attachment=upload, attachment_kind=kind, reply_to=reply)
+        chat.save(update_fields=["updated_at"])
+        _chat_audit(request, "chat.message.send", chat.pk)
+        return success_response("پیام ارسال شد", data=ChatMessageSerializer(obj, context={"request": request}).data, status_code=201)
+
+class ChatReadView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, chat_id):
+        chat = _chat_access(request.user, chat_id)
+        try:
+            last_id = int(request.data.get("last_message_id"))
+        except (TypeError, ValueError):
+            return error_response("last_message_id لازم است")
+        count = chat.messages.filter(pk__lte=last_id, read_at__isnull=True).exclude(sender=request.user).update(read_at=timezone.now())
+        if count:
+            _chat_audit(request, "chat.read", chat.pk)
+        return success_response("وضعیت خواندن ثبت شد", data={"updated": count})
+
+class ChatDeleteMessageView(APIView):
+    permission_classes = [IsAuthenticated]
+    def delete(self, request, chat_id, message_id):
+        chat = _chat_access(request.user, chat_id)
+        obj = get_object_or_404(DirectMessage, pk=message_id, conversation=chat, sender=request.user)
+        obj.body = ""
+        obj.deleted_at = timezone.now()
+        obj.save(update_fields=["body", "deleted_at"])
+        _chat_audit(request, "chat.message.delete", chat.pk)
+        return success_response("پیام حذف شد")
+
+class ChatBlockView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, user_id):
+        if request.user.pk == user_id:
+            return error_response("نمی‌توانید خودتان را مسدود کنید")
+        target = get_object_or_404(User, pk=user_id)
+        ChatBlock.objects.get_or_create(blocker=request.user, blocked=target)
+        record_activity(request, event="chat.block", target_type="user", target_id=user_id)
+        return success_response("کاربر مسدود شد")
+    def delete(self, request, user_id):
+        ChatBlock.objects.filter(blocker=request.user, blocked_id=user_id).delete()
+        record_activity(request, event="chat.unblock", target_type="user", target_id=user_id)
+        return success_response("مسدودسازی لغو شد")
+
+class ChatReportView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, chat_id):
+        chat = _chat_access(request.user, chat_id)
+        reason = str(request.data.get("reason", "")).strip()
+        if not 3 <= len(reason) <= 200:
+            return error_response("دلیل گزارش باید بین ۳ تا ۲۰۰ کاراکتر باشد")
+        mid = request.data.get("message")
+        msg = get_object_or_404(DirectMessage, conversation=chat, pk=mid) if mid else None
+        report = ChatReport.objects.create(reporter=request.user, conversation=chat, message=msg, reason=reason, details=str(request.data.get("details", ""))[:3000])
+        record_activity(request, event="chat.report", target_type="chat_report", target_id=report.pk)
+        return success_response("گزارش ثبت شد", data={"id": report.pk}, status_code=201)
+
+class AdminChatReportsView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    def get(self, request):
+        qs = ChatReport.objects.all().order_by("-id")[:100]
+        return success_response("گزارش‌های گفتگو", data=ChatReportSerializer(qs, many=True).data)
+    def patch(self, request):
+        obj = get_object_or_404(ChatReport, pk=request.data.get("id"))
+        state = request.data.get("status")
+        if state not in ("pending", "reviewed", "dismissed"):
+            return error_response("وضعیت نامعتبر است")
+        obj.status = state
+        obj.reviewed_by = request.user
+        obj.reviewed_at = timezone.now()
+        obj.save(update_fields=["status", "reviewed_by", "reviewed_at"])
+        record_activity(request, event="chat.report.review", target_type="chat_report", target_id=obj.pk)
+        return success_response("گزارش بررسی شد")
+
+class ChatAttachmentDownloadView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, chat_id, message_id):
+        chat = _chat_access(request.user, chat_id)
+        msg = get_object_or_404(DirectMessage, conversation=chat, pk=message_id, deleted_at__isnull=True)
+        if not msg.attachment:
+            raise Http404
+        import os
+        response = FileResponse(msg.attachment.open("rb"), as_attachment=True, filename=os.path.basename(msg.attachment.name))
+        response["Cache-Control"] = "private, no-store"
+        _chat_audit(request, "chat.attachment.download", chat.pk)
+        return response
+
+
+class PanelUserPermanentDeleteView(APIView):
+    """Explicit hard delete; never silently cascade through protected history."""
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def delete(self, request, user_id):
+        from django.db.models.deletion import ProtectedError, RestrictedError
+        target = get_object_or_404(User, pk=user_id)
+        if target.pk == request.user.pk or target.is_superuser or _is_superadmin(target):
+            return error_response(message="حذف حساب خود یا حساب مدیریتی مجاز نیست.", status_code=403)
+        # Fail closed if deletion would remove related business data through CASCADE.
+        from django.db.models.deletion import Collector
+        collector = Collector(using=target._state.db or "default")
+        try:
+            collector.collect([target])
+        except (ProtectedError, RestrictedError):
+            return error_response(message="این کاربر سوابق محافظت‌شده دارد و حذف دائمی ممکن نیست؛ از غیرفعال‌سازی استفاده کنید.", status_code=409)
+        if any(model is not User for model in collector.data) or collector.fast_deletes:
+            return error_response(message="حذف دائمی این کاربر باعث حذف داده‌های مرتبط می‌شود و مجاز نیست.", status_code=409)
+        pk = target.pk
+        try:
+            with transaction.atomic():
+                target.delete()
+        except IntegrityError:
+            return error_response(message="حذف به علت ارتباطات دیتابیس امکان‌پذیر نیست.", status_code=409)
+        record_activity(request, event="user.permanent_delete", target_type="user", target_id=pk, description="کاربر بدون سوابق مرتبط به صورت دائمی حذف شد.")
+        return success_response(message="کاربر به صورت دائمی حذف شد.", data={"id": pk, "deleted": True})
+
+
+class TicketAttachmentDownloadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, ticket_id, message_id):
+        from django.http import FileResponse, Http404
+        from pathlib import Path
+        ticket = get_object_or_404(_ticket_queryset(request), pk=ticket_id)
+        msg = get_object_or_404(SupportTicketMessage, ticket=ticket, pk=message_id)
+        if msg.is_internal and not _ticket_admin(request):
+            raise Http404
+        if not msg.attachment:
+            raise Http404
+        try:
+            stream = msg.attachment.open("rb")
+        except (FileNotFoundError, OSError, ValueError):
+            raise Http404
+        response = FileResponse(stream, as_attachment=True, filename=Path(msg.attachment.name).name)
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response

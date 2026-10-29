@@ -1,10 +1,12 @@
 
 from django.urls import path
 from panel import views
+from .settings_api import PanelSettingsView
 
 app_name = "panel"
 
 urlpatterns = [
+    path("settings/", PanelSettingsView.as_view(), name="panel-settings"),
     # اطلاعیه‌ها
     path(
         "announcements/",
@@ -82,6 +84,14 @@ path(
     path("impersonation/status/", views.ImpersonationStatusView.as_view(), name="impersonation-status"),
     path("impersonation/exit/", views.StopImpersonationView.as_view(), name="impersonation-exit"),
     path("impersonation/csrf/", views.ImpersonationCsrfView, name="impersonation-csrf"),
+    # یادآوری‌های شخصی کاربر
+    path("reminders/", views.ReminderListCreateView.as_view(), name="reminder-list-create"),
+    path("reminders/<int:reminder_id>/", views.ReminderDetailView.as_view(), name="reminder-detail"),
+    path("tickets/", views.TicketListCreateView.as_view(), name="ticket-list-create"),
+    path("tickets/<int:ticket_id>/", views.TicketDetailView.as_view(), name="ticket-detail"),
+    path("tickets/<int:ticket_id>/replies/", views.TicketReplyView.as_view(), name="ticket-reply"),
+    path("tickets/<int:ticket_id>/status/", views.TicketStatusView.as_view(), name="ticket-status"),
+    path("tickets/<int:ticket_id>/assign/", views.TicketAssignView.as_view(), name="ticket-assign"),
     path("activity-logs/", views.ActivityLogListView.as_view(), name="activity-log-list"),
     path("activity-logs/<int:log_id>/", views.ActivityLogDetailView.as_view(), name="activity-log-detail"),
 ]

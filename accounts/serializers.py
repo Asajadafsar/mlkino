@@ -23,6 +23,16 @@ def build_tokens_for_user(user) -> dict:
 # User — خواندن
 # ==================================================================
 class UserSerializer(serializers.ModelSerializer):
+    agency_profile = serializers.SerializerMethodField()
+    expert_profile = serializers.SerializerMethodField()
+
+    def get_agency_profile(self, obj):
+        from panel.serializers import role_profile_data
+        return role_profile_data(obj, self.context).get("agency_profile")
+
+    def get_expert_profile(self, obj):
+        from panel.serializers import role_profile_data
+        return role_profile_data(obj, self.context).get("expert_profile")
     role_display = serializers.CharField(source="get_role_display", read_only=True)
     account_status_display = serializers.CharField(
         source="get_account_status_display", read_only=True
@@ -39,6 +49,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
+            "agency_profile", "expert_profile",
             "id", "phone", "email", "first_name", "last_name", "full_name",
             "national_code", "birth_date", "avatar",
             "province", "city", "postal_code", "address",

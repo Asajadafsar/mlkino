@@ -1,0 +1,17 @@
+# Merge into mlkino/settings.py; install channels, channels-redis, django-cors-headers, uvicorn
+# Add channels and corsheaders to INSTALLED_APPS (keep existing entries)
+ASGI_APPLICATION = 'mlkino.asgi.application'
+CHANNEL_LAYERS = {
+  'default': {
+    'BACKEND': 'channels_redis.core.RedisChannelLayer',
+    'CONFIG': {'hosts': [('127.0.0.1', 6379)]},
+  }
+}
+# Do not use '*' for credentialed CORS.
+CORS_ALLOWED_ORIGINS = list(set(globals().get('CORS_ALLOWED_ORIGINS', [])) | {'http://localhost:3000'})
+CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = list(set(globals().get('CSRF_TRUSTED_ORIGINS', [])) | {'http://localhost:3000'})
+MLKINO_WS_ALLOWED_ORIGINS = ['http://localhost:3000'] # add your production frontend origin(s)
+# corsheaders middleware should be near top, before CommonMiddleware
+# corsheaders.defaults.default_headers already includes x-csrftoken
+# CSRF_COOKIE_HTTPONLY can stay True. HTTPS + SameSite=None for cross-site cookies.
