@@ -94,7 +94,7 @@ def validate_value(group, key, value):
         return "لینک واردشده معتبر نیست."
     return None
 
-def convert_image(value, group, key):
+def convert_image(value, group, key, public_base=""):
     if not value.startswith("data:"):
         return value, None
     match = DATA_RE.fullmatch(value)
@@ -130,7 +130,7 @@ def convert_image(value, group, key):
     try:
         url = default_storage.url(saved)
         if url.startswith("/"):
-            request_base = getattr(settings, "PANEL_SETTINGS_PUBLIC_BASE_URL", "")
+            request_base = getattr(settings, "PANEL_SETTINGS_PUBLIC_BASE_URL", "") or public_base
             if not request_base:
                 raise ValueError("آدرس عمومی فایل‌ها روی سرور تنظیم نشده است.")
             url = request_base.rstrip("/") + url
@@ -192,7 +192,7 @@ class PanelSettingsView(APIView):
             for group, changes in incoming.items():
                 for key, value in changes.items():
                     if (group, key) in IMAGE_KEYS and value.startswith("data:"):
-                        value, saved = convert_image(value, group, key)
+                        value, saved = convert_image(value, group, key, request.build_absolute_uri("/").rstrip("/"))
                         if saved:
                             created_files.append(saved)
                     updated[group][key] = value
@@ -208,4 +208,6 @@ class PanelSettingsView(APIView):
             for name in created_files:
                 default_storage.delete(name)
             raise
+        from django.core.cache import cache
+        cache.delete('mlkino:system-settings')
         return envelope(updated, "تنظیمات با موفقیت ذخیره شد.")

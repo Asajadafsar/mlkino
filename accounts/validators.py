@@ -31,7 +31,9 @@ def validate_iranian_mobile(value: str) -> str:
     if not value:
         raise ValidationError("شماره موبایل الزامی است.")
 
-    value = str(value).strip()
+    value = str(value).strip().translate(str.maketrans(
+        "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789"
+    ))
     value = value.replace(" ", "").replace("-", "")
 
     # تبدیل +98 به 0

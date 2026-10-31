@@ -81,7 +81,10 @@ def record_activity(request, *, event, target_type="", target_id=None, target_la
         metadata["changes"] = changes  # Only pass pre-sanitized, non-sensitive changes.
     try:
         return ActivityLog.objects.create(
-            actor=actor, event=event, category="business", method=request.method,
+            actor=actor,
+            real_actor=getattr(getattr(request._request, 'impersonation_session', None), 'actor', actor),
+            impersonation_session=getattr(request._request, 'impersonation_session', None),
+            event=event, category="business", method=request.method,
             path=request.path[:500], status_code=200, ip_address=_ip(request),
             user_agent=request.META.get("HTTP_USER_AGENT", "")[:500], metadata=metadata,
             request_id=uuid.uuid4(),
@@ -216,18 +219,9 @@ def _managed_users(user):
 
 def _eligible_task_recipients(user):
     if _is_superadmin(user):
-        return User.objects.filter(
-            role=User.Role.AGENCY,
-            is_active=True,
-            account_status=User.AccountStatus.ACTIVE,
-        )
-
+        return User.objects.filter(models.Q(role=User.Role.AGENCY) | models.Q(pk=user.pk), is_active=True, account_status=User.AccountStatus.ACTIVE)
     if _is_agency(user):
-        return _agency_experts_queryset(user).filter(
-            is_active=True,
-            account_status=User.AccountStatus.ACTIVE,
-        )
-
+        return User.objects.filter(models.Q(pk__in=_agency_experts_queryset(user).values('pk')) | models.Q(pk=user.pk), is_active=True, account_status=User.AccountStatus.ACTIVE)
     return User.objects.none()
 
 
@@ -252,8 +246,9 @@ def _visible_tasks(user):
     ).distinct()
 
 
-def _task_response_data(task, viewer):
-    task = ImportantTask.objects.select_related("created_by").prefetch_related("assignments__assignee").get(pk=task.pk)
+def _task_response_data(task, viewer, *, refresh=True):
+    if refresh:
+        task = ImportantTask.objects.select_related("created_by").prefetch_related("assignments__assignee").get(pk=task.pk)
     data = TaskReadSerializer(task).data
     assignments = list(task.assignments.all())
     can_manage = _is_superadmin(viewer) or (
@@ -386,19 +381,21 @@ class AnnouncementListCreateView(APIView):
             .order_by("-created_at")
         )
 
-        serializer = AnnouncementListSerializer(
-            queryset,
-            many=True,
-            context={"request": request},
-        )
-
-        return success_response(
-            message="لیست اطلاعیه‌ها",
-            data={
-                "total_results": len(serializer.data),
-                "results": serializer.data,
-            },
-        )
+        search = request.query_params.get('search', '').strip()
+        if search:
+            queryset = queryset.filter(models.Q(title__icontains=search) | models.Q(description__icontains=search))
+        state = request.query_params.get('status', '')
+        if state:
+            if state not in Announcement.Status.values:
+                return error_response('وضعیت نامعتبر است.', status_code=400)
+            queryset = queryset.filter(status=state)
+        paginator = UserPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serializer = AnnouncementListSerializer(page, many=True, context={'request': request})
+        return success_response('لیست اطلاعیه‌ها', data={
+            'total_results': paginator.page.paginator.count, 'page': paginator.page.number,
+            'page_size': paginator.get_page_size(request), 'results': serializer.data,
+        })
 
     def post(self, request):
         serializer = AnnouncementCreateSerializer(
@@ -484,7 +481,7 @@ class AnnouncementDetailView(APIView):
 
         announcement.delete()
 
-        record_activity(request, event="announcement.delete", target_type="announcement", target_id=announcement.pk, target_label=announcement.title, description="اطلاعیه حذف شد.")
+        record_activity(request, event="announcement.delete", target_type="announcement", target_id=announcement_id, target_label=announcement.title, description="اطلاعیه حذف شد.")
 
         return success_response(
             message="اطلاعیه با موفقیت حذف شد.",
@@ -562,6 +559,7 @@ class PanelUserCreateSerializer(serializers.ModelSerializer):
             "phone", "password", "first_name", "last_name", "email",
             "role", "agency_id", "user_type", "national_code",
             "birth_date", "province", "city", "postal_code", "address", "avatar",
+            "admin_level", "is_staff", "is_superuser",
         )
         extra_kwargs = {
             "role": {"required": True},
@@ -586,7 +584,7 @@ class PanelUserCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         request = self.context["request"]
         role = attrs.get("role")
-        if role not in (User.Role.AGENCY, User.Role.EXPERT, User.Role.USER):
+        if role not in (User.Role.SUPER_ADMIN, User.Role.AGENCY, User.Role.EXPERT, User.Role.USER):
             raise serializers.ValidationError({"role": "ایجاد این نقش مجاز نیست."})
         if _is_agency(request.user):
             if role != User.Role.EXPERT:
@@ -596,6 +594,10 @@ class PanelUserCreateSerializer(serializers.ModelSerializer):
             attrs["agency_id"] = request.user.pk
         elif not _is_superadmin(request.user):
             raise serializers.ValidationError("دسترسی غیرمجاز.")
+        if attrs.get('is_superuser') and not request.user.is_superuser:
+            raise serializers.ValidationError({'is_superuser': 'فقط سوپریوزر اجازه اعطای این دسترسی را دارد.'})
+        if role != User.Role.SUPER_ADMIN and (attrs.get('is_staff') or attrs.get('is_superuser')):
+            raise serializers.ValidationError({'role': 'دسترسی مدیریتی برای این نقش مجاز نیست.'})
         if role == User.Role.EXPERT:
             if not attrs.get("agency_id"):
                 raise serializers.ValidationError({"agency_id": "شناسه دفتر املاک برای کارشناس الزامی است."})
@@ -620,6 +622,8 @@ def _role_profile_payload(request, role, partial=False, instance=None, data_over
         # agency_name is writable for agencies, not for experts
         if role == User.Role.AGENCY and "agency_name" in payload:
             data["agency_name"] = payload["agency_name"]
+        if role == User.Role.AGENCY and _is_superadmin(request.user) and 'office_verification_status' in payload:
+            data['office_verification_status'] = payload['office_verification_status']
     if not isinstance(data, dict):
         raise serializers.ValidationError({field_name: "اطلاعات پروفایل باید به صورت آبجکت ارسال شود."})
     serializer = cls(instance=instance, data=data, partial=partial, context={"request": request})
@@ -719,8 +723,8 @@ class PanelUserListView(APIView):
             profile_serializer = _role_profile_payload(request, role)
         password = values.pop("password")
         agency_id = values.pop("agency_id", None)
-        values["is_staff"] = False
-        values["is_superuser"] = False
+        values["is_staff"] = role == User.Role.SUPER_ADMIN
+        values["is_superuser"] = bool(values.get('is_superuser', False)) if role == User.Role.SUPER_ADMIN else False
         values["is_active"] = True
         values["account_status"] = User.AccountStatus.ACTIVE
         try:
@@ -831,7 +835,7 @@ class PanelUserDetailView(APIView):
             agency_allowed_fields = {
                 "first_name",
                 "last_name",
-                "email", "avatar", "expert_profile", "expert_code", "job_title", "specialties", "experience_years", "professional_document", "job_details",
+                "email", "phone", "birth_date", "province", "city", "postal_code", "address", "user_type", "account_status", "is_active", "avatar", "expert_profile", "expert_code", "job_title", "specialties", "experience_years", "professional_document", "job_details", "bio",
             }
 
             forbidden_fields = (
@@ -951,6 +955,8 @@ class PanelUserDetailView(APIView):
             else:
                 profile_serializer.save(user=user)
 
+        user.profile_updated_at = timezone.now()
+        user.save(update_fields=['profile_updated_at'])
         user.refresh_from_db()
 
         record_activity(request, event="user.update", target_type="user", target_id=user.pk, target_label=getattr(user, "full_name", ""), description="اطلاعات کاربر ویرایش شد.")
@@ -1141,58 +1147,35 @@ class ImportantTaskListCreateView(APIView):
 
     def get(self, request):
         queryset = _visible_tasks(request.user)
-
-        date_str = request.query_params.get("date")
-
+        params = request.query_params
+        date_str = params.get('date')
+        period = params.get('period', 'all')
+        if period not in ('all', 'today', 'overdue', 'upcoming'):
+            return error_response('بازه زمانی معتبر نیست.', status_code=400)
         if date_str:
-            try:
-                day = date.fromisoformat(date_str)
-            except ValueError:
-                return error_response(
-                    message="فرمت تاریخ نامعتبر است.",
-                    status_code=400,
-                )
-        else:
-            day = timezone.localdate()
-
-        queryset = queryset.filter(
-            due_date=day
-        )
-
-        scope = request.query_params.get(
-            "scope", "all"
-        )
-
-        if scope == "received":
-            queryset = queryset.filter(
-                assignments__assignee=request.user
-            )
-
-        elif scope == "created":
-            queryset = queryset.filter(
-                created_by=request.user
-            )
-
-        elif scope != "all":
-            return error_response(
-                message="مقدار scope نامعتبر است.",
-                status_code=400,
-            )
-
-        queryset = queryset.distinct()
-
-        results = [
-            _task_response_data(task, request.user)
-            for task in queryset
-        ]
-
-        return success_response(
-            message="کارهای مهم امروز",
-            data={
-                "total_results": len(results),
-                "results": results,
-            },
-        )
+            try: selected_day = date.fromisoformat(date_str)
+            except (ValueError, TypeError): return error_response('تاریخ باید به صورت YYYY-MM-DD باشد.', status_code=400)
+            queryset = queryset.filter(due_date=selected_day)
+        elif period == 'today': queryset = queryset.filter(due_date=timezone.localdate())
+        elif period == 'overdue': queryset = queryset.filter(due_date__lt=timezone.localdate())
+        elif period == 'upcoming': queryset = queryset.filter(due_date__gt=timezone.localdate())
+        scope = params.get('scope', 'all')
+        if scope == 'received': queryset = queryset.filter(assignments__assignee=request.user)
+        elif scope == 'created': queryset = queryset.filter(created_by=request.user)
+        elif scope != 'all': return error_response('مقدار scope معتبر نیست.', status_code=400)
+        term = params.get('search', '').strip()[:200]
+        if term: queryset = queryset.filter(models.Q(title__icontains=term) | models.Q(description__icontains=term))
+        rows = [_task_response_data(task, request.user, refresh=False) for task in queryset.distinct().order_by('due_date', '-id')]
+        state = params.get('status')
+        if state:
+            if state not in TaskAssignment.Status.values: return error_response('وضعیت معتبر نیست.', status_code=400)
+            rows = [row for row in rows if row['status'] == state]
+        stats = {'total': len(rows), 'pending': sum(row['status']=='pending' for row in rows), 'in_progress':sum(row['status']=='in_progress' for row in rows), 'done':sum(row['status']=='done' for row in rows)}
+        if 'page' in params or 'page_size' in params:
+            paginator=UserPagination(); page=paginator.paginate_queryset(rows,request,view=self)
+            results=page
+        else: results=rows
+        return success_response('فهرست کارها', data={'total_results':len(rows),'results':results,'stats':stats,'today':timezone.localdate().isoformat()})
 
     @transaction.atomic
     def post(self, request):
@@ -1248,13 +1231,10 @@ class ImportantTaskListCreateView(APIView):
             created_by=request.user,
         )
 
-        TaskAssignment.objects.bulk_create([
-            TaskAssignment(
-                task=task,
-                assignee=user,
-            )
-            for user in users
-        ])
+        TaskAssignment.objects.bulk_create([TaskAssignment(task=task,assignee=user) for user in users])
+        from accounts.notices import notify
+        for recipient in users:
+            transaction.on_commit(lambda recipient=recipient: notify(recipient,'task','وظیفه جدید',task.title,f'/tasks/{task.pk}'))
 
         task = ImportantTask.objects.prefetch_related(
             "assignments__assignee"
@@ -1292,7 +1272,7 @@ class ImportantTaskDetailView(APIView):
     @transaction.atomic
     def patch(self, request, task_id):
         task = get_object_or_404(ImportantTask, pk=task_id)
-        if task.created_by_id != request.user.pk or not _can_assign_tasks(request.user):
+        if not (_is_superadmin(request.user) or (task.created_by_id == request.user.pk and _can_assign_tasks(request.user))):
             return error_response(message="اجازه ویرایش ندارید.", status_code=403)
         new_status, error = _task_requested_status(request)
         if error is not None:
@@ -1455,66 +1435,12 @@ class DashboardView(APIView):
         # 2. Today's tasks assigned to current user
         # ---------------------------------------------
 
-        assignments_queryset = (
-            TaskAssignment.objects
-            .select_related("task", "task__created_by")
-            .filter(
-                assignee=user,
-                task__due_date=today,
-            )
-            .order_by("-task__created_at", "-id")
-        )
-
-        total_tasks = assignments_queryset.count()
-
-        completed_tasks = assignments_queryset.filter(
-            status=TaskAssignment.Status.DONE
-        ).count()
-
-        # First four tasks, prioritizing unfinished ones
-        assignments = list(
-            assignments_queryset
-            .annotate(
-                completion_priority=models.Case(
-                    models.When(
-                        status=TaskAssignment.Status.DONE,
-                        then=models.Value(1),
-                    ),
-                    default=models.Value(0),
-                    output_field=models.IntegerField(),
-                )
-            )
-            .order_by(
-                "completion_priority",
-                "-task__created_at",
-                "-id",
-            )[:4]
-        )
-
-        tasks = []
-
-        for assignment in assignments:
-            task = assignment.task
-
-            is_completed = (
-                assignment.status
-                == TaskAssignment.Status.DONE
-            )
-
-            tasks.append({
-                "id": task.id,
-                "assignment_id": assignment.id,
-                "title": task.title,
-                "description": task.description,
-                "due_date": task.due_date,
-                "status": assignment.status,
-                "is_completed": is_completed,
-                "completed_at": assignment.completed_at,
-                "created_at": task.created_at,
-                "created_by": task.created_by.full_name or task.created_by.phone,
-                "created_by_id": task.created_by_id,
-                "status_display": assignment.get_status_display(),
-            })
+        visible = _visible_tasks(user).filter(due_date=today)
+        visible_tasks = [_task_response_data(task,user,refresh=False) for task in visible]
+        visible_tasks.sort(key=lambda row: (row['status']=='done', -row['id']))
+        total_tasks=len(visible_tasks)
+        completed_tasks=sum(row['status']=='done' for row in visible_tasks)
+        tasks=visible_tasks[:4]
 
         return success_response(
             message="اطلاعات پیشخوان",
@@ -1664,7 +1590,9 @@ def _imp_audit(session, event, request, status_code=200):
                                       path=request.path[:500], status_code=status_code)
 
 
-class OriginalAdminAuthentication(JWTAuthentication):
+from accounts.sessions import SessionJWTAuthentication
+
+class OriginalAdminAuthentication(SessionJWTAuthentication):
     """Only for stop/status: validates the original admin JWT, never switches to target."""
     def authenticate(self, request):
         raw = request.COOKIES.get(ACCESS_COOKIE)
@@ -1683,7 +1611,11 @@ class StartImpersonationView(APIView):
 
     def post(self, request, user_id):
         _require_csrf(request)
-        if request.COOKIES.get(IMPERSONATION_COOKIE):
+        existing = request.COOKIES.get(IMPERSONATION_COOKIE)
+        if existing and ImpersonationSession.objects.filter(
+            actor=request.user, token_hash=hashlib.sha256(existing.encode()).hexdigest(),
+            revoked_at__isnull=True, expires_at__gt=timezone.now(),
+        ).exists():
             return error_response("ابتدا از نشست مدیریتی فعلی خارج شوید.", status_code=409)
         if not _is_superadmin(request.user):
             raise PermissionDenied("فقط سوپرادمین مجاز است.")
@@ -1761,40 +1693,66 @@ def ImpersonationCsrfView(request):
     return JsonResponse({"success": True, "message": "CSRF آماده است.", "data": {}})
 
 
+def _has_active_impersonation(request):
+    raw=request.COOKIES.get(IMPERSONATION_COOKIE)
+    return bool(raw and ImpersonationSession.objects.filter(actor=request.user,token_hash=hashlib.sha256(raw.encode()).hexdigest(),revoked_at__isnull=True,expires_at__gt=timezone.now(),target__is_active=True).exists())
+
+
 class ActivityLogListView(APIView):
     authentication_classes = [OriginalAdminAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if not _is_superadmin(request.user) or request.COOKIES.get(IMPERSONATION_COOKIE):
-            raise PermissionDenied("مشاهده لاگ‌ها فقط برای سوپرادمین در نشست اصلی مجاز است.")
-        qs = ActivityLog.objects.select_related("actor", "real_actor").all()
-        params = request.query_params
-        if params.get("actor_id"):
-            qs = qs.filter(actor_id=params["actor_id"])
-        if params.get("real_actor_id"):
-            qs = qs.filter(real_actor_id=params["real_actor_id"])
-        if params.get("category"):
-            qs = qs.filter(category=params["category"])
-        if params.get("method"):
-            qs = qs.filter(method=params["method"].upper())
-        if params.get("status_code"):
-            qs = qs.filter(status_code=params["status_code"])
-        if params.get("search"):
-            qs = qs.filter(models.Q(path__icontains=params["search"]) | models.Q(event__icontains=params["search"]) | models.Q(metadata__description__icontains=params["search"]) | models.Q(metadata__target_label__icontains=params["search"]))
-        if params.get("action"):
-            qs = qs.filter(event=params["action"])
-        if params.get("target_type"):
-            qs = qs.filter(metadata__target_type=params["target_type"])
-        paginator = UserPagination()
-        page = paginator.paginate_queryset(qs, request, view=self)
+        if not _is_superadmin(request.user) or _has_active_impersonation(request):
+            raise PermissionDenied('مشاهده لاگ‌ها فقط برای سوپرادمین در نشست اصلی مجاز است.')
+        qs = ActivityLog.objects.select_related('actor', 'real_actor').order_by('-created_at','-id')
+        params=request.query_params
+        for key in ('actor_id','real_actor_id','status_code'):
+            if params.get(key):
+                try: number=int(params[key])
+                except (TypeError,ValueError): return error_response(f'مقدار {key} باید عدد باشد.',status_code=400)
+                qs=qs.filter(**{key:number})
+        if params.get('category'): qs=qs.filter(category=params['category'])
+        if params.get('method'):
+            method=params['method'].upper()
+            if method not in ('GET','POST','PUT','PATCH','DELETE','OPTIONS','HEAD'): return error_response('نوع درخواست معتبر نیست.',status_code=400)
+            qs=qs.filter(method=method)
+        state=params.get('status')
+        if state=='success': qs=qs.filter(status_code__lt=400)
+        elif state=='failure': qs=qs.filter(status_code__gte=400)
+        elif state: return error_response('وضعیت معتبر نیست.',status_code=400)
+        term=params.get('search','').strip()[:200]
+        if term: qs=qs.filter(models.Q(path__icontains=term)|models.Q(event__icontains=term)|models.Q(actor__first_name__icontains=term)|models.Q(actor__last_name__icontains=term)|models.Q(ip_address__icontains=term)|models.Q(metadata__description__icontains=term))
+        event=params.get('action') or params.get('event')
+        if event: qs=qs.filter(event=event)
+        if params.get('target_type'): qs=qs.filter(metadata__target_type=params['target_type'])
+        from datetime import datetime, time, timedelta
+        for key in ('start_date','end_date'):
+            if params.get(key):
+                try: day=date.fromisoformat(params[key])
+                except (ValueError,TypeError): return error_response('تاریخ باید به صورت YYYY-MM-DD باشد.',status_code=400)
+                if key=='end_date': day+=timedelta(days=1)
+                boundary=timezone.make_aware(datetime.combine(day,time.min))
+                qs=qs.filter(**({'created_at__gte':boundary} if key=='start_date' else {'created_at__lt':boundary}))
+        if params.get('export')=='csv':
+            import csv,io
+            from django.http import HttpResponse
+            output=io.StringIO(); output.write('\ufeff'); writer=csv.writer(output)
+            writer.writerow(['شناسه','کاربر','رویداد','نوع درخواست','مسیر','وضعیت','IP','زمان'])
+            def safe(value):
+                text=str(value or '')
+                return "'"+text if text.startswith(('=','+','-','@')) else text
+            for row in qs[:10000]: writer.writerow([row.pk,safe(row.actor.full_name if row.actor else ''),safe(row.event),row.method,safe(row.path),row.status_code,row.ip_address or '',row.created_at.isoformat()])
+            result=HttpResponse(output.getvalue(),content_type='text/csv; charset=utf-8')
+            result['Content-Disposition']='attachment; filename="mlkino-activity.csv"'
+            result['X-Export-Truncated']='true' if qs.count()>10000 else 'false'
+            return result
+        total=qs.count(); success=qs.filter(status_code__lt=400).count()
+        stats={'total':total,'success':success,'failure':qs.filter(status_code__gte=400).count(),'today':qs.filter(created_at__date=timezone.localdate()).count(),'actors':qs.exclude(actor_id=None).values('actor_id').distinct().count()}
+        actors=list(ActivityLog.objects.exclude(actor_id=None).order_by('actor_id').values('actor_id','actor__first_name','actor__last_name').distinct()[:200])
+        paginator=UserPagination(); page=paginator.paginate_queryset(qs,request,view=self)
         from panel.serializers import ActivityLogSerializer
-        return success_response("گزارش فعالیت‌های سامانه", data={
-            "total_results": paginator.page.paginator.count,
-            "page": paginator.page.number,
-            "page_size": paginator.get_page_size(request),
-            "results": ActivityLogSerializer(page, many=True).data,
-        })
+        return success_response('گزارش فعالیت‌های سامانه',data={'total_results':total,'page':paginator.page.number,'page_size':paginator.get_page_size(request),'results':ActivityLogSerializer(page,many=True).data,'stats':stats,'actors':actors})
 
 
 class ActivityLogDetailView(APIView):
@@ -1802,7 +1760,7 @@ class ActivityLogDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, log_id):
-        if not _is_superadmin(request.user) or request.COOKIES.get(IMPERSONATION_COOKIE):
+        if not _is_superadmin(request.user) or _has_active_impersonation(request):
             raise PermissionDenied("دسترسی غیرمجاز.")
         from panel.serializers import ActivityLogSerializer
         obj = get_object_or_404(ActivityLog.objects.select_related("actor", "real_actor"), pk=log_id)
@@ -1861,6 +1819,13 @@ class TicketListCreateView(APIView):
                 qs = qs.filter(creator_id=int(request.query_params["creator_id"]))
             except (TypeError, ValueError):
                 return error_response(message="شناسه کاربر نامعتبر است.", status_code=400)
+        for key in ('start_date', 'end_date'):
+            if request.query_params.get(key):
+                try: day = date.fromisoformat(request.query_params[key])
+                except (ValueError, TypeError): return error_response('تاریخ معتبر نیست.', status_code=400)
+                qs = qs.filter(**{('created_at__date__gte' if key == 'start_date' else 'created_at__date__lte'): day})
+        stats = {value: qs.filter(status=value).count() for value in SupportTicket.Status.values}
+        assignees = list(User.objects.filter(role=User.Role.SUPER_ADMIN, is_active=True).values('id', 'first_name', 'last_name')) if _ticket_admin(request) else []
         qs = qs.annotate(messages_count=Count("messages", distinct=True))
         paginator = UserPagination()
         page = paginator.paginate_queryset(qs.order_by("-updated_at", "-id"), request, view=self)
@@ -1869,10 +1834,13 @@ class TicketListCreateView(APIView):
             "page": paginator.page.number,
             "page_size": paginator.get_page_size(request),
             "results": TicketSerializer(page, many=True).data,
+            "stats": stats, "assignees": assignees,
         })
 
     @transaction.atomic
     def post(self, request):
+        if _ticket_admin(request):
+            return error_response(message="سوپرادمین فقط مجاز به مشاهده و پاسخ‌گویی تیکت‌هاست.", status_code=403)
         serializer = TicketCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return _validation_error(serializer)
@@ -1897,7 +1865,7 @@ class TicketReplyView(APIView):
 
     @transaction.atomic
     def post(self, request, ticket_id):
-        ticket = get_object_or_404(_ticket_queryset(request).select_for_update(), pk=ticket_id)
+        ticket = get_object_or_404(_ticket_queryset(request).select_for_update(of=("self",)), pk=ticket_id)
         serializer = TicketReplySerializer(data=request.data)
         if not serializer.is_valid():
             return _validation_error(serializer)
@@ -1911,6 +1879,9 @@ class TicketReplyView(APIView):
         if not msg.is_internal:
             ticket.status = SupportTicket.Status.ANSWERED if admin else SupportTicket.Status.OPEN
         ticket.save(update_fields=["status", "updated_at"])
+        if not msg.is_internal and ticket.creator_id != request.user.pk:
+            from accounts.notices import notify
+            transaction.on_commit(lambda: notify(ticket.creator,'ticket','پاسخ جدید پشتیبانی',ticket.subject,f'/tickets/{ticket.pk}'))
         _ticket_audit(request, "ticket.reply", ticket, "یادداشت داخلی ثبت شد." if msg.is_internal else "پاسخ جدید به تیکت ثبت شد.")
         return success_response(message="پیام ثبت شد.", data=_ticket_detail(ticket, request), status_code=201)
 
@@ -1920,7 +1891,7 @@ class TicketStatusView(APIView):
 
     @transaction.atomic
     def patch(self, request, ticket_id):
-        ticket = get_object_or_404(_ticket_queryset(request).select_for_update(), pk=ticket_id)
+        ticket = get_object_or_404(_ticket_queryset(request).select_for_update(of=("self",)), pk=ticket_id)
         serializer = TicketStatusSerializer(data=request.data)
         if not serializer.is_valid():
             return _validation_error(serializer)
@@ -2021,6 +1992,23 @@ class ReminderDetailView(APIView):
         record_activity(request, event="reminder.delete", target_type="reminder", target_id=pk)
         return success_response("حذف شد")
 
+class ChatContactsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        term = request.query_params.get('search', '').strip()[:100]
+        users = User.objects.filter(is_active=True, account_status=User.AccountStatus.ACTIVE).exclude(pk=request.user.pk)
+        if term:
+            users = users.filter(Q(first_name__icontains=term) | Q(last_name__icontains=term))
+        from accounts.models import AccountPreferences
+        hidden = AccountPreferences.objects.filter(privacy__listed_in_contacts=False).values_list('user_id',flat=True)
+        users = users.exclude(pk__in=hidden)
+        return success_response('مخاطبان', data=[{
+            'id': user.pk, 'full_name': user.full_name or f'کاربر #{user.pk}', 'role': user.role,
+            'avatar': request.build_absolute_uri(user.avatar.url) if user.avatar else None,
+        } for user in users.order_by('first_name', 'id')[:100]])
+
+
 class ChatConversationListView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
@@ -2037,6 +2025,10 @@ class ChatConversationListView(APIView):
         if _chat_blocked(request.user, peer):
             return error_response("امکان گفتگو وجود ندارد", status_code=403)
         a, b = sorted((request.user.pk, peer_id))
+        from accounts.models import AccountPreferences
+        preference=AccountPreferences.objects.filter(user=peer).first()
+        if preference and not preference.privacy.get('allow_new_conversations', True) and not DirectConversation.objects.filter(user1_id=a,user2_id=b).exists():
+            return error_response('این کاربر گفتگوی جدید را غیرفعال کرده است.', status_code=403)
         chat, created = DirectConversation.objects.get_or_create(user1_id=a, user2_id=b)
         if created:
             _chat_audit(request, "chat.create", chat.pk)
@@ -2062,6 +2054,7 @@ class ChatMessagesView(APIView):
             qs = qs.filter(pk__lt=before)
         rows = list(qs[:50])
         return success_response("پیام‌ها", data={"results": ChatMessageSerializer(rows, many=True, context={"request": request}).data, "has_more": len(rows) == 50})
+    @transaction.atomic
     def post(self, request, chat_id):
         chat = _chat_access(request.user, chat_id)
         peer = chat.user2 if chat.user1_id == request.user.pk else chat.user1
@@ -2091,12 +2084,15 @@ class ChatMessagesView(APIView):
         if reply_id:
             reply = get_object_or_404(DirectMessage, pk=reply_id, conversation=chat)
         obj = DirectMessage.objects.create(conversation=chat, sender=request.user, body=body, attachment=upload, attachment_kind=kind, reply_to=reply)
+        from panel.ws_events import publish_chat_message
+        transaction.on_commit(lambda: publish_chat_message(obj.pk))
         chat.save(update_fields=["updated_at"])
         _chat_audit(request, "chat.message.send", chat.pk)
         return success_response("پیام ارسال شد", data=ChatMessageSerializer(obj, context={"request": request}).data, status_code=201)
 
 class ChatReadView(APIView):
     permission_classes = [IsAuthenticated]
+    @transaction.atomic
     def post(self, request, chat_id):
         chat = _chat_access(request.user, chat_id)
         try:
@@ -2105,17 +2101,22 @@ class ChatReadView(APIView):
             return error_response("last_message_id لازم است")
         count = chat.messages.filter(pk__lte=last_id, read_at__isnull=True).exclude(sender=request.user).update(read_at=timezone.now())
         if count:
+            from panel.ws_events import publish_chat_read
+            transaction.on_commit(lambda: publish_chat_read(chat.pk, request.user.pk, last_id))
             _chat_audit(request, "chat.read", chat.pk)
         return success_response("وضعیت خواندن ثبت شد", data={"updated": count})
 
 class ChatDeleteMessageView(APIView):
     permission_classes = [IsAuthenticated]
+    @transaction.atomic
     def delete(self, request, chat_id, message_id):
         chat = _chat_access(request.user, chat_id)
         obj = get_object_or_404(DirectMessage, pk=message_id, conversation=chat, sender=request.user)
         obj.body = ""
         obj.deleted_at = timezone.now()
         obj.save(update_fields=["body", "deleted_at"])
+        from panel.ws_events import publish_chat_deleted
+        transaction.on_commit(lambda: publish_chat_deleted(chat.pk, obj.pk))
         _chat_audit(request, "chat.message.delete", chat.pk)
         return success_response("پیام حذف شد")
 

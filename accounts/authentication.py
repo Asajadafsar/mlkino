@@ -1,7 +1,7 @@
 import hashlib
 from django.utils import timezone
-from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.exceptions import PermissionDenied
+from accounts.sessions import SessionJWTAuthentication
 from rest_framework.authentication import CSRFCheck
 from accounts.cookies import ACCESS_COOKIE
 
@@ -12,7 +12,7 @@ BLOCKED_PATH_PARTS = (
 )
 
 
-class CookieJWTAuthentication(JWTAuthentication):
+class CookieJWTAuthentication(SessionJWTAuthentication):
     def authenticate(self, request):
         raw_token = request.COOKIES.get(ACCESS_COOKIE)
         if not raw_token:
@@ -24,6 +24,13 @@ class CookieJWTAuthentication(JWTAuthentication):
                 return None
         validated = self.get_validated_token(raw_token)
         actor = self.get_user(validated)
+        if request.method not in ('GET','HEAD','OPTIONS') and request.path.startswith('/panel/') and not request.path.startswith('/panel/tickets') and not (actor.is_superuser or actor.role == actor.Role.SUPER_ADMIN):
+            from panel.settings_runtime import system_settings
+            if system_settings().get('general',{}).get('maintenanceMode',False):
+                from rest_framework.exceptions import APIException
+                error=APIException('سامانه در حال به‌روزرسانی است؛ ثبت تغییرات موقتاً غیرفعال است.')
+                error.status_code=503
+                raise error
         raw_imp = request.COOKIES.get(IMPERSONATION_COOKIE)
         if not raw_imp:
             return actor, validated
@@ -32,12 +39,12 @@ class CookieJWTAuthentication(JWTAuthentication):
         session = (ImpersonationSession.objects.select_related('actor', 'target')
                    .filter(token_hash=hashlib.sha256(raw_imp.encode()).hexdigest())
                    .first())
-        if not session or session.revoked_at or session.expires_at <= timezone.now():
-            raise AuthenticationFailed('نشست ورود مدیریتی منقضی یا لغو شده است.')
-        if session.actor_id != actor.pk or not actor.is_active or not (
-            actor.is_superuser or actor.role == actor.Role.SUPER_ADMIN
-        ) or not session.target.is_active:
-            raise AuthenticationFailed('نشست ورود مدیریتی معتبر نیست.')
+        # The primary JWT remains authoritative. An obsolete secondary cookie
+        # must never switch identities or invalidate a valid primary session.
+        if (not session or session.actor_id != actor.pk or session.revoked_at
+                or session.expires_at <= timezone.now() or not session.target.is_active
+                or not (actor.is_superuser or actor.role == actor.Role.SUPER_ADMIN)):
+            return actor, validated
         if request.method not in ('GET', 'HEAD', 'OPTIONS'):
             path = request.path.lower()
             if any(fragment in path for fragment in BLOCKED_PATH_PARTS):

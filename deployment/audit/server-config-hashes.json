@@ -1,0 +1,6 @@
+{
+  "/etc/nginx/sites-available/api.mlkino.com": "cfd2b14026e23b0bcc79e81d5c990d57fcb0b5025bfa17e197554ac22a35db87",
+  "/etc/systemd/system/gunicorn.service": "dd32130ead46f83814a11063aa4adda9dc675fd640a259b516e15e7ea8b730dd",
+  "/etc/systemd/system/django-app.service": "a661dfcafbe5ed8b56d6fe5a36aeaee37c3ea4d4fe859dc4daea780493f47f66",
+  "/etc/systemd/system/mlkino-asgi.service": "788773ec25e61e51bcd403b985cf11668bdd23c938157db13aadcc99b65b1676"
+}

@@ -1,3 +1,4 @@
+from rest_framework.exceptions import AuthenticationFailed
 
 import logging
 import os
@@ -125,8 +126,8 @@ def _user_is_blocked(user):
 
 
 
-def _issue_login_response(user, message="ورود موفق."):
-    tokens = build_tokens_for_user(user)
+def _issue_login_response(user, message="ورود موفق.", request=None):
+    tokens = build_tokens_for_user(user, request)
 
     response = success_response(
         message=message,
@@ -389,7 +390,7 @@ class VerifyOtpView(APIView):
                 ]
             )
 
-        tokens = build_tokens_for_user(user)
+        tokens = build_tokens_for_user(user, request)
 
         if not user.has_profile:
             response = success_response(
@@ -619,7 +620,7 @@ class PasswordLoginView(APIView):
         user.last_login = timezone.now()
         user.save(update_fields=["last_login"])
 
-        return _issue_login_response(user)
+        return _issue_login_response(user, request=request)
 
 
 
@@ -648,10 +649,12 @@ class ChangePasswordView(APIView):
             return _validation_error(serializer)
 
         serializer.save()
-
-        return success_response(
-            message="رمز عبور با موفقیت تغییر کرد."
-        )
+        from accounts.models import DeviceSession
+        DeviceSession.objects.filter(user=request.user, revoked_at__isnull=True).update(revoked_at=timezone.now())
+        from panel.views import record_activity
+        record_activity(request, event='password.change', description='رمز حساب تغییر کرد و نشست‌های قبلی بسته شدند.')
+        tokens = build_tokens_for_user(request.user, request)
+        return set_auth_cookies(success_response(message="رمز عبور با موفقیت تغییر کرد."), tokens['access'], tokens['refresh'])
 
 
 # ============================================================
@@ -936,7 +939,7 @@ class LoginWithOtpView(APIView):
             user.last_login = timezone.now()
             user.save(update_fields=["last_login"])
 
-        return _issue_login_response(user)
+        return _issue_login_response(user, request=request)
 
 
 # ============================================================
@@ -958,6 +961,13 @@ class LogoutView(APIView):
         )
 
         if refresh_value:
+            try:
+                from accounts.models import DeviceSession
+                from accounts.sessions import refresh_key
+                token = RefreshToken(refresh_value)
+                DeviceSession.objects.filter(refresh_key=refresh_key(token)).update(revoked_at=timezone.now())
+            except (TokenError, KeyError):
+                pass
             try:
                 refresh_token = RefreshToken(
                     refresh_value
@@ -1013,11 +1023,14 @@ class RefreshTokenView(APIView):
                 refresh_value
             )
 
-            access_token = str(
-                refresh_token.access_token
-            )
+            from accounts.sessions import SessionJWTAuthentication, refresh_key
+            from accounts.models import DeviceSession
+            user = SessionJWTAuthentication().get_user(refresh_token)
+            if DeviceSession.objects.filter(refresh_key=refresh_key(refresh_token), revoked_at__isnull=False).exists():
+                return clear_auth_cookies(error_response(message='نشست بسته شده است.', status_code=401))
+            access_token = str(refresh_token.access_token)
 
-        except TokenError:
+        except (TokenError, AuthenticationFailed):
             response = error_response(
                 message="رفرش توکن نامعتبر یا منقضی است.",
                 status_code=401,
@@ -1103,6 +1116,7 @@ class ProfileView(APIView):
             "has_profile": user.has_profile,
             "last_login": user.last_login,
             "date_joined": user.date_joined,
+            "profile_updated_at": user.profile_updated_at,
         }
 
     @extend_schema(
@@ -1111,6 +1125,8 @@ class ProfileView(APIView):
         responses={200: UserSerializer},
     )
     def get(self, request):
+        from django.middleware.csrf import get_token
+        get_token(request)
         return success_response(
             message="اطلاعات پروفایل",
             data=self._get_profile_data(
@@ -1125,8 +1141,14 @@ class ProfileView(APIView):
         request=ProfileUpdateSerializer,
         responses={200: UserSerializer},
     )
+    def patch(self, request):
+        return self.put(request)
+
     def put(self, request):
         user = request.user
+        unknown = set(request.data) - set(ProfileUpdateSerializer.Meta.fields)
+        if unknown:
+            return error_response(message='این فیلدها قابل ویرایش نیستند: ' + '، '.join(sorted(unknown)), status_code=400)
 
         serializer = ProfileUpdateSerializer(
             instance=user,
@@ -1153,7 +1175,7 @@ class ProfileView(APIView):
                 status_code=400,
             )
 
-        if "postal_code" in serializer.validated_data:
+        if serializer.validated_data.get("postal_code") is not None:
             try:
                 postal_address = postal_lookup(
                     serializer.validated_data["postal_code"]
@@ -1174,7 +1196,11 @@ class ProfileView(APIView):
             ] = postal_address
 
         user = serializer.save()
+        user.profile_updated_at = timezone.now()
+        user.save(update_fields=['profile_updated_at'])
         user.refresh_from_db()
+        from panel.views import record_activity
+        record_activity(request, event='profile.update', description='اطلاعات پروفایل به‌روز شد.')
 
         return success_response(
             message="اطلاعات پروفایل با موفقیت ویرایش شد.",

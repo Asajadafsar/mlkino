@@ -14,8 +14,10 @@ from accounts.validators import (
 User = get_user_model()
 
 
-def build_tokens_for_user(user) -> dict:
+def build_tokens_for_user(user, request=None) -> dict:
     refresh = RefreshToken.for_user(user)
+    from accounts.sessions import create_device_session
+    create_device_session(user, refresh, request)
     return {"access": str(refresh.access_token), "refresh": str(refresh)}
 
 
@@ -59,7 +61,7 @@ class UserSerializer(serializers.ModelSerializer):
             "phone_verified", "national_code_verified",
             "verification_status", "verification_status_display",
             "has_profile", "admin_level", "is_active",
-            "last_login", "date_joined",
+            "last_login", "date_joined", "profile_updated_at",
         ]
         read_only_fields = fields
 
@@ -349,7 +351,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
     )
 
     postal_code = serializers.CharField(
-        required=False,
+        required=False, allow_blank=True, allow_null=True,
         max_length=10,
     )
 
@@ -375,6 +377,11 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
                 "allow_blank": False,
             },
         }
+
+    def validate_avatar(self, value):
+        if value and value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError('حجم عکس باید کمتر از ۵ مگابایت باشد.')
+        return value
 
     def validate_first_name(self, value):
         value = value.strip()
@@ -414,6 +421,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_postal_code(self, value):
+        if not value: return None
         try:
             return normalize_postal_code(value)
         except JibitError as exc:
@@ -426,7 +434,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         postal = self.context.get("postal_address")
 
         if (
-            "postal_code" in validated_data
+            validated_data.get("postal_code") is not None
             and postal is None
         ):
             raise serializers.ValidationError({
@@ -438,6 +446,8 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             if field != "postal_code":
                 setattr(instance, field, value)
 
+        if 'postal_code' in validated_data and validated_data['postal_code'] is None:
+            instance.postal_code = instance.province = instance.city = instance.address = None
         if postal:
             instance.postal_code = postal["postal_code"]
             instance.province = postal["province"]

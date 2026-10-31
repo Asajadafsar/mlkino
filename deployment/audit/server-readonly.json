@@ -1,0 +1,229 @@
+{
+  "python": "3.13.5 (main, Aug 10 2026, 12:06:59) [GCC 14.2.0]",
+  "django": "6.1.2",
+  "settings": {
+    "DEBUG": "False",
+    "ALLOWED_HOSTS": "['api.mlkino.com', 'panel.mlkino.com', 'mlkino.com', 'www.mlkino.com', 'localhost', '127.0.0.1']",
+    "CORS_ALLOWED_ORIGINS": "['https://panel.mlkino.com', 'https://mlkino.com', 'http://localhost:3000', 'https://www.mlkino.com', 'http://127.0.0.1:3000']",
+    "CORS_ALLOW_CREDENTIALS": "True",
+    "CSRF_TRUSTED_ORIGINS": "['https://panel.mlkino.com', 'https://mlkino.com', 'http://localhost:3000', 'https://www.mlkino.com', 'https://api.mlkino.com', 'http://127.0.0.1:3000']",
+    "AUTH_COOKIE_SECURE": "True",
+    "AUTH_COOKIE_SAMESITE": "None",
+    "SESSION_COOKIE_SECURE": "True",
+    "CSRF_COOKIE_SECURE": "True",
+    "CSRF_COOKIE_DOMAIN": "None",
+    "SECURE_PROXY_SSL_HEADER": "('HTTP_X_FORWARDED_PROTO', 'https')",
+    "SECURE_SSL_REDIRECT": "False",
+    "SECURE_HSTS_SECONDS": "0",
+    "INSTALLED_APPS": "['django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles', 'panel.apps.PanelConfig', 'rest_framework', 'corsheaders', 'drf_spectacular', 'rest_framework_simplejwt.token_blacklist', 'accounts', 'channels']",
+    "MIDDLEWARE": "['django.middleware.security.SecurityMiddleware', 'corsheaders.middleware.CorsMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'accounts.utils.ActivityAuditMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']",
+    "REST_FRAMEWORK": "{'DEFAULT_AUTHENTICATION_CLASSES': ('accounts.authentication.CookieJWTAuthentication',), 'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated',), 'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema'}",
+    "MLKINO_WS_ALLOWED_ORIGINS": "['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173', 'http://127.0.0.1:5173', 'https://api.mlkino.com', 'https://panel.mlkino.com']",
+    "STATIC_ROOT": "/var/www/mlkino/staticfiles",
+    "MEDIA_ROOT": "/var/www/mlkino/media",
+    "ASGI_APPLICATION": "mlkino.asgi.application"
+  },
+  "database": {
+    "ENGINE": "django.db.backends.postgresql",
+    "HOST": "127.0.0.1",
+    "PORT": "5432",
+    "NAME": "mlkino_db",
+    "USER": "mlkino_user"
+  },
+  "channel_backend": "channels_redis.core.RedisChannelLayer",
+  "channel_host_count": 1,
+  "migrations": [
+    [
+      "accounts",
+      "0001_initial"
+    ],
+    [
+      "accounts",
+      "0002_remove_agentprofile_manager_full_name_and_more"
+    ],
+    [
+      "accounts",
+      "0003_alter_agentprofile_license_status"
+    ],
+    [
+      "accounts",
+      "0004_remove_normaluserprofile_user_user_address_user_city_and_more"
+    ],
+    [
+      "accounts",
+      "0005_alter_user_avatar"
+    ],
+    [
+      "accounts",
+      "0006_passwordresettoken"
+    ],
+    [
+      "accounts",
+      "0007_announcement"
+    ],
+    [
+      "accounts",
+      "0008_agencyexpert_alter_user_role_and_more"
+    ],
+    [
+      "accounts",
+      "0009_activitylog"
+    ],
+    [
+      "accounts",
+      "0010_agencyprofile_expertprofile"
+    ],
+    [
+      "admin",
+      "0001_initial"
+    ],
+    [
+      "admin",
+      "0002_logentry_remove_auto_add"
+    ],
+    [
+      "admin",
+      "0003_logentry_add_action_flag_choices"
+    ],
+    [
+      "auth",
+      "0001_initial"
+    ],
+    [
+      "auth",
+      "0002_alter_permission_name_max_length"
+    ],
+    [
+      "auth",
+      "0003_alter_user_email_max_length"
+    ],
+    [
+      "auth",
+      "0004_alter_user_username_opts"
+    ],
+    [
+      "auth",
+      "0005_alter_user_last_login_null"
+    ],
+    [
+      "auth",
+      "0006_require_contenttypes_0002"
+    ],
+    [
+      "auth",
+      "0007_alter_validators_add_error_messages"
+    ],
+    [
+      "auth",
+      "0008_alter_user_username_max_length"
+    ],
+    [
+      "auth",
+      "0009_alter_user_last_name_max_length"
+    ],
+    [
+      "auth",
+      "0010_alter_group_name_max_length"
+    ],
+    [
+      "auth",
+      "0011_update_proxy_permissions"
+    ],
+    [
+      "auth",
+      "0012_alter_user_first_name_max_length"
+    ],
+    [
+      "contenttypes",
+      "0001_initial"
+    ],
+    [
+      "contenttypes",
+      "0002_remove_content_type_name"
+    ],
+    [
+      "panel",
+      "0001_initial"
+    ],
+    [
+      "panel",
+      "0002_impersonationsession_impersonationaudit_and_more"
+    ],
+    [
+      "panel",
+      "0003_supportticket_supportticketmessage_and_more"
+    ],
+    [
+      "panel",
+      "0004_directconversation_directmessage_chatreport_and_more"
+    ],
+    [
+      "panel",
+      "0005_supportticketmessage_attachment_and_more"
+    ],
+    [
+      "panel",
+      "0006_panelsettings"
+    ],
+    [
+      "sessions",
+      "0001_initial"
+    ],
+    [
+      "token_blacklist",
+      "0001_initial"
+    ],
+    [
+      "token_blacklist",
+      "0002_outstandingtoken_jti_hex"
+    ],
+    [
+      "token_blacklist",
+      "0003_auto_20171017_2007"
+    ],
+    [
+      "token_blacklist",
+      "0004_auto_20171017_2013"
+    ],
+    [
+      "token_blacklist",
+      "0005_remove_outstandingtoken_jti"
+    ],
+    [
+      "token_blacklist",
+      "0006_auto_20171017_2113"
+    ],
+    [
+      "token_blacklist",
+      "0007_auto_20171017_2214"
+    ],
+    [
+      "token_blacklist",
+      "0008_migrate_to_bigautofield"
+    ],
+    [
+      "token_blacklist",
+      "0010_fix_migrate_to_bigautofield"
+    ],
+    [
+      "token_blacklist",
+      "0011_linearizes_history"
+    ],
+    [
+      "token_blacklist",
+      "0012_alter_outstandingtoken_user"
+    ],
+    [
+      "token_blacklist",
+      "0013_alter_blacklistedtoken_options_and_more"
+    ]
+  ],
+  "certs": "\n- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\nFound the following certs:\n  Certificate Name: api.mlkino.com\n    Serial Number: 5482a9d5bd6d4f314aa3923bf88587da258\n    Key Type: ECDSA\n    Domains: api.mlkino.com\n    Expiry Date: 2027-01-17 16:20:59+00:00 (VALID: 78 days)\n    Certificate Path: /etc/letsencrypt/live/api.mlkino.com/fullchain.pem\n    Private Key Path: /etc/letsencrypt/live/api.mlkino.com/privkey.pem\n- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n",
+  "redis_ping": "PONG",
+  "packages": "[{\"name\": \"anyio\", \"version\": \"4.15.1\"}, {\"name\": \"asgiref\", \"version\": \"3.12.1\"}, {\"name\": \"attrs\", \"version\": \"26.1.0\"}, {\"name\": \"autobahn\", \"version\": \"26.10.2\"}, {\"name\": \"Automat\", \"version\": \"25.4.16\"}, {\"name\": \"cbor2\", \"version\": \"6.1.5\"}, {\"name\": \"certifi\", \"version\": \"2026.10.18\"}, {\"name\": \"cffi\", \"version\": \"2.1.1\"}, {\"name\": \"channels\", \"version\": \"4.3.2\"}, {\"name\": \"channels_redis\", \"version\": \"4.3.0\"}, {\"name\": \"charset-normalizer\", \"version\": \"3.5.2\"}, {\"name\": \"click\", \"version\": \"8.5.0\"}, {\"name\": \"constantly\", \"version\": \"23.10.4\"}, {\"name\": \"cryptography\", \"version\": \"50.0.2\"}, {\"name\": \"daphne\", \"version\": \"4.2.3\"}, {\"name\": \"Django\", \"version\": \"6.1.2\"}, {\"name\": \"django-cors-headers\", \"version\": \"4.9.0\"}, {\"name\": \"djangorestframework\", \"version\": \"3.18.3\"}, {\"name\": \"djangorestframework_simplejwt\", \"version\": \"5.5.1\"}, {\"name\": \"drf-spectacular\", \"version\": \"0.30.0\"}, {\"name\": \"drf-spectacular-sidecar\", \"version\": \"2026.10.1\"}, {\"name\": \"gunicorn\", \"version\": \"26.2.0\"}, {\"name\": \"h11\", \"version\": \"0.16.0\"}, {\"name\": \"httptools\", \"version\": \"0.9.0\"}, {\"name\": \"hyperlink\", \"version\": \"21.0.0\"}, {\"name\": \"idna\", \"version\": \"3.20\"}, {\"name\": \"Incremental\", \"version\": \"24.11.0\"}, {\"name\": \"inflection\", \"version\": \"0.5.1\"}, {\"name\": \"isodate\", \"version\": \"0.7.2\"}, {\"name\": \"jsonschema\", \"version\": \"4.26.0\"}, {\"name\": \"jsonschema-specifications\", \"version\": \"2025.9.1\"}, {\"name\": \"lxml\", \"version\": \"6.1.3\"}, {\"name\": \"msgpack\", \"version\": \"1.2.4\"}, {\"name\": \"packaging\", \"version\": \"26.3\"}, {\"name\": \"pillow\", \"version\": \"13.0.0\"}, {\"name\": \"pip\", \"version\": \"26.2.1\"}, {\"name\": \"platformdirs\", \"version\": \"4.13.5\"}, {\"name\": \"psycopg2-binary\", \"version\": \"2.9.13\"}, {\"name\": \"pycparser\", \"version\": \"3.12\"}, {\"name\": \"PyJWT\", \"version\": \"2.15.1\"}, {\"name\": \"pyOpenSSL\", \"version\": \"26.4.0\"}, {\"name\": \"python-dotenv\", \"version\": \"1.2.4\"}, {\"name\": \"PyYAML\", \"version\": \"6.0.3\"}, {\"name\": \"redis\", \"version\": \"8.1.0\"}, {\"name\": \"referencing\", \"version\": \"0.37.0\"}, {\"name\": \"requests\", \"version\": \"2.34.2\"}, {\"name\": \"requests-file\", \"version\": \"3.0.1\"}, {\"name\": \"requests-toolbelt\", \"version\": \"1.0.0\"}, {\"name\": \"rpds-py\", \"version\": \"2026.9.1\"}, {\"name\": \"service-identity\", \"version\": \"26.1.0\"}, {\"name\": \"sqlparse\", \"version\": \"0.6.0\"}, {\"name\": \"Twisted\", \"version\": \"26.4.0\"}, {\"name\": \"txaio\", \"version\": \"26.6.1\"}, {\"name\": \"typing_extensions\", \"version\": \"4.16.0\"}, {\"name\": \"ujson\", \"version\": \"6.0.0\"}, {\"name\": \"uritemplate\", \"version\": \"4.2.0\"}, {\"name\": \"urllib3\", \"version\": \"2.8.0\"}, {\"name\": \"uvicorn\", \"version\": \"0.54.0\"}, {\"name\": \"uvloop\", \"version\": \"0.23.0\"}, {\"name\": \"watchfiles\", \"version\": \"1.3.0\"}, {\"name\": \"websockets\", \"version\": \"17.3\"}, {\"name\": \"zeep\", \"version\": \"4.3.3\"}, {\"name\": \"zope.interface\", \"version\": \"8.7\"}]\n",
+  "units": {
+    "gunicorn": "MainPID=147636\nSubState=running\nDropInPaths=\n",
+    "django-app": "MainPID=146070\nSubState=running\nDropInPaths=/etc/systemd/system/django-app.service.d/ip.conf\n",
+    "mlkino-asgi": "MainPID=147644\nSubState=running\nDropInPaths=\n"
+  }
+}

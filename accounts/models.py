@@ -229,6 +229,8 @@ class User(AbstractUser):
         verbose_name="سطح دسترسی مدیریتی",
     )
 
+    profile_updated_at = models.DateTimeField(null=True, blank=True)
+
     USERNAME_FIELD = "phone"
     REQUIRED_FIELDS = []
 
@@ -648,3 +650,38 @@ class ExpertProfile(models.Model):
 
     def __str__(self):
         return self.user.full_name or self.user.phone
+
+
+class AccountPreferences(models.Model):
+    user = models.OneToOneField('accounts.User', on_delete=models.CASCADE, related_name='preferences')
+    notifications = models.JSONField(default=dict, blank=True)
+    privacy = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class DeviceSession(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='device_sessions')
+    refresh_key = models.CharField(max_length=64, unique=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    last_seen = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-last_seen']
+
+
+class AccountNotification(models.Model):
+    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='notifications')
+    kind = models.CharField(max_length=30)
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True)
+    link = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']

@@ -11,7 +11,13 @@ def emit(chat_id, event, data):
         logger.error('CHANNEL_LAYERS is not configured; WS event %s not delivered', event)
         return
     try:
-        async_to_sync(layer.group_send)(f'chat_{chat_id}', {'type':'chat.event', 'event':event, 'data':data})
+        payload = {'type': 'chat.event', 'event': event, 'data': data}
+        async_to_sync(layer.group_send)(f'chat_{chat_id}', payload)
+        from panel.models import DirectConversation
+        chat = DirectConversation.objects.filter(pk=chat_id).values('user1_id', 'user2_id').first()
+        if chat:
+            for user_id in (chat['user1_id'], chat['user2_id']):
+                async_to_sync(layer.group_send)(f'inbox_{user_id}', payload)
     except Exception:
         logger.exception('Failed to publish chat websocket event %s', event)
 

@@ -2,7 +2,7 @@
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs
 from channels.db import database_sync_to_async
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from accounts.sessions import SessionJWTAuthentication
 from accounts.cookies import ACCESS_COOKIE
 
 @database_sync_to_async
@@ -11,7 +11,7 @@ def authenticated_user(token, impersonation_token=None):
     from django.utils import timezone
     from panel.models import ImpersonationSession
     import hashlib
-    auth = JWTAuthentication()
+    auth = SessionJWTAuthentication()
     try:
         jwt = auth.get_validated_token(token)
         actor = auth.get_user(jwt)
@@ -24,7 +24,7 @@ def authenticated_user(token, impersonation_token=None):
                 target__is_active=True,
             ).first()
             if not session or not (actor.is_superuser or actor.role == actor.Role.SUPER_ADMIN):
-                return AnonymousUser()
+                return actor
             return session.target
         return actor
     except Exception:
@@ -39,5 +39,7 @@ class CookieJWTASGIMiddleware:
         except Exception: pass
         access = cookie.get(ACCESS_COOKIE)
         imp = cookie.get('mlkinoImpersonation')
+        scope['access_token'] = access.value if access else None
+        scope['impersonation_token'] = imp.value if imp else None
         scope['user'] = await authenticated_user(access.value, imp.value if imp else None) if access else None
         return await self.app(scope, receive, send)

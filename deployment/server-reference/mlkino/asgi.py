@@ -1,0 +1,24 @@
+import os
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mlkino.settings")
+
+from django.core.asgi import get_asgi_application
+
+django_asgi_app = get_asgi_application()
+
+from django.conf import settings
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.security.websocket import OriginValidator
+
+from panel.ws_auth import CookieJWTASGIMiddleware
+from panel.ws_routing import websocket_urlpatterns
+
+application = ProtocolTypeRouter({
+    "http": django_asgi_app,
+    "websocket": OriginValidator(
+        CookieJWTASGIMiddleware(
+            URLRouter(websocket_urlpatterns)
+        ),
+        settings.MLKINO_WS_ALLOWED_ORIGINS,
+    ),
+})

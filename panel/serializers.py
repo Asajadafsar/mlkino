@@ -51,6 +51,8 @@ class AnnouncementListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "title",
+            "description",
+            "link",
             "status",
             "status_display",
             "created_by_name",
@@ -247,7 +249,7 @@ class PanelUserListSerializer(serializers.ModelSerializer):
             "is_active",
             "is_staff",
             "has_profile",
-            "date_joined",
+            "date_joined", "profile_updated_at",
             "last_login",
         ]
         read_only_fields = fields
@@ -316,7 +318,7 @@ class PanelUserDetailSerializer(serializers.ModelSerializer):
             "admin_level",
             "has_profile",
             "last_login",
-            "date_joined",
+            "date_joined", "profile_updated_at",
         ]
         read_only_fields = fields
 
@@ -353,6 +355,7 @@ class PanelUserUpdateSerializer(serializers.ModelSerializer):
             "address",
             "user_type",
             "role",
+            "admin_level",
             "account_status",
             "verification_status",
             "phone_verified",
@@ -640,6 +643,13 @@ class AgencyProfileSerializer(serializers.ModelSerializer):
         fields = ["manager_id", "manager_name", "agency_name", "occupancy_type", "lease_end_date", "logo", "has_business_license", "license_number", "license_image", "marital_status", "landline", "office_address", "office_verification_status", "latitude", "longitude", "description"]
         read_only_fields = ["manager_id", "manager_name", "office_verification_status"]
 
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get('request')
+        if request and (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
+            fields['office_verification_status'].read_only = False
+        return fields
+
     def validate(self, attrs):
         current = self.instance
         occupancy = attrs.get("occupancy_type", getattr(current, "occupancy_type", None))
@@ -660,6 +670,9 @@ class AgencyProfileSerializer(serializers.ModelSerializer):
 
 
 class ExpertProfileSerializer(serializers.ModelSerializer):
+    def validate_expert_code(self, value):
+        return value.strip() or None if value is not None else None
+
     agency_id = serializers.SerializerMethodField()
     agency_name = serializers.SerializerMethodField()
     class Meta:

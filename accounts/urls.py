@@ -1,4 +1,5 @@
 from django.urls import path
+from .profile_api import PreferencesView, SessionsView, NotificationsView, OwnActivityView
 
 from accounts import views
 
@@ -23,4 +24,9 @@ urlpatterns = [
     path("logout/", views.LogoutView.as_view(), name="logout"),
     path("token/refresh/", views.RefreshTokenView.as_view(), name="refresh"),
     path("activity/event/", views.RecordActivityEventView.as_view(), name="activity-event"),
+    path('preferences/', PreferencesView.as_view(), name='preferences'),
+    path('sessions/', SessionsView.as_view(), name='sessions'),
+    path('sessions/<uuid:session_id>/', SessionsView.as_view(), name='session-revoke'),
+    path('notifications/', NotificationsView.as_view(), name='notifications'),
+    path('activity/', OwnActivityView.as_view(), name='own-activity'),
 ]

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,18 +26,32 @@ SECRET_KEY = 'django-insecure-wq*0fi=lpt0ygmnrf6c47q-_#gi5y9l%=j!8o+xja5k5mfp73#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+
+# Local frontend origins; credentialed requests require explicit origins.
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+]
+CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
+
+AUTH_COOKIE_SECURE = not DEBUG
+AUTH_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'accounts',
     'panel',
     'drf_spectacular',
@@ -44,7 +59,10 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'accounts.middleware.RequestTimezoneMiddleware',
+    'accounts.middleware.ActivityFailureMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -138,7 +156,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Tehran'
 
 USE_I18N = True
 
@@ -153,3 +171,16 @@ AUTH_USER_MODEL = "accounts.User"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+ASGI_APPLICATION = 'mlkino.asgi.application'
+MLKINO_WS_ALLOWED_ORIGINS = CORS_ALLOWED_ORIGINS
+# In-memory is for the single-process local server; Redis shares events between workers.
+CHANNEL_LAYERS = {'default': (
+    {'BACKEND': 'channels_redis.core.RedisChannelLayer', 'CONFIG': {'hosts': [os.environ['MLKINO_REDIS_URL']]}}
+    if os.environ.get('MLKINO_REDIS_URL') else {'BACKEND': 'channels.layers.InMemoryChannelLayer'}
+)}
+PANEL_SETTINGS_PUBLIC_BASE_URL = os.environ.get('PANEL_SETTINGS_PUBLIC_BASE_URL', '')
+
+# Cookie duration and token validity use the same SimpleJWT configuration.
+from datetime import timedelta
+SIMPLE_JWT = {'REFRESH_TOKEN_LIFETIME': timedelta(days=7)}
