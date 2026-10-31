@@ -1,8 +1,9 @@
-import {useEffect, useMemo, useState} from 'react'
+import {useEffect, useMemo, useRef, useState} from 'react'
 import DatePicker, {DateObject} from 'react-multi-date-picker'
+import ClearRoundedIcon from '@mui/icons-material/ClearRounded'
 import TimePicker from 'react-multi-date-picker/plugins/time_picker'
 
-import {Box, TextField} from '@mui/material'
+import {Box, TextField, InputAdornment, IconButton} from '@mui/material'
 
 import persian from 'react-date-object/calendars/persian'
 import persian_fa from 'react-date-object/locales/persian_fa'
@@ -11,6 +12,7 @@ import gregorian_en from 'react-date-object/locales/gregorian_en'
 
 import type {ParamType} from './CustomFilter'
 import './datePicker.css'
+import {localDateTime} from '../../Core/PersianDate'
 
 const DATE_FORMAT = 'YYYY-MM-DD'
 const DATE_TIME_FORMAT = 'YYYY-MM-DD HH:mm'
@@ -21,6 +23,9 @@ type DatePickerFilterBaseProps = {
         label: string
     }
     withTime?: boolean
+    disabled?: boolean
+    required?: boolean
+    helperText?: string
 }
 type DatePickerFilterParamsModeProps = DatePickerFilterBaseProps & {
     mode?: 'params'
@@ -44,7 +49,7 @@ const toPersianDate = (value: string | null | undefined, format: string): DateOb
 
     try {
         const date = new DateObject({
-            date: value,
+            date: format === DATE_TIME_FORMAT ? localDateTime(value) : value.slice(0,10),
             format,
             calendar: gregorian,
             locale: gregorian_en,
@@ -93,6 +98,8 @@ export default function DatePickerFilter(props: DatePickerFilterProps) {
 
     const [internalValue, setInternalValue] = useState<DateObject | null>(null)
 
+    const pickerRef=useRef<any>(null)
+    const [calendarOpen,setCalendarOpen]=useState(false)
     const [focused, setFocused] = useState(false)
 
     // Sync initial value in params mode
@@ -101,7 +108,7 @@ export default function DatePickerFilter(props: DatePickerFilterProps) {
             return
         }
 
-        setInternalValue(parsePersianDate(initialValue, format))
+        setInternalValue(toPersianDate(initialValue, format))
     }, [isControlled, initialValue, format])
 
     // Sync controlled value from parent
@@ -157,27 +164,31 @@ export default function DatePickerFilter(props: DatePickerFilterProps) {
         }
     }
 
-    const displayValue = selectedDate ? selectedDate.format(format) : ''
+    const displayFormat=withTime?'YYYY/MM/DD HH:mm':'YYYY/MM/DD'
+    const displayValue = selectedDate ? selectedDate.format(displayFormat) : ''
 
     const active = focused || !!selectedDate
 
     return (
-        <Box
+        <Box onKeyDown={event=>{if(event.key==='Escape'&&calendarOpen){event.stopPropagation();pickerRef.current?.closeCalendar()}}}
             sx={{
                 width: '100%',
                 minWidth: 0,
                 position: 'relative',
             }}
         >
-            <DatePicker
+            <DatePicker ref={pickerRef}
+                disabled={props.disabled}
+                portal
+                zIndex={1800}
                 calendar={persian}
                 locale={persian_fa}
-                format={format}
+                format={displayFormat}
                 value={selectedDate}
                 onChange={handleChange}
                 onOpenPickNewDate={false}
-                onOpen={() => setFocused(true)}
-                onClose={() => setFocused(false)}
+                onOpen={() => {setFocused(true);setCalendarOpen(true)}}
+                onClose={() => {setFocused(false);setCalendarOpen(false)}}
                 className="blue"
                 calendarPosition="bottom-right"
                 containerStyle={{
@@ -187,13 +198,17 @@ export default function DatePickerFilter(props: DatePickerFilterProps) {
                 render={(_, openCalendar) => (
                     <TextField
                         fullWidth
+                        disabled={props.disabled}
+                        required={props.required}
+                        helperText={props.helperText}
                         label={item.label}
-                        value={displayValue}
+                        value={displayValue.replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[Number(d)])}
                         variant="outlined"
                         onClick={openCalendar}
                         onFocus={() => setFocused(true)}
                         InputProps={{
                             readOnly: true,
+                            endAdornment:selectedDate&&!props.disabled?<InputAdornment position="end"><IconButton size="small" aria-label={`پاک کردن ${item.label}`} onClick={event=>{event.stopPropagation();handleChange(null);pickerRef.current?.closeCalendar()}}><ClearRoundedIcon fontSize="small"/></IconButton></InputAdornment>:undefined,
                         }}
                         InputLabelProps={{
                             shrink: active,

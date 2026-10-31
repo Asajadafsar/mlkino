@@ -32,14 +32,14 @@ class ChatApiTests(TestCase):
         self.assertEqual(self.client.delete(f'/panel/chats/{self.chat.pk}/messages/{message_id}/').status_code, 404)
 
     def test_settings_are_persistent_and_only_admin_can_save(self):
-        response = self.client.get('/panel/settings/')
+        response = self.client.get('/panel/appearance/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.client.patch('/panel/settings/', {'general': {'panelName': 'تست'}}, format='json').status_code, 403)
         admin = User.objects.create_superuser('09121111114', 'temporary-password')
         self.client.force_authenticate(admin)
         self.assertEqual(self.client.patch('/panel/settings/', {'general': {'panelName': 'پنل تست'}}, format='json').status_code, 200)
         self.client.force_authenticate(self.peer)
-        self.assertEqual(self.client.get('/panel/settings/').data['data']['general']['panelName'], 'پنل تست')
+        self.assertEqual(self.client.get('/panel/appearance/').data['data']['general']['panelName'], 'پنل تست')
 
 
 class RealtimeTests(TransactionTestCase):

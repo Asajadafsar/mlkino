@@ -5,7 +5,10 @@ from .settings_api import PanelSettingsView
 
 app_name = "panel"
 
+from .settings_api import PanelAppearanceView
+
 urlpatterns = [
+    path('appearance/', PanelAppearanceView.as_view(),name='panel-appearance'),
     path("settings/", PanelSettingsView.as_view(), name="panel-settings"),
     # اطلاعیه‌ها
     path(

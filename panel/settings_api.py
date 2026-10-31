@@ -145,6 +145,7 @@ class PanelSettingsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        if not is_superadmin(request.user):return envelope(message='این بخش فقط برای سوپرادمین است.',code=403)
         obj = PanelSettings.objects.filter(pk=1).first()
         result = copy.deepcopy(DEFAULTS)
         if obj and isinstance(obj.data, dict):
@@ -211,3 +212,14 @@ class PanelSettingsView(APIView):
         from django.core.cache import cache
         cache.delete('mlkino:system-settings')
         return envelope(updated, "تنظیمات با موفقیت ذخیره شد.")
+
+
+class PanelAppearanceView(APIView):
+    permission_classes=[IsAuthenticated]
+    def get(self,request):
+        obj=PanelSettings.objects.filter(pk=1).first()
+        result=copy.deepcopy(DEFAULTS)
+        if obj and isinstance(obj.data,dict):
+            for group in ('general','branding','theme','seo'):
+                if isinstance(obj.data.get(group),dict):result[group].update({key:value for key,value in obj.data[group].items() if key in result[group]})
+        return envelope(data={key:result[key] for key in ('general','branding','theme','seo')})

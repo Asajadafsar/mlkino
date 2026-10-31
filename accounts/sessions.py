@@ -13,7 +13,8 @@ def refresh_key(token):
 
 def create_device_session(user, refresh, request=None):
     agent = request.META.get('HTTP_USER_AGENT', '')[:500] if request else ''
-    address = request.META.get('REMOTE_ADDR') if request else None
+    from .client_ip import get_client_ip
+    address = get_client_ip(request) if request else None
     import ipaddress
     try: address = str(ipaddress.ip_address(address)) if address else None
     except ValueError: address = None
@@ -28,6 +29,7 @@ def create_device_session(user, refresh, request=None):
         except Exception:
             import logging
             logging.getLogger(__name__).exception('Could not record session creation')
+    if request:getattr(request,'_request',request).business_activity_logged=True
     refresh['sid'] = str(session.pk)
     return session
 

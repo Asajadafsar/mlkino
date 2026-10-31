@@ -3,6 +3,7 @@ import axios from 'axios'
 
 const api = axios.create({
     baseURL: APP_URL,
+    withCredentials: true,
 })
 
 export interface RegisterPayload {
@@ -58,8 +59,5 @@ export const registerUser = (payload: RegisterPayload) => {
 
     return api.post('/accounts/complete-register/', formData, {
         withCredentials: true,
-        headers: {
-            'Content-Type': 'application/json',
-        },
     })
 }

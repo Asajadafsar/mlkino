@@ -1,27 +1,5 @@
-import React from 'react'
-import {CreatePage} from '../../../Components/Table/CreatePage'
-import {Reminder, reminderDefaults} from '../Reminder'
-
-const resource = 'reminders'
-
-export function ReminderCreate({
-    data,
-    setData,
-}: {
-    data: any
-    setData: React.Dispatch<React.SetStateAction<any>>
-}) {
-    const formValues = {...reminderDefaults, ...data}
-    return (
-        <CreatePage
-            title={'افزودن یادآوری'}
-            resource={resource + '/'}
-            isFormData={false}
-            redirect={resource}
-            formDetails={{title: formValues.title, description: formValues.description, remind_at: formValues.remind_at, is_done: formValues.is_done}}
-            disabled={!formValues.title.trim() || !formValues.remind_at}
-        >
-            <Reminder reminders={formValues} setReminders={setData} resource={resource} />
-        </CreatePage>
-    )
-}
+import {Paper,Stack} from '@mui/material'
+import {useNavigate} from 'react-router-dom'
+import {PageHero} from '../../../Components/Workspace/PageHero'
+import {ReminderEditor} from '../ReminderEditor'
+export function ReminderCreate(_props:any){const navigate=useNavigate();return <Stack spacing={2}><PageHero title="یادآوری شخصی جدید" description="یادداشتی فقط برای خودتان بنویسید." illustration="/assets/reminders-3d.png"/><Paper variant="outlined" sx={{p:3,borderRadius:4}}><ReminderEditor onSaved={()=>navigate('/reminders')}/></Paper></Stack>}

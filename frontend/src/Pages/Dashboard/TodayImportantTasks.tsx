@@ -59,6 +59,7 @@ export default function TodayImportantTasks() {
     }, [getTasks])
 
     const toggleTask = async (id: number) => {
+        if(![UserRole.SUPERADMIN,UserRole.AGENCY].includes(role as UserRole))return
         if (togglePending.current) return
         togglePending.current = true
         setTogglingId(id)
@@ -133,7 +134,7 @@ export default function TodayImportantTasks() {
                                     edge="start"
                                     checked={task.status === 'done'}
                                     onChange={() => toggleTask(task.id)}
-                                    disabled={togglingId !== null || loading}
+                                    disabled={![UserRole.SUPERADMIN,UserRole.AGENCY].includes(role as UserRole)||togglingId !== null || loading}
                                     inputProps={{'aria-label': `تغییر وضعیت ${task.title}`}}
                                 />
                             )}

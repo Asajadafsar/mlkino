@@ -4,13 +4,14 @@ import argparse, hashlib, json, pathlib, shutil, subprocess, tarfile, datetime
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument('--release', required=True)
+parser.add_argument('--baseline', default='deployment/audit/server-files.json', help='Reviewed current server hashes relative to repository root')
 args = parser.parse_args()
 if not args.release.replace('-', '').isalnum(): raise SystemExit('Invalid release identifier')
 out = ROOT/'deployment/artifacts'/args.release
 out.mkdir(parents=True, exist_ok=False)
 sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
-base = json.loads((ROOT/'deployment/audit/server-files.json').read_text())['files']
-files = [f'accounts/{name}.py' for name in ['authentication','cookies','models','serializers','urls','validators','views','middleware','notices','profile_api','sessions']]
+base = json.loads((ROOT/args.baseline).read_text())['files']
+files = [f'accounts/{name}.py' for name in ['authentication','client_ip','cookies','models','serializers','urls','validators','views','middleware','notices','profile_api','sessions']]
 files += [f'panel/{name}.py' for name in ['models','serializers','urls','views','settings_api','settings_models','settings_runtime','ws_auth','ws_consumers','ws_events','ws_routing']]
 files += ['panel/settings_defaults.json','mlkino/asgi.py','mlkino/production_release.py','accounts/migrations/0011_user_profile_updated_at_accountnotification_and_more.py']
 sources = {name:ROOT/name for name in files}
@@ -39,3 +40,10 @@ manifest['archives']={name:sha(out/name) for name in ['frontend.tar.gz','backend
 (out/'SHA256SUMS').write_text(''.join(f'{value}  {name}\n' for name,value in manifest['archives'].items()))
 (out/'DIFF-REVIEW.txt').write_text('\n'.join(f'{"NEW" if name not in base else "CHANGED" if base[name]!=digest else "UNCHANGED"} {name}' for name,digest in manifest['files'].items())+'\n')
 print(out)
+
+# Deployment tooling is a separate root-private upload, never part of the web root.
+tools = [ROOT/name for name in ['DEPLOYMENT.md','PRODUCTION_CHECKLIST.md','deploy-frontend.sh','deploy-backend.sh','rollback-frontend.sh','rollback-backend.sh']]
+tools += [p for p in (ROOT/'deployment').rglob('*') if p.is_file() and 'artifacts' not in p.parts and '__pycache__' not in p.parts]
+with tarfile.open(out/'deployment-tools.tar.gz','w:gz') as archive:
+    for path in sorted(tools):archive.add(path,arcname=str(path.relative_to(ROOT)),recursive=False)
+(out/'TOOLS-SHA256SUMS').write_text(f"{sha(out/'deployment-tools.tar.gz')}  deployment-tools.tar.gz\n")

@@ -29,7 +29,7 @@ class RedesignFlowTests(TestCase):
         self.assertEqual(self.client.get('/panel/tasks/').data['data']['results'][0]['id'],task_id)
         self.assertEqual(self.client.patch(f'/panel/tasks/{task_id}/',{'title':'تغییر غیرمجاز'},format='json').status_code,403)
         assignment=TaskAssignment.objects.get(task_id=task_id,assignee=self.expert)
-        self.assertEqual(self.client.patch(f'/panel/tasks/assignments/{assignment.pk}/',{'status':'done'},format='json').status_code,200)
+        self.assertEqual(self.client.patch(f'/panel/tasks/assignments/{assignment.pk}/',{'status':'done'},format='json').status_code,403)
         self.client.force_authenticate(self.other)
         self.assertEqual(self.client.get('/panel/tasks/').data['data']['results'],[])
         self.assertEqual(self.client.get(f'/panel/tasks/{task_id}/').status_code,404)

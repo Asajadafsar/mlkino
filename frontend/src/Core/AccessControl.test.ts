@@ -14,3 +14,5 @@ test.each([UserRole.USER, UserRole.EXPERT, null])('role %s cannot enter user man
     expect(canAccessUserRoute(role, '/users')).toBe(false)
     expect(canAccessUserRoute(role, '/users/expert')).toBe(false)
 })
+
+test('settings and task creation honor manager roles',()=>{expect(canAccessUserRoute('user','/settings')).toBe(false);expect(canAccessUserRoute('agency','/settings')).toBe(false);expect(canAccessUserRoute('expert','/tasks/create')).toBe(false);expect(canAccessUserRoute('agency','/tasks/create')).toBe(true)})

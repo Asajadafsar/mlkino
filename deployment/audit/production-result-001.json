@@ -1,0 +1,72 @@
+{
+  "status": "DEPLOYED_AND_VERIFIED",
+  "release": "20261031-001",
+  "frontend": "https://panel.mlkino.com",
+  "api": "https://api.mlkino.com",
+  "ws": [
+    "wss://api.mlkino.com/ws/inbox/",
+    "wss://api.mlkino.com/ws/chats/{id}/"
+  ],
+  "frontend_path": "/var/www/mlkino-frontend/current -> releases/20261031-001",
+  "backend_path": "/var/www/mlkino",
+  "backup_root": "/var/backups/mlkino",
+  "backend_rollback_snapshot": "/var/backups/mlkino/backend-20261031-001-retry-094220",
+  "frontend_emergency_fallback": "/var/www/mlkino-frontend/releases/maintenance-20261031",
+  "preserved": [
+    "database contents",
+    "media",
+    "original settings.py",
+    "provider services",
+    "utils",
+    "permissions",
+    "existing JWT signing key"
+  ],
+  "services": {
+    "gunicorn": "active",
+    "mlkino-asgi": "active",
+    "redis-server": "active, not restarted",
+    "nginx": "active",
+    "django-app": "inactive and disabled"
+  },
+  "new_migration": "accounts.0011_user_profile_updated_at_accountnotification_and_more",
+  "hotfixes": [
+    "Redis client socket_timeout=30s (5s default conflicted with 5s Channels blocking poll)",
+    "Explicitly approved 32 MiB HTTP/JSON request limits; serializer image/file limits unchanged"
+  ],
+  "tests": {
+    "frontend": 85,
+    "backend": 33,
+    "deployment_safety": 6,
+    "production_browser": {
+      "time": "2026-10-31T10:03:53.851Z",
+      "errors": [],
+      "settingsSave": true,
+      "threeMiBRequestReachedValidation": true,
+      "idleSocket": true,
+      "agencyScope": true,
+      "videoCall": true,
+      "qaDisabled": true
+    },
+    "message_typing_read_receipt_voice": "passed on real production endpoints with dedicated QA account",
+    "cors_unknown_origin": "blocked",
+    "private_media": "404 without public access",
+    "spa_routes_and_mobile": "passed"
+  },
+  "qa_records": {
+    "user": 8,
+    "conversation": 2,
+    "ticket": 4,
+    "task": 6,
+    "user_inactive": true,
+    "ticket_closed": true,
+    "task_done": true,
+    "records_retained": true
+  },
+  "limitations": [
+    "Media calls tested using two Chrome contexts and synthetic camera/microphone; independent-network TURN coverage was not tested.",
+    "First frontend deployment has no historical prior version; emergency maintenance release is available.",
+    "Legacy Django signing fallback and JWT key retained as approved; complete legacy key retirement remains separate."
+  ],
+  "backup_archive_decoding": "Full pg_restore output to /dev/null passed for predeploy and pre-Redis backups; no database restore/write performed.",
+  "ssl_renewal": "Existing certbot timer plus deploy hook validates nginx before reload after renewal."
+}

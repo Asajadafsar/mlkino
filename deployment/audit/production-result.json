@@ -1,0 +1,56 @@
+{
+  "status": "DEPLOYED_AND_VERIFIED",
+  "release": "20261031-002",
+  "verified_at": "2026-10-31T16:23:18.274942+00:00",
+  "frontend": "https://panel.mlkino.com",
+  "api": "https://api.mlkino.com",
+  "frontend_path": "/var/www/mlkino-frontend/current -> releases/20261031-002",
+  "backend_path": "/var/www/mlkino",
+  "backend_rollback_snapshot": "/var/backups/mlkino/backend-20261031-002",
+  "frontend_rollback_release": "/var/www/mlkino-frontend/releases/20261031-001",
+  "new_migrations": [],
+  "changes": [
+    "Responsive login/signup/OTP redesign",
+    "Jalali date inputs and Persian date/time output",
+    "Settings restricted to superadmin; separate appearance endpoint",
+    "Tasks managed by superadmin/agency; other roles read-only",
+    "Private reminders for every role; three on dashboard",
+    "Business activity descriptions and trusted proxy client IP; navigation excluded"
+  ],
+  "tests": {
+    "backend": 39,
+    "frontend": 96,
+    "deployment_safety": 6,
+    "production_migration_lineage": "passed; no new migrations",
+    "production_browser": [
+      "real admin cookie login and refresh",
+      "reminder create/edit immediately visible; only temporary test reminders cleaned up",
+      "personal reminders dashboard",
+      "no native Gregorian inputs on tasks/logs/profile",
+      "mobile reminders/dashboard/tasks/logs/profile without horizontal overflow",
+      "no page JavaScript errors",
+      "agency and ordinary-user settings hidden and API 403",
+      "appearance excludes private contact settings",
+      "role-scoped task recipients",
+      "reminder business audit IP and description",
+      "authenticated inbox WebSocket ping/pong"
+    ]
+  },
+  "limitations": [
+    "Signup OTP UI verified using mocked send/verify responses; no live SMS sent",
+    "No active expert fixture available on Production; expert permissions covered by isolated backend tests"
+  ],
+  "preserved": [
+    "production settings.py and provider services",
+    "database schema and existing user data",
+    "media and environment secrets",
+    "existing JWT sessions and signing key"
+  ],
+  "services": {
+    "gunicorn": "active",
+    "mlkino-asgi": "active",
+    "redis-server": "active; not restarted",
+    "nginx": "active; not reloaded"
+  },
+  "recent_service_errors": []
+}

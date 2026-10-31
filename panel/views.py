@@ -64,9 +64,15 @@ LABELS = {
     "http.request": "درخواست سامانه",
 }
 
+LABELS.update({
+    'reminder.create':'ثبت یادآوری شخصی','reminder.update':'ویرایش یادآوری شخصی','reminder.delete':'حذف یادآوری شخصی',
+    'profile.update':'ویرایش پروفایل','profile.preferences':'تغییر تنظیمات شخصی','password.change':'تغییر رمز عبور','session.revoke':'بستن نشست دستگاه','session.created':'ورود به حساب',
+    'chat.create':'شروع گفتگو','chat.message.send':'ارسال پیام','chat.send':'ارسال پیام','chat.message.delete':'حذف پیام','chat.read':'خواندن پیام','chat.block':'مسدودکردن مخاطب','chat.unblock':'رفع مسدودی مخاطب','chat.report':'ثبت گزارش گفتگو','chat.report.review':'بررسی گزارش گفتگو','user.permanent_delete':'حذف کاربر','request.failed':'عملیات ناموفق'
+})
+
 
 def _ip(request):
-    from accounts.utils import get_client_ip
+    from accounts.client_ip import get_client_ip
     return get_client_ip(request)
 
 
@@ -75,7 +81,26 @@ def record_activity(request, *, event, target_type="", target_id=None, target_la
     actor = getattr(request, "user", None)
     if not actor or not actor.is_authenticated:
         return None
-    metadata = {"description": description, "target_type": target_type,
+    field_labels={'first_name':'نام','last_name':'نام خانوادگی','email':'ایمیل','phone':'شماره همراه','postal_code':'کد پستی','address':'نشانی','avatar':'عکس','role':'نقش','account_status':'وضعیت حساب','is_active':'فعال بودن حساب','verification_status':'احراز هویت','title':'عنوان','description':'توضیحات','due_date':'سررسید','status':'وضعیت','is_done':'انجام شدن','remind_at':'زمان یادآوری','assigned_to':'مسئول رسیدگی','assignee_ids':'دریافت‌کنندگان','category':'دسته‌بندی','message':'متن پاسخ','attachment':'پیوست','password':'رمز عبور','old_password':'رمز عبور','new_password':'رمز عبور','is_internal':'نوع پاسخ','notifications':'تنظیمات اطلاع‌رسانی','privacy':'حریم خصوصی','national_code':'کد ملی','birth_date':'تاریخ تولد','province':'استان','city':'شهر','user_type':'نوع کاربر','general':'تنظیمات عمومی','branding':'هویت بصری','theme':'ظاهر','seo':'اطلاعات جستجو','contact':'اطلاعات تماس'}
+    changed_fields=[field_labels.get(key,'سایر اطلاعات') for key in request.data.keys() if key not in ('password_confirm','new_password_confirm')]
+    actor_name=getattr(actor,'full_name','') or f'کاربر #{actor.pk}'
+    acting=getattr(request._request,'impersonation_session',None)
+    if acting:actor_name=f'{acting.actor.full_name or acting.actor.pk} به نمایندگی از {actor_name}'
+    title=LABELS.get(event,description or event)
+    detail=f'{actor_name} — {title}'
+    if target_label:detail+=f'؛ مورد: «{str(target_label)[:180]}»'
+    if target_id is not None:detail+=f' (شناسه {target_id})'
+    if changed_fields:detail+='؛ فیلدها: '+ '، '.join(changed_fields)
+    enum_labels={'pending':'در انتظار','in_progress':'در حال انجام','done':'انجام شده','active':'فعال','inactive':'غیرفعال','suspended':'تعلیق شده','open':'باز','answered':'پاسخ داده شده','waiting_user':'منتظر کاربر','closed':'بسته','superadmin':'سوپرادمین','agency':'املاکی','expert':'کارشناس','user':'کاربر عادی','verified':'تأیید شده','rejected':'رد شده','not_started':'شروع نشده'}
+    new_values={field_labels[key]:enum_labels.get(str(request.data[key]),str(request.data[key])) for key in ('status','account_status','role','verification_status') if key in request.data}
+    if 'is_done' in request.data:new_values['انجام شدن']='انجام شده' if request.data['is_done'] in (True,'true') else 'انجام نشده'
+    if isinstance(request.data.get('assignee_ids'),list):
+        recipients=User.objects.filter(pk__in=request.data['assignee_ids'][:100])
+        new_values['دریافت‌کنندگان']='، '.join(f'{person.full_name or person.phone} (#{person.pk})' for person in recipients)
+    if new_values:detail+='؛ '+ '؛ '.join(f'{key}: {value}' for key,value in new_values.items())
+    detail+='؛ نتیجه: موفق' 
+    request._request.business_activity_logged=True
+    metadata = {"description": detail,"changed_fields":changed_fields,"new_values":new_values, "target_type": target_type,
                 "target_id": target_id, "target_label": str(target_label or "")[:180]}
     if changes:
         metadata["changes"] = changes  # Only pass pre-sanitized, non-sensitive changes.
@@ -127,11 +152,11 @@ def describe_http_activity(obj):
         else:
             description = f"{actor_name}: {title}"
     label = meta.get("target_label")
-    if label and obj.event != "http.request":
+    if label and obj.event != "http.request" and not meta.get("description"):
         description = f"{actor_name}: {title} — {label}"
     return {"action": event, "action_display": title, "description": description,
             "target_type": meta.get("target_type"), "target_id": meta.get("target_id"),
-            "changes": meta.get("changes", {})}
+            "changes": meta.get("changes", {"fields":meta.get("changed_fields",[]),"new_values":meta.get("new_values",{})})}
 
 
 
@@ -219,7 +244,7 @@ def _managed_users(user):
 
 def _eligible_task_recipients(user):
     if _is_superadmin(user):
-        return User.objects.filter(models.Q(role=User.Role.AGENCY) | models.Q(pk=user.pk), is_active=True, account_status=User.AccountStatus.ACTIVE)
+        return User.objects.filter(models.Q(role__in=[User.Role.AGENCY, User.Role.EXPERT]) | models.Q(pk=user.pk), is_active=True, account_status=User.AccountStatus.ACTIVE)
     if _is_agency(user):
         return User.objects.filter(models.Q(pk__in=_agency_experts_queryset(user).values('pk')) | models.Q(pk=user.pk), is_active=True, account_status=User.AccountStatus.ACTIVE)
     return User.objects.none()
@@ -1338,7 +1363,7 @@ class TaskAssignmentStatusView(APIView):
             pk=assignment_id,
         )
 
-        if not (assignment.assignee_id == request.user.id or _is_superadmin(request.user) or (assignment.task.created_by_id == request.user.id and _can_assign_tasks(request.user))):
+        if not (_is_superadmin(request.user) or (assignment.task.created_by_id == request.user.id and _can_assign_tasks(request.user))):
             return error_response(
                 message=(
                     "فقط دریافت‌کننده می‌تواند "
@@ -1449,6 +1474,10 @@ class DashboardView(APIView):
                     "total_results": len(announcements),
                     "results": announcements,
                 },
+                "personal_reminders": {
+                    "total_results": PersonalReminder.objects.filter(owner=user,is_done=False).count(),
+                    "results": ReminderSerializer(PersonalReminder.objects.filter(owner=user,is_done=False).order_by('remind_at','id')[:3],many=True).data,
+                },
                 "important_tasks": {
                     "total_results": total_tasks,
                     "completed_count": completed_tasks,
@@ -1483,6 +1512,7 @@ class DashboardTaskToggleView(APIView):
     @transaction.atomic
     def _change(self, request, assignment_id):
         user = request.user
+        if not _can_assign_tasks(user):return error_response('فقط سوپرادمین و املاکی مجاز به تغییر وظیفه هستند.',status_code=403)
         # URL convention: task id. Preserve legacy assignment-id calls only
         # when no matching visible task exists.
         task = _visible_tasks(user).filter(pk=assignment_id).first()
@@ -1706,6 +1736,7 @@ class ActivityLogListView(APIView):
         if not _is_superadmin(request.user) or _has_active_impersonation(request):
             raise PermissionDenied('مشاهده لاگ‌ها فقط برای سوپرادمین در نشست اصلی مجاز است.')
         qs = ActivityLog.objects.select_related('actor', 'real_actor').order_by('-created_at','-id')
+        qs=qs.exclude(event='http.request',method__in=['GET','HEAD','OPTIONS'])
         params=request.query_params
         for key in ('actor_id','real_actor_id','status_code'):
             if params.get(key):
@@ -1962,9 +1993,20 @@ class ReminderListCreateView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
         qs = PersonalReminder.objects.filter(owner=request.user)
-        if request.query_params.get("is_done") in ("true", "false"):
-            qs = qs.filter(is_done=request.query_params["is_done"] == "true")
-        return success_response("یادآوری‌های من", data={"results": ReminderSerializer(qs[:200], many=True).data, "total_results": qs.count()})
+        status=request.query_params.get('is_done')
+        if status in ('true','false'):qs=qs.filter(is_done=status=='true')
+        elif status:return error_response('وضعیت یادآوری نامعتبر است.',status_code=400)
+        search=request.query_params.get('search','').strip()[:200]
+        if search:qs=qs.filter(Q(title__icontains=search)|Q(description__icontains=search))
+        for key,lookup in [('start_date','remind_at__date__gte'),('end_date','remind_at__date__lte')]:
+            if request.query_params.get(key):
+                try:day=date.fromisoformat(request.query_params[key])
+                except ValueError:return error_response('تاریخ نامعتبر است.',status_code=400)
+                qs=qs.filter(**{lookup:day})
+        ordering=request.query_params.get('ordering','remind_at')
+        if ordering not in ['remind_at','-remind_at','created_at','-created_at']:return error_response('ترتیب نمایش نامعتبر است.',status_code=400)
+        paginator=UserPagination();page=paginator.paginate_queryset(qs.order_by(ordering,'id'),request,view=self)
+        return success_response('یادآوری‌های شخصی من',data={'results':ReminderSerializer(page,many=True).data,'total_results':paginator.page.paginator.count})
     def post(self, request):
         ser = ReminderSerializer(data=request.data)
         ser.is_valid(raise_exception=True)

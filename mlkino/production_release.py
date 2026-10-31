@@ -53,3 +53,33 @@ if CHANNEL_LAYERS.get('default', {}).get('BACKEND') != 'channels_redis.core.Redi
     raise ImproperlyConfigured('Production requires the existing Redis channel layer; refusing in-memory fallback.')
 if not STATIC_ROOT or str(MEDIA_ROOT) != '/var/www/mlkino/media':  # noqa: F405
     raise ImproperlyConfigured('Review static/media paths before enabling this production overlay.')
+
+# redis-py 8 defaults to a 5s read timeout, equal to Channels' 5s blocking poll.
+# Give the blocking poll time to finish instead of repeatedly dropping live inboxes.
+from copy import deepcopy as _deepcopy
+CHANNEL_LAYERS = _deepcopy(CHANNEL_LAYERS)
+_channel_config = CHANNEL_LAYERS['default'].setdefault('CONFIG', {})
+_channel_hosts = []
+for _entry in _channel_config.get('hosts', []):
+    if isinstance(_entry, (tuple, list)):
+        _host = {'host': _entry[0], 'port': _entry[1]}
+    elif isinstance(_entry, dict):
+        _host = dict(_entry)
+    else:
+        _host = {'address': _entry}
+    if 'socket_timeout' not in _host or (_host['socket_timeout'] is not None and float(_host['socket_timeout']) < 30):
+        _host['socket_timeout'] = 30
+    _host.setdefault('socket_connect_timeout', 5)
+    _channel_hosts.append(_host)
+_channel_config['hosts'] = _channel_hosts
+
+# Settings may contain up to four validated 5 MiB base64 images in one JSON save.
+# Individual file/image limits remain enforced by their serializers.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 32 * 1024 * 1024
+
+# Nginx overwrites these headers; Gunicorn is reachable only through its Unix socket.
+MLKINO_TRUSTED_PROXIES = ['127.0.0.1/32','::1/128']
+MLKINO_TRUST_PROXY_HEADERS_WITHOUT_REMOTE = True
+MIDDLEWARE = [entry for entry in MIDDLEWARE if entry != 'accounts.utils.ActivityAuditMiddleware']
+
+LANGUAGE_CODE = 'fa'

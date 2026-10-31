@@ -1,155 +1,32 @@
-import {Chip, Typography} from '@mui/material'
-import TableCell from '@mui/material/TableCell'
-import {Fragment, useState} from 'react'
-import {useDispatch} from 'react-redux'
-import useDeepCompareEffect from 'use-deep-compare-effect'
+import {useEffect,useState} from 'react'
+import {Alert,Box,Button,Chip,Dialog,DialogContent,DialogTitle,Grid,IconButton,InputAdornment,MenuItem,Pagination,Paper,Stack,TextField,ToggleButton,ToggleButtonGroup,Typography,LinearProgress} from '@mui/material'
+import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
+import ViewAgendaOutlinedIcon from '@mui/icons-material/ViewAgendaOutlined'
+import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined'
+import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined'
+import {PageHero} from '../../../Components/Workspace/PageHero'
+import DatePickerFilter from '../../../Components/Filter/DatePicker'
 import {DataProvider} from '../../../Core/DataProvider'
-import {setUtil} from '../../../redux/UtilSlice'
-import {useQueryParams} from 'use-query-params'
-import {createCardField} from '../../../Components/Card/CustomCard'
-import {CustomCardList} from '../../../Components/Card/CustomCardList'
-import {CustomTable} from '../../../Components/Table/CustomTable'
-import {createTableHeadCells} from '../../../Components/Table/CustomTableHead'
-import {ListPage} from '../../../Components/Table/ListPage'
 import {formatDate} from '../../../Core/FormatDate'
-import {createQueryParam} from '../../../Core/QueryParams'
-import {ReminderCreate} from '../Create/ReminderCreate'
-import {ReminderType, reminderDefaults} from '../Reminder'
-
-const RESOURCE = 'reminders'
-
-function ReminderStatus({isDone}: {isDone: boolean}) {
-    return <Chip size="small" label={isDone ? 'انجام شده' : 'انجام نشده'} color={isDone ? 'success' : 'warning'} variant="outlined" />
-}
-
-const tableHeadCells = [
-    createTableHeadCells('شناسه', 'id'),
-    createTableHeadCells('عنوان', 'title'),
-    createTableHeadCells('توضیحات', 'description'),
-    createTableHeadCells('زمان یادآوری', 'remind_at'),
-    createTableHeadCells('وضعیت', 'is_done'),
-]
-
-/** همان ستون‌ها، اما برای بدنه‌ی کارت. عنوان در renderers.title می‌آید پس اینجا تکرار نشده */
-const cardFields = [
-    createCardField('شناسه', 'id'),
-    createCardField('زمان یادآوری', 'remind_at', {render: (row: ReminderType) => formatDate(row.remind_at)}),
-    createCardField('توضیحات', 'description', {fullWidth: true}),
-]
-
-const queryNames = tableHeadCells.slice(1, 2).map((cell) => ({
-    field: cell.name,
-    label: cell.label,
-    type: '',
-}))
-
-const cellText = (value: any) => (
-    <Typography
-        variant="body2"
-        fontSize={{xs: '13px', sm: '14px', md: '16px', xl: '17px'}}
-        sx={{overflowWrap: 'anywhere', maxWidth: 260}}
-    >
-        {value ?? '--'}
-    </Typography>
-)
-
-export function ReminderList() {
-    const dispatch = useDispatch()
-    const [search, setSearch] = useQueryParams(createQueryParam(queryNames))
-    const [loading, setLoading] = useState(false)
-    const [reminders, setReminders] = useState<{
-        total_results: number
-        data: ReminderType[]
-    }>({
-        total_results: 0,
-        data: [],
-    })
-
-    const getReminders = async () => {
-        setLoading(true)
-        try {
-            const response = await DataProvider.get<{
-                total_results: number
-                results: ReminderType[]
-            }>(`${RESOURCE}/`, search)
-            if (response) {
-                setReminders({
-                    total_results: response.data.total_results,
-                    data: response.data.results,
-                })
-            }
-        } catch (error: any) {
-            dispatch(setUtil({open: true, message: error.message || 'خطا در دریافت یادآوری‌ها', severity: 'error'}))
-        } finally {
-            setLoading(false)
-        }
-    }
-    useDeepCompareEffect(() => {
-        getReminders()
-    }, [search])
-
-    // پراپ‌های مشترک بین جدول و کارت
-    const shared = {
-        title: 'یادآوری',
-        resource: RESOURCE,
-        rows: reminders.data,
-        count: reminders.total_results,
-        params: search,
-        setParams: setSearch,
-        loading,
-        getList: getReminders,
-        hasDetail: true,
-    }
-
-    return (
-        <ListPage
-            viewKey={RESOURCE}
-            defaultView="list"
-            header="مدیریت یادآوری‌ها"
-            href={RESOURCE + '/create'}
-            searchField="title"
-            searchText="عنوان"
-            setParams={setSearch}
-            params={search}
-            resource={RESOURCE}
-            getList={getReminders}
-            filtersData={queryNames}
-            createModal={ReminderCreate}
-            defaultState={reminderDefaults}
-        >
-            {(view) =>
-                view === 'card' ? (
-                    <CustomCardList
-                        {...shared}
-                        fields={cardFields}
-                        columns={{xs: 1, sm: 2, md: 3, xl: 4}}
-                        renderers={{
-                            title: (row) => row.title || '--',
-                            subtitle: (row: ReminderType) => formatDate(row.remind_at),
-                            status: (row: ReminderType) => <ReminderStatus isDone={row.is_done} />,
-                        }}
-                    />
-                ) : (
-                    <CustomTable
-                        {...shared}
-                        headCells={tableHeadCells}
-                        handleSort={getReminders}
-                        tableBodyCells={reminders.data.map((item) => (
-                            <Fragment key={item.id}>
-                                <TableCell>{cellText(item.id)}</TableCell>
-                                <TableCell>{cellText(item.title)}</TableCell>
-                                <TableCell>{cellText(item.description)}</TableCell>
-                                <TableCell>
-                                    <Typography sx={{overflowWrap: 'anywhere', maxWidth: 260}}>
-                                        {formatDate(item.remind_at)}
-                                    </Typography>
-                                </TableCell>
-                                <TableCell><ReminderStatus isDone={item.is_done} /></TableCell>
-                            </Fragment>
-                        ))}
-                    />
-                )
-            }
-        </ListPage>
-    )
+import {ReminderEditor,remindersChanged} from '../ReminderEditor'
+import type {ReminderType} from '../Reminder'
+export function ReminderList(){
+ const [rows,setRows]=useState<ReminderType[]>([]),[count,setCount]=useState(0),[search,setSearch]=useState(''),[status,setStatus]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState(''),[ordering,setOrdering]=useState('remind_at'),[page,setPage]=useState(1),[attempt,setAttempt]=useState(0),[view,setView]=useState('cards')
+ const [busy,setBusy]=useState(true),[error,setError]=useState(''),[editor,setEditor]=useState<ReminderType|'new'|null>(null),[deleting,setDeleting]=useState<ReminderType|null>(null),[mutation,setMutation]=useState(false)
+ const query=new URLSearchParams({search,is_done:status,start_date:start,end_date:end,ordering,page:String(page),page_size:'12'}).toString()
+ useEffect(()=>{let active=true;setBusy(true);const timer=setTimeout(()=>{DataProvider.get<any>('reminders/?'+query).then(response=>{if(active){setRows(response.data.results);setCount(response.data.total_results);setError('')}}).catch(error=>{if(active)setError(error.message)}).finally(()=>{if(active)setBusy(false)})},180);return()=>{active=false;clearTimeout(timer)}},[query,attempt])
+ const refresh=()=>setAttempt(v=>v+1)
+ const toggle=async(row:ReminderType)=>{setMutation(true);try{await DataProvider.patch(`reminders/${row.id}/`,{data:{is_done:!row.is_done}});refresh();remindersChanged()}catch(error:any){setError(error.message)}finally{setMutation(false)}}
+ const remove=async()=>{if(!deleting)return;setMutation(true);try{await DataProvider.delete(`reminders/${deleting.id}/`);setDeleting(null);refresh();remindersChanged()}catch(error:any){setError(error.message)}finally{setMutation(false)}}
+ return <Stack spacing={2.5} sx={{minWidth:0}}><PageHero title="مدیریت یادآوری‌های من" description="یادداشت‌ها و کارهایی که نمی‌خواهید فراموش کنید؛ فقط برای خودتان." illustration="/assets/reminders-3d.png" action={<Button variant="contained" startIcon={<AddRoundedIcon/>} onClick={()=>setEditor('new')}>یادآوری جدید</Button>}/>{error&&<Alert severity="error" action={<Button onClick={refresh}>تلاش مجدد</Button>}>{error}</Alert>}
+ <Paper variant="outlined" sx={{p:2.5,borderRadius:4}}><Stack spacing={2}><Stack direction={{xs:'column',sm:'row'}} gap={1.5}><TextField fullWidth placeholder="جستجو در عنوان و یادداشت‌ها…" value={search} onChange={e=>{setSearch(e.target.value);setPage(1)}} InputProps={{startAdornment:<InputAdornment position="start"><SearchRoundedIcon/></InputAdornment>}}/><ToggleButtonGroup exclusive value={view} onChange={(_,v)=>{if(v)setView(v)}}><ToggleButton value="cards" aria-label="نمایش کارتی"><GridViewOutlinedIcon/></ToggleButton><ToggleButton value="list" aria-label="نمایش فهرستی"><ViewAgendaOutlinedIcon/></ToggleButton></ToggleButtonGroup></Stack><Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'1fr 1fr',lg:'repeat(4,minmax(0,1fr))'},gap:1.5}}><DatePickerFilter mode="controlled" item={{label:'از تاریخ'}} value={start} onChange={value=>{setStart(value||'');setPage(1)}}/><DatePickerFilter mode="controlled" item={{label:'تا تاریخ'}} value={end} onChange={value=>{setEnd(value||'');setPage(1)}}/><TextField select label="وضعیت" value={status} onChange={e=>{setStatus(e.target.value);setPage(1)}}><MenuItem value="">همه وضعیت‌ها</MenuItem><MenuItem value="false">در انتظار</MenuItem><MenuItem value="true">انجام شده</MenuItem></TextField><TextField select label="ترتیب نمایش" value={ordering} onChange={e=>{setOrdering(e.target.value);setPage(1)}}><MenuItem value="remind_at">نزدیک‌ترین زمان</MenuItem><MenuItem value="-remind_at">دورترین زمان</MenuItem><MenuItem value="-created_at">تازه‌ترین ثبت</MenuItem></TextField></Box></Stack></Paper>
+ {busy&&<LinearProgress/>}{!busy&&!rows.length?<Paper variant="outlined" sx={{p:{xs:3,md:6},textAlign:'center',borderRadius:4}}><Box component="img" src="/assets/reminders-3d.png" alt="" sx={{width:220,height:180,objectFit:'contain'}}/><Typography fontSize={21} fontWeight={900}>یادآوری‌ای پیدا نشد.</Typography><Typography color="text.secondary" sx={{my:2}}>یک یادداشت شخصی بنویسید تا کار مهمی از قلم نیفتد.</Typography><Button variant="contained" startIcon={<AddRoundedIcon/>} onClick={()=>setEditor('new')}>ایجاد یادآوری جدید</Button></Paper>:<Box sx={{display:'grid',gridTemplateColumns:view==='list'?'1fr':{xs:'1fr',md:'repeat(2,minmax(0,1fr))',xl:'repeat(3,minmax(0,1fr))'},gap:2}}>{rows.map(row=><Paper key={row.id} variant="outlined" sx={{p:2.5,borderRadius:4,borderColor:row.is_done?'#d5eee2':'#e1e9f7',minWidth:0}}><Stack spacing={2}><Stack direction="row" justifyContent="space-between" alignItems="center"><Box sx={{display:'flex',p:1.2,borderRadius:3,bgcolor:'#edf4ff',color:'primary.main'}}><NotificationsActiveOutlinedIcon/></Box><Chip size="small" color={row.is_done?'success':new Date(row.remind_at)<new Date()?'warning':'info'} label={row.is_done?'انجام شده':new Date(row.remind_at)<new Date()?'سررسید گذشته':'در انتظار'}/></Stack><Typography fontWeight={800} fontSize={18} sx={{overflowWrap:'anywhere',textDecoration:row.is_done?'line-through':'none'}}>{row.title}</Typography><Typography color="text.secondary" sx={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',minHeight:45}}>{row.description||'بدون یادداشت بیشتر'}</Typography><Stack direction="row" gap={1} alignItems="center"><CalendarMonthOutlinedIcon fontSize="small" color="primary"/><Typography variant="caption">{formatDate(row.remind_at)}</Typography></Stack><Stack direction="row" gap={1}><Button size="small" variant="outlined" onClick={()=>toggle(row)} disabled={mutation} sx={{flex:1}}>{row.is_done?'بازگرداندن به انتظار':'انجام شد'}</Button><IconButton aria-label={`ویرایش ${row.title}`} onClick={()=>setEditor(row)}><EditOutlinedIcon fontSize="small" color="primary"/></IconButton><IconButton aria-label={`حذف ${row.title}`} onClick={()=>setDeleting(row)}><DeleteOutlineRoundedIcon fontSize="small" color="error"/></IconButton></Stack></Stack></Paper>)}</Box>}
+ {count>12&&<Pagination count={Math.ceil(count/12)} page={page} onChange={(_,v)=>setPage(v)} color="primary"/>}<Paper variant="outlined" sx={{p:2.5,borderRadius:4}}><Stack direction={{xs:'column',sm:'row'}} gap={3} justifyContent="space-around">{['شخصی و مختص حساب شما','تاریخ و ساعت شمسی','سه یادآوری در پیشخوان'].map(text=><Typography fontSize={13} color="text.secondary" key={text}>{text}</Typography>)}</Stack></Paper>
+ <Dialog open={!!editor} onClose={()=>setEditor(null)} fullWidth maxWidth="sm"><DialogTitle><Stack direction="row" justifyContent="space-between">{editor==='new'?'یادآوری جدید':'ویرایش یادآوری'}<Button onClick={()=>setEditor(null)}>بستن</Button></Stack></DialogTitle><DialogContent sx={{pt:'12px !important'}}>{editor&&<ReminderEditor key={editor==='new'?'new':editor.id} initial={editor==='new'?undefined:editor} onSaved={()=>{if(editor==='new'){setSearch('');setStatus('');setStart('');setEnd('');setOrdering('-created_at')}setEditor(null);setPage(1);refresh()}}/>}</DialogContent></Dialog>
+ <Dialog open={!!deleting} onClose={()=>setDeleting(null)}><DialogTitle>حذف یادآوری</DialogTitle><DialogContent><Typography>یادآوری «{deleting?.title}» حذف شود؟</Typography><Stack direction="row" gap={1} sx={{mt:3}}><Button onClick={()=>setDeleting(null)}>انصراف</Button><Button color="error" variant="contained" disabled={mutation} onClick={remove}>حذف یادآوری</Button></Stack></DialogContent></Dialog>
+ </Stack>
 }

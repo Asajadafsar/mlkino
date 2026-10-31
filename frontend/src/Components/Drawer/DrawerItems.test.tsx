@@ -19,3 +19,5 @@ test('agency sees only the dedicated expert entry, not general user management',
     expect(canAccessDrawerItem(drawerItems.find(item => item.link === 'users')!, UserRole.AGENCY)).toBe(false)
     expect(canAccessDrawerItem(drawerItems.find(item => item.link === 'users/expert')!, UserRole.AGENCY)).toBe(true)
 })
+
+test.each([UserRole.USER,UserRole.EXPERT,UserRole.AGENCY])('settings are hidden from %s',role=>{expect(canAccessDrawerItem(drawerItems.find(item=>item.link==='settings')!,role)).toBe(false)})

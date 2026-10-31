@@ -230,7 +230,7 @@ export const drawerItems: DrawerItemType[] = [
     {
         title: 'تنظیمات',
         link: 'settings',
-        role: 'all',
+        role: UserRole.SUPERADMIN,
         icon: <SettingsRoundedIcon sx={iconStyle} />,
     },
     {

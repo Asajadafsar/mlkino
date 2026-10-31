@@ -35,6 +35,7 @@ interface AddressType {
 interface Props {
     phone: string
     onBack: () => void
+    initialValues?: Partial<SignupInfoForm>
 }
 
 type InfoSubStep = 0 | 1
@@ -51,7 +52,7 @@ const userTypeOptions = [
 
 const subStepLabels = ['اطلاعات شخصی', 'آدرس و رمز عبور']
 
-const SignupInfo = ({phone, onBack}: Props) => {
+const SignupInfo = ({phone, onBack, initialValues}: Props) => {
     const dispatch = useDispatch()
     const [subStep, setSubStep] = useState<InfoSubStep>(0)
     const [addressData, setAddressData] = useState<AddressType>({} as AddressType)
@@ -79,6 +80,7 @@ const SignupInfo = ({phone, onBack}: Props) => {
             password: '',
             password_confirm: '',
             user_type: 'consumer',
+            ...initialValues,
         },
     })
 

@@ -10,3 +10,7 @@ The source logo reference belongs to the user. Existing editable UI assets remai
 
 ## Additional panel illustrations
 Generated transparent raster illustrations for the panel redesign: support-3d.png (blue and pearl chat bubbles), tasks-3d.png (clipboard with blue checklist and mint completion badge), settings-3d.png (blue/periwinkle gears), logs-3d.png (blue checklist and clock). Prompt style: premium clean 3D product illustration, soft studio light, rounded forms, blue/pearl palette, subtle orange or mint accent, no text, transparent background.
+
+## Authentication and personal reminders
+auth-villa.png: Generated photorealistic blue-hour contemporary glass villa, warm interior, pool and garden; no text or logos. Used as the responsive login/signup photographic panel.
+reminders-3d.png: Generated transparent pearl/cobalt calendar, floating note and golden bell, soft studio product lighting; no text. Used in personal reminders.

@@ -14,6 +14,8 @@ import {
 } from '@mui/material'
 
 import {useState} from 'react'
+import {useSelector} from 'react-redux'
+import {selectRole} from '../../redux/RoleSlice'
 import {useNavigate} from 'react-router-dom'
 
 const addOptions = [
@@ -32,6 +34,7 @@ const addOptions = [
 ]
 
 const NewActivity = () => {
+    const role=useSelector(selectRole)
     const [anchorEl, setAnchorEl] =
         useState<null | HTMLElement>(null)
 
@@ -164,7 +167,7 @@ const NewActivity = () => {
                 <Divider />
 
                 <Stack p={0.75}>
-                    {addOptions.map((item) => (
+                    {addOptions.filter(item=>item.link!=='users/create'||role==='superadmin').map((item) => (
                         <MenuItem
                             key={item.link}
                             onClick={() =>

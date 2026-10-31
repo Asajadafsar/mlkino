@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Server-side guarded release operations. Never run before owner approval."""
-import atexit, datetime, fcntl, hashlib, json, os, pathlib, shutil, subprocess, sys, tarfile, tempfile
+import atexit, datetime, time, fcntl, hashlib, json, os, pathlib, shutil, subprocess, sys, tarfile, tempfile
 HERE=pathlib.Path(__file__).resolve().parent
 
 def die(message): raise SystemExit(message)
@@ -34,12 +34,24 @@ def extract(archive,destination,expected):
 def lock(name):
     fd=open('/run/lock/mlkino-'+name+'.lock','w');fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB);return fd
 
+def running_environment():
+    # Keep runtime secrets on the server: use the actual service environment in memory only.
+    pid=output(['systemctl','show','gunicorn.service','--property=MainPID','--value'])
+    if not pid.isdigit() or pid=='0':die('Reviewed Gunicorn master is not running; re-audit environment')
+    values={}
+    for pair in pathlib.Path('/proc',pid,'environ').read_bytes().split(b'\0'):
+        if b'=' in pair:
+            key,value=pair.split(b'=',1);values[key.decode()]=value.decode()
+    return {**os.environ,**values}
+
 def backup_backend(base,folder):
     folder.mkdir(parents=True,exist_ok=False);os.chmod(folder,0o700)
     # Root-private archives intentionally retain production secrets for recovery, never publish them.
     run(['tar','--exclude=./venv','--exclude=./media','--exclude=./staticfiles','--exclude=./.git','--exclude=__pycache__','-czf',folder/'code-before.tar.gz','-C',base,'.'])
-    run(['tar','-czf',folder/'system-config.tar.gz','-C','/','etc/nginx','etc/systemd/system','etc/letsencrypt'])
-    env=os.environ.copy();env['DJANGO_SETTINGS_MODULE']='mlkino.settings';env['PYTHONDONTWRITEBYTECODE']='1'
+    config_paths=['etc/nginx','etc/systemd/system','etc/letsencrypt']
+    if pathlib.Path('/etc/mlkino').is_dir():config_paths.append('etc/mlkino')
+    run(['tar','-czf',folder/'system-config.tar.gz','-C','/',*config_paths])
+    env=running_environment();env['DJANGO_SETTINGS_MODULE']='mlkino.settings';env['PYTHONDONTWRITEBYTECODE']='1'
     run([base/'venv/bin/python','-B',HERE/'backup-db.py',folder/'database.dump'],cwd=base,env=env)
     run(['tar','-czf',folder/'media.tar.gz','-C',base,'media'])
     for name in ['code-before.tar.gz','media.tar.gz','system-config.tar.gz']:
@@ -53,6 +65,11 @@ def backend_deploy(release):
     if os.environ.get('MLKINO_DUAL_GUNICORN_REVIEWED')!='YES':die('Review duplicate Gunicorn services first')
     # The live socket currently has two masters. Never restart both into the same pathname.
     if os.environ.get('MLKINO_DUPLICATE_ACTION')!='stop-disable-django-app':die('Explicit duplicate-service decision required')
+    protected=('accounts/services/','media/','venv/','staticfiles/','.git/','.env')
+    for name in data['files']:
+        if name in ['mlkino/settings.py','mlkino/urls.py','accounts/utils.py','accounts/permissions.py','manage.py'] or name.startswith(protected):
+            die('Protected production path in payload: '+name)
+        if not name.startswith(('accounts/','panel/','mlkino/')):die('Unreviewed payload path: '+name)
     for name,digest in data['baseline'].items():
         if not (base/name).is_file() or sha(base/name)!=digest:die('Server code drift; re-audit before replacing '+name)
     if output(['git','-C',base,'rev-parse','--short','HEAD'])!=data['backend_base_revision']:die('Server revision changed')
@@ -65,6 +82,7 @@ def backend_deploy(release):
     for name,digest in json.loads((HERE/'audit/server-config-hashes.json').read_text()).items():
         if 'systemd' in name and sha(pathlib.Path(name))!=digest:die('Service definition drifted: '+name)
     stamp=data['release'];folder=pathlib.Path(os.environ.get('BACKUP_ROOT','/var/backups/mlkino'))/('backend-'+stamp)
+    if folder.exists():folder=folder.with_name(folder.name+'-retry-'+datetime.datetime.now(datetime.timezone.utc).strftime('%H%M%S'))
     stage=pathlib.Path(tempfile.mkdtemp(prefix='mlkino-stage-',dir='/var/www'))
     os.chmod(stage,0o700)
     atexit.register(lambda: shutil.rmtree(stage,ignore_errors=True))
@@ -74,7 +92,7 @@ def backend_deploy(release):
         target=stage/name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(incoming/name,target)
     # Resolve BASE_DIR from the untouched original settings, not the temporary staging root.
     (stage/'mlkino/settings.py').unlink();(stage/'mlkino/settings.py').symlink_to(base/'mlkino/settings.py')
-    env=os.environ.copy();env.update(DJANGO_SETTINGS_MODULE='mlkino.production_release',PYTHONDONTWRITEBYTECODE='1')
+    env=running_environment();env.update(DJANGO_SETTINGS_MODULE='mlkino.production_release',PYTHONDONTWRITEBYTECODE='1')
     keyfile=pathlib.Path('/etc/mlkino/release.env')
     if not keyfile.is_file() or keyfile.stat().st_uid!=0 or keyfile.stat().st_mode & 0o077:
         die('Missing approved root-private release environment; no services changed')
@@ -82,11 +100,13 @@ def backend_deploy(release):
         if line.startswith('MLKINO_DJANGO_SECRET_KEY='):env['MLKINO_DJANGO_SECRET_KEY']=line.split('=',1)[1]
     if not env.get('MLKINO_DJANGO_SECRET_KEY'):die('New Django signing key must be generated securely before staging checks')
     python=base/'venv/bin/python'
-    for args in [['check'],['check','--deploy'],['check','--deploy','--tag','security','--fail-level','WARNING'],['makemigrations','--check','--dry-run'],['migrate','--plan']]:
+    for args in [['check'],['check','--deploy'],['makemigrations','--check','--dry-run'],['migrate','--plan']]:
         run([python,'-B',stage/'manage.py',*args],cwd=stage,env=env)
+    run([python,'-B',HERE/'security-gate.py'],cwd=stage,env=env)
+    run([python,'-B',HERE/'validate-migrations.py'],cwd=stage,env=env)
     backup_backend(base,folder)
     units=['gunicorn.service','mlkino-asgi.service'];duplicate='django-app.service'
-    states={unit:{'active':output(['systemctl','is-active',unit])=='active','enabled':subprocess.run(['systemctl','is-enabled',unit],capture_output=True,text=True).stdout.strip()} for unit in [*units,duplicate]}
+    states={unit:{'active':subprocess.run(['systemctl','is-active','--quiet',unit]).returncode==0,'enabled':subprocess.run(['systemctl','is-enabled',unit],capture_output=True,text=True).stdout.strip()} for unit in [*units,duplicate]}
     dropins={}
     for unit in units:
         p=pathlib.Path('/etc/systemd/system')/(unit+'.d')/'90-mlkino-release.conf'
@@ -104,7 +124,11 @@ def backend_deploy(release):
         run([python,'-B',base/'manage.py','collectstatic','--noinput'],cwd=base,env=env)
         run(['systemctl','disable',duplicate]);run(['systemctl','daemon-reload']);run(['systemctl','start',*units])
         for unit in units:run(['systemctl','is-active','--quiet',unit])
-        run(['curl','--fail','--silent','--show-error','--retry','10','--retry-connrefused','--retry-delay','2','--unix-socket','/run/gunicorn.sock','-H','Host: api.mlkino.com','-H','X-Forwarded-Proto: https','http://localhost/api/schema/'],stdout=subprocess.DEVNULL)
+        for attempt in range(30):
+            health=subprocess.run(['curl','--fail','--silent','--show-error','--max-time','5','--unix-socket','/run/gunicorn.sock','-H','Host: api.mlkino.com','-H','X-Forwarded-Proto: https','http://localhost/api/schema/'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            if health.returncode==0:break
+            time.sleep(1)
+        else:die('Gunicorn failed readiness after 30 attempts')
         print('Backend activated. Run PRODUCTION_CHECKLIST.md. Rollback snapshot:',folder)
     except BaseException:
         print('Deployment failed. Services/code may be partially updated. Database was NOT reversed.',file=sys.stderr)

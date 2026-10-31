@@ -1,6 +1,8 @@
 import {createContext, useContext, useEffect, useMemo, useState} from 'react'
 import {createTheme, ThemeProvider, useMediaQuery} from '@mui/material'
 import api from './Request'
+import {useSelector} from 'react-redux'
+import {selectIsSuperAdmin} from '../redux/RoleSlice'
 import type {PanelSettingsState} from '../Pages/Settings/types'
 import {SETTINGS_DEFAULTS} from '../Pages/Settings/defaults'
 import {AppTheme} from '../Theme'
@@ -9,15 +11,16 @@ const Context = createContext({settings: SETTINGS_DEFAULTS, loading: false, erro
 export const usePanelSettings = () => useContext(Context)
 
 export function PanelSettingsProvider({children}: {children: React.ReactNode}) {
+    const isAdmin=useSelector(selectIsSuperAdmin)
     const [settings, setSettings] = useState(SETTINGS_DEFAULTS)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const dark = useMediaQuery('(prefers-color-scheme: dark)')
     useEffect(() => {
         let active = true
-        api.get('settings/').then(response => {if (active) setSettings(response.data.data)}).catch(error => {if (active) setError(error.message || 'دریافت تنظیمات انجام نشد')}).finally(() => {if (active) setLoading(false)})
+        api.get(isAdmin?'settings/':'appearance/').then(response => {if (active) setSettings({...SETTINGS_DEFAULTS,...response.data.data,general:{...SETTINGS_DEFAULTS.general,...response.data.data.general,dateFormat:'YYYY/MM/DD'}})}).catch(error => {if (active) setError(error.message || 'دریافت تنظیمات انجام نشد')}).finally(() => {if (active) setLoading(false)})
         return () => {active = false}
-    }, [])
+    }, [isAdmin])
     useEffect(() => {
         document.documentElement.lang = settings.general.language || 'fa'
         document.title = settings.seo.title || settings.general.panelName

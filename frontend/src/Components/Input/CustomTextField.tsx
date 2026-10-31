@@ -1,4 +1,5 @@
 import React from 'react'
+import DatePickerFilter from '../Filter/DatePicker'
 import {Box, IconButton, InputAdornment, TextField, TextFieldProps} from '@mui/material'
 import {styled} from '@mui/material/styles'
 import AddIcon from '@mui/icons-material/Add'
@@ -47,6 +48,7 @@ export function CustomTextField<T = Record<string, unknown>>(props: CustomTextFi
         return Number.isFinite(parsed) ? parsed : defaultNumber
     }
 
+    const [dateValue,setDateValue]=React.useState(typeof defaultValue==='string'?defaultValue:'')
     const [numberValue, setNumberValue] = React.useState<number>(getInitialNumber)
 
     React.useEffect(() => {
@@ -110,6 +112,8 @@ export function CustomTextField<T = Record<string, unknown>>(props: CustomTextFi
 
         emitChange(rawValue, event)
     }
+
+    if(type==='date'||type==='datetime-local')return <DatePickerFilter mode="controlled" item={{label:String(rest.label||'تاریخ')}} value={typeof value==='string'?value:dateValue||null} withTime={type==='datetime-local'} disabled={rest.disabled} required={rest.required} onChange={next=>{setDateValue(next||'');updateFormData(next||'');emitChange(next||'');(register?.onChange as any)?.({target:{name,value:next||''},type:'change'})}}/>
 
     const updateNumber = (newValue: number) => {
         let finalValue = newValue

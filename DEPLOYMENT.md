@@ -1,6 +1,6 @@
 # انتشار Production ملکینو — بسته 20261031-001
 
-وضعیت: **آماده‌سازی محلی؛ هنوز هیچ انتشار، Migration، Restart یا تغییر Nginx روی Production انجام نشده است.** اجرای بخش‌های نوشتنی این راهنما فقط بعد از تأیید مالک انجام می‌شود.
+وضعیت: **انتشار 20261031-001 پس از تأیید مالک انجام شد و تست‌های Production پاس شدند.** جزئیات در `deployment/audit/production-result.json` ثبت شده است. دستورات زیر، روند همین انتشار هستند؛ برای انتشار بعدی ابتدا بررسی و شناسه release جدید لازم است.
 
 ## نتیجه بررسی واقعی سرور
 
@@ -66,7 +66,7 @@ python3 deployment/test-release-migrations.py deployment/artifacts/20261031-002
 ```bash
 ssh -p 22 root@212.80.20.75 'install -d -m 700 /root/mlkino-release-tools /root/mlkino-releases/20261031-001'
 scp -P 22 deployment/artifacts/20261031-001/{backend.tar.gz,frontend.tar.gz,manifest.json,SHA256SUMS} root@212.80.20.75:/root/mlkino-releases/20261031-001/
-scp -P 22 deployment/artifacts/20261031-001/deployment-tools.tar.gz root@212.80.20.75:/root/mlkino-release-tools/
+scp -P 22 deployment/artifacts/20261031-001/{deployment-tools.tar.gz,TOOLS-SHA256SUMS} root@212.80.20.75:/root/mlkino-release-tools/
 ssh -p 22 root@212.80.20.75
 ```
 
@@ -74,6 +74,7 @@ ssh -p 22 root@212.80.20.75
 ```bash
 umask 077
 cd /root/mlkino-release-tools
+sha256sum -c TOOLS-SHA256SUMS
 tar -xzf deployment-tools.tar.gz
 cp deployment/deploy.env.example /root/mlkino-deploy.env
 chmod 600 /root/mlkino-deploy.env
@@ -102,7 +103,7 @@ python3 deployment/configure-nginx.py bootstrap
 read -r -p 'ACME contact email: ' ACME_EMAIL
 certbot certonly --webroot \
   -w /var/www/mlkino-frontend/shared/acme \
-  -d panel.mlkino.com --agree-tos -m "$ACME_EMAIL" --no-eff-email
+  -d panel.mlkino.com --agree-tos -m "$ACME_EMAIL"
 python3 deployment/configure-nginx.py activate
 ```
 
@@ -124,7 +125,7 @@ PY
 ./deploy-backend.sh /root/mlkino-deploy.env /root/mlkino-releases/20261031-001
 ```
 
-`open('x')` از بازنویسی فایل موجود جلوگیری می‌کند. اگر فایل از قبل هست، از همان نسخه بررسی‌شده استفاده کنید و آن را کورکورانه حذف نکنید. اسکریپت قبل از فعال‌سازی، وابستگی‌ها/هش‌ها، check، check --deploy، gate هشدارهای امنیتی و migration plan را بررسی می‌کند. خطای فعال‌سازی باعث تلاش برای Rollback کد می‌شود؛ DB هرگز معکوس نمی‌شود. هشدارهای قدیمی تولید schema ثبت می‌شوند و با هشدارهای امنیتی یکسان در نظر گرفته نمی‌شوند.
+`open('x')` از بازنویسی فایل موجود جلوگیری می‌کند. اگر فایل از قبل هست، از همان نسخه بررسی‌شده استفاده کنید و آن را کورکورانه حذف نکنید. محیط اجرای سرویس فعلی فقط داخل حافظه همان سرور برای check و بکاپ استفاده می‌شود؛ مقادیر Secret به گزارش یا سیستم محلی منتقل نمی‌شوند. اسکریپت قبل از فعال‌سازی، وابستگی‌ها/هش‌ها، check، check --deploy، gate هشدارهای امنیتی و migration plan را بررسی می‌کند. خطای فعال‌سازی باعث تلاش برای Rollback کد می‌شود؛ DB هرگز معکوس نمی‌شود. هشدارهای قدیمی تولید schema ثبت می‌شوند و با هشدارهای امنیتی یکسان در نظر گرفته نمی‌شوند.
 
 ### Frontend
 
@@ -152,3 +153,32 @@ Rollback بک‌اند فقط فایل‌های کد قبلی و drop-in/state �
 - [Django proxy/HTTPS settings](https://docs.djangoproject.com/en/6.1/ref/settings/#secure-proxy-ssl-header)
 - [Channels production deployment](https://channels.readthedocs.io/en/stable/deploying.html)
 - [Channels Redis layer](https://channels.readthedocs.io/en/latest/topics/channel_layers.html)
+
+### یادداشت کنترل امنیتی زمان انتشار
+هشدارهای W005 و W021 برای HSTS بدون زیر‌دامنه و بدون Preload، و W025 فقط برای fallback برابر کلید قبلیِ تأییدشده ثبت و پذیرفته می‌شوند. هیچ هشدار دیگری مجاز نیست. کلید جدید Django قوی است؛ چرخش کامل کلید قدیمی JWT و حذف fallback نیازمند تصمیم جداگانه درباره خروج نشست‌های قدیمی است.
+
+## نتیجه نهایی انتشار 2026-10-31
+
+پنل روی https://panel.mlkino.com فعال است. API، هر دو مسیر WS، CORS، CSRF بین زیردامنه‌ها، ماندگاری نشست، صفحات دسکتاپ/موبایل، نقش عادی/املاکی، تنظیمات، پیام/تایپ/خوانده‌شدن، تیکت و کار آینده تست شدند. تماس صوتی و تصویری با دو context مرورگر و رسانه مصنوعی پاس شد؛ شبکه‌های مستقل و TURN آزمایش نشدند.
+
+Redis-py سرور مقدار پیش‌فرض read timeout پنج ثانیه داشت؛ با blocking poll پنج‌ثانیه‌ای Channels تداخل داشت. Overlay مقدار read timeout را ۳۰ ثانیه می‌کند. اتصال WS پس از ۱۸ ثانیه بیکاری سالم ماند و بعد از Restart نهایی، خطای ASGI ثبت نشد. خود Redis Restart نشد.
+
+افزایش سقف درخواست به ۳۲ MiB ابتدا توسط بازبینی خودکار نیازمند تأیید جداگانه تشخیص داده شد و سپس با تأیید صریح مالک در Nginx و Django اعمال شد. اعتبارسنجی عکس ۵ MiB و پیوست ۱۰ MiB باقی است. درخواست JSON سه‌مگابایتی به اعتبارسنجی برنامه رسید و بدون ذخیره داده نامعتبر رد شد.
+
+تنظیمات اصلی و کد Providerهای سرور با هش اولیه یکسان‌اند. تنها Migration افزایشی accounts.0011 اجرا شد؛ داده‌ای از دیتابیس یا Media توسط این انتشار حذف نشد. حساب QA شماره ۸ غیرفعال شد؛ تیکت آزمایشی ۴ بسته و وظیفه ۶ انجام‌شده است. رکوردهای آزمایشی عمداً برای رعایت منع حذف اطلاعات نگهداری شدند.
+
+بکاپ بازگشت کد: `/var/backups/mlkino/backend-20261031-001-retry-094220`. بکاپ کامل قبل از hotfix: `/var/backups/mlkino/pre-redis-hotfix-20261031-001`. آرشیو اصلی release و hotfix نهایی جدا نگهداری می‌شوند؛ برای بازتولید همین نسخه، `HOTFIX-MANIFEST.json` هم بررسی شود.
+
+این اولین انتشار فرانت بوده و نسخه تاریخی قبلی وجود نداشت. یک release غیرفعال با صفحه نگهداری در `/var/www/mlkino-frontend/releases/maintenance-20261031` برای بازگشت اضطراری آماده است؛ symlink فعال همچنان release اصلی است.
+
+فشرده‌سازی و داده‌های dump اولیه و قبل از hotfix با تولید کامل خروجی pg_restore به `/dev/null` بررسی شدند؛ این کار هیچ اتصال Restore به دیتابیس نداشت. تایمر Certbot موجود فعال است و hook تمدید، پیش از reload گواهی‌ها `nginx -t` را اجرا می‌کند.
+
+## انتشار توسعه 20261031-002
+
+بازطراحی ورود/ثبت‌نام، تقویم شمسی، یادآوری خصوصی و دسترسی‌های جدید وظایف/تنظیمات منتشر شد. لاگ عملیاتی اکنون IP واقعی پشت Nginx و شرح عملیات دارد؛ بازدید ساده صفحه در فهرست لاگ نمایش داده نمی‌شود.
+
+۳۹ تست بک‌اند، ۹۶ تست فرانت، ۶ تست ایمنی انتشار، Build و تطبیق تاریخچه Migration موفق بودند. Migration جدیدی وجود نداشت. ورود، refresh، یادآوری، نقش املاکی/عادی، IP لاگ و ping/pong وب‌سوکت روی Production بررسی شدند. ارسال پیامک واقعی انجام نشد؛ UI کد تأیید با پاسخ mock تست شد. نقش کارشناس با تست دیتابیس جداگانه پوشش داده شد؛ fixture فعال Production وجود نداشت.
+
+بکاپ کامل پیش از این انتشار: `/var/backups/mlkino/backend-20261031-002`. بازگشت فرانت: `releases/20261031-001`. برای ساخت انتشار بعدی، ابتدا هش فعلی سرور بررسی و فایل baseline مستقل به `prepare-release.py --baseline ...` داده شود؛ baseline قبلی بدون بررسی بازنویسی نشود.
+
+گزارش جاری: `deployment/audit/production-result.json`؛ گزارش نسخه قبلی: `production-result-001.json`.

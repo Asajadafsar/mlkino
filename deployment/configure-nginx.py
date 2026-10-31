@@ -32,6 +32,8 @@ try:
     if action=='bootstrap':panel.write_text(http);os.chmod(panel,0o644);link.symlink_to(panel)
     else:
         text=old_api
+        if not re.search(r'client_max_body_size\s+',text):
+            text=text.replace('server_name api.mlkino.com;','server_name api.mlkino.com;\n    client_max_body_size 32m;')
         match=re.search(r'location\s+/ws/\s*\{[^{}]*\}',text)
         if not match:raise SystemExit('Existing /ws/ block shape changed')
         block=match.group(0)

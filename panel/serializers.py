@@ -823,6 +823,13 @@ class TicketAssignSerializer(serializers.Serializer):
 from panel.models import PersonalReminder, DirectConversation, DirectMessage, ChatReport
 
 class ReminderSerializer(serializers.ModelSerializer):
+    def validate(self,attrs):
+        unknown=set(self.initial_data)-{'title','description','remind_at','is_done'}
+        if unknown:raise serializers.ValidationError('یادآوری فقط برای خود شماست؛ فیلد اضافی مجاز نیست.')
+        if 'title' in attrs:
+            attrs['title']=attrs['title'].strip()
+            if not attrs['title']:raise serializers.ValidationError({'title':'عنوان را وارد کنید.'})
+        return attrs
     class Meta:
         model = PersonalReminder
         fields = ["id", "title", "description", "remind_at", "is_done", "created_at", "updated_at"]

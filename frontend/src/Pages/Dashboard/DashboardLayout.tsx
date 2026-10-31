@@ -13,6 +13,7 @@ import {usePanelSettings} from '../../Core/PanelSettingsContext'
 import {useRealtime} from '../../Core/RealtimeContext'
 import {formatDate} from '../../Core/FormatDate'
 import type {AnnouncementType} from '../Announcement/Announcement'
+import {PersonalReminders} from './PersonalReminders'
 import TodayImportantTasks from './TodayImportantTasks'
 
 export interface FilterState {year: number; month: string}
@@ -49,7 +50,7 @@ export default function DashboardLayout() {
             {!dashboard ? <Skeleton height={170} variant="rounded" /> : dashboard.announcements.results.length ? <Grid container spacing={2}>{dashboard.announcements.results.slice(0, 4).map((announcement, index) => <Grid key={announcement.id} item xs={12} md={6}><Paper variant="outlined" sx={{p: 2.5, borderRadius: '16px', minHeight: 200, position: 'relative', overflow: 'hidden'}}><Stack direction="row" justifyContent="space-between" gap={2}><Box sx={{flex: 1, minWidth: 0}}><Stack direction="row" alignItems="center" gap={1}><Box sx={{color: 'primary.main', bgcolor: '#edf4ff', display: 'flex', p: 1, borderRadius: 2}}><CampaignRoundedIcon /></Box><Typography fontWeight={700}>{announcement.title}</Typography></Stack><Typography color="text.secondary" sx={{mt: 2, fontSize: 13, lineHeight: 2.1, whiteSpace: 'pre-wrap'}}>{announcement.description}</Typography><Stack direction="row" gap={.8} alignItems="center" sx={{mt: 3, color: 'text.secondary'}}><CalendarMonthOutlinedIcon sx={{fontSize: 14}} /><Typography fontSize={10}>{formatDate(announcement.created_at)}</Typography></Stack></Box><Stack alignItems="center" justifyContent="center" sx={{width: {xs: 65, lg: 140}, flexShrink: 0, borderRadius: '35px 12px 35px 12px', bgcolor: index % 2 ? '#f0edff' : '#edf4ff'}}><CampaignRoundedIcon sx={{fontSize: {xs: 45, lg: 78}, color: index % 2 ? '#8b86ee' : '#79a9fa', filter: 'drop-shadow(0px 10px 8px #88aaff55)', transform: 'rotate(-15deg)'}} /></Stack></Stack></Paper></Grid>)}</Grid> : <Paper variant="outlined" sx={{p: 3, textAlign: 'center', borderRadius: '16px'}}><CampaignRoundedIcon sx={{color: '#b8cbed', fontSize: 38}} /><Typography color="text.secondary">اطلاعیه جدیدی منتشر نشده است.</Typography></Paper>}
         </Box>
         <Box><Section title="کارهای مهم امروز" icon={<AssignmentTurnedInRoundedIcon fontSize="small" />} href="/tasks" action="مدیریت وظایف" /><TodayImportantTasks /></Box>
-        <Grid container spacing={2} sx={{width: 'calc(100% + 16px) !important', ml: '-16px !important', mt: '8px !important'}}>{[
+        <PersonalReminders/><Grid container spacing={2} sx={{width: 'calc(100% + 16px) !important', ml: '-16px !important', mt: '8px !important'}}>{[
             {title: 'گفتگوهای فعال', value: conversations.length, icon: <ChatBubbleOutlineRoundedIcon />, color: '#13b968', href: '/chats'},
             {title: 'پیام‌های خوانده‌نشده', value: conversations.reduce((sum, chat) => sum + chat.unread_count, 0), icon: <ChatBubbleOutlineRoundedIcon />, color: '#246bfd', href: '/chats'},
             {title: 'وظایف در انتظار', value: dashboard?.important_tasks.pending_count, icon: <AssignmentTurnedInRoundedIcon />, color: '#f39b20', href: '/tasks'},

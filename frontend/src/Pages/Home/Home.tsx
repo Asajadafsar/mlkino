@@ -185,7 +185,7 @@ export function Home(props) {
     }
 
     if (!canAccessUserRoute(user.role, location.pathname)) {
-        return <Alert severity="warning" action={<Button onClick={() => navigate('/dashboard')}>پیشخوان</Button>}>دسترسی به مدیریت کاربران ندارید.</Alert>
+        return <Alert severity="warning" action={<Button onClick={() => navigate('/dashboard')}>پیشخوان</Button>}>دسترسی به این بخش ندارید.</Alert>
     }
 
     return (
