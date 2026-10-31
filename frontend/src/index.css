@@ -1,0 +1,84 @@
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
+        'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+
+    background-color: #ffffff;
+    color: #1f1f1f;
+
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+    background-color: #ffffff;
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+body,
+html,
+#root {
+    width: 100%;
+    height: 100%;
+}
+
+#root {
+    background-color: #ffffff;
+}
+
+* {
+    direction: rtl;
+    box-sizing: border-box;
+    text-decoration: none;
+}
+
+@font-face {
+    font-family: 'Samim';
+    src: url(./Fonts/Samim-FD.woff2) format('woff2');
+    font-weight: 400;
+}
+
+@font-face {
+    font-family: 'Samim';
+    src: url(./Fonts/Samim-Medium-FD.woff2) format('woff2');
+    font-weight: 500;
+}
+
+@font-face {
+    font-family: 'Samim';
+    src: url(./Fonts/Samim-Bold-FD.woff2) format('woff2');
+    font-weight: 700;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 7px;
+}
+
+::-webkit-scrollbar-track {
+    background-color: #f5f5f5;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #d0d0d0;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #b5b5b5;
+}
+
+@property --border-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+body, html, #root { background: #f5f7fb; }
+::selection { background: #dbe9ff; color: #1959d4; }
+button, input, textarea, select { font-family: inherit; }
+a { color: inherit; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

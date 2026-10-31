@@ -1,0 +1,7 @@
+import {Grid,MenuItem,TextField} from '@mui/material'
+import {SettingsSection} from './SettingsSection'
+import type {PanelSettingsState,SettingsSetter} from './types'
+export function SeoSettings({settings,setSettings}:{settings:PanelSettingsState;setSettings:SettingsSetter}){
+ const change=(key:keyof PanelSettingsState['seo'],value:string)=>setSettings(old=>({...old,seo:{...old.seo,[key]:value}}))
+ return <SettingsSection title="موتورهای جستجو و اشتراک‌گذاری" description="عنوان و توضیحات مرورگر، پیش‌نمایش لینک و رفتار موتورهای جستجو."><Grid container spacing={2.5}>{[['title','عنوان سایت'],['keywords','کلمات کلیدی'],['description','توضیحات SEO'],['ogImage','لینک تصویر اشتراک‌گذاری']].map(([key,label])=><Grid item xs={12} key={key}><TextField fullWidth label={label} value={settings.seo[key as keyof PanelSettingsState['seo']]} onChange={e=>change(key as keyof PanelSettingsState['seo'],e.target.value)} multiline={key==='description'} minRows={key==='description'?3:undefined}/></Grid>)}<Grid item xs={12}><TextField fullWidth select label="دسترسی موتورهای جستجو" value={settings.seo.robots} onChange={e=>change('robots',e.target.value)}><MenuItem value="index, follow">اجازه ایندکس و دنبال کردن لینک‌ها</MenuItem><MenuItem value="noindex, follow">عدم ایندکس، دنبال کردن لینک‌ها</MenuItem><MenuItem value="index, nofollow">ایندکس بدون دنبال کردن لینک‌ها</MenuItem><MenuItem value="noindex, nofollow">عدم ایندکس و دنبال کردن لینک‌ها</MenuItem></TextField></Grid></Grid></SettingsSection>
+}
