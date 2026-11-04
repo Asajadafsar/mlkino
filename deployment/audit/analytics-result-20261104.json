@@ -1,0 +1,46 @@
+{
+  "release": "20261104-002-analytics",
+  "revision": "ee24222a8ed27bc085ce746fd82a6d67dbfe4e2f",
+  "backend_files_matched": 57,
+  "frontend_files_matched": 27,
+  "served": {
+    "index.html": "matched",
+    "static/css/main.d8f2be45.css": "matched",
+    "static/js/main.a3042219.js": "matched"
+  },
+  "http": {
+    "schema": 200,
+    "estate-analytics-unauthenticated": 401,
+    "geography-management-unauthenticated": 401,
+    "settings-unauthenticated": 401,
+    "postal-lookup-unauthenticated": 401
+  },
+  "services": {
+    "gunicorn": "active",
+    "mlkino-asgi": "active",
+    "coturn": "active"
+  },
+  "qom_regions": 8,
+  "qom_neighborhood_titles": 195,
+  "migration": "accounts.0013_agency_office_area applied successfully on production and local DB",
+  "rollback_backend": "/var/backups/mlkino/backend-20261104-002-analytics",
+  "previous_frontend": "20261104-001-estate",
+  "validation": {
+    "frontend_tests": 112,
+    "backend_tests": 68,
+    "deployment_tests": 6,
+    "typescript": "passed",
+    "production_build": "passed",
+    "production_migration_lineage": "passed",
+    "real_browser_isolated_database": "admin counts, charts, geographic filters, neighborhood comparison, save/reload geography, sidebar switches, agency expert performance and mobile overflow passed",
+    "live_postal_provider": "successful from production server with explicitly supplied test code; no postal code or address recorded",
+    "local_frontend": 200,
+    "local_backend_schema": 200
+  },
+  "limitations": [
+    "No existing production account impersonated or edited for verification",
+    "Old office records need explicit region/neighborhood entry for accurate granular office/expert location statistics",
+    "Neighborhood #37 in region 1 has no readable title in the supplied text; no title was invented",
+    "Expert performance measures records created by the expert; it does not infer assignment or completed sales from free text"
+  ]
+}
