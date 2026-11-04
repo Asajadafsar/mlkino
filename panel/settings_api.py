@@ -34,6 +34,13 @@ MODES = {"light", "dark", "system"}
 DATA_RE = re.compile(r"^data:image/(png|jpeg|webp|gif|x-icon|vnd\.microsoft\.icon);base64,([A-Za-z0-9+/\r\n=]+)$", re.I)
 HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
+def inherit_fields(result, stored):
+    fields=stored.get('fields',{}) if isinstance(stored,dict) else {}
+    for key in result['fields']:
+        parts=key.split('.')
+        if len(parts)==3 and key not in fields:
+            result['fields'][key]=fields.get(parts[0]+'.'+parts[2],True)
+
 def envelope(data=None, message="تنظیمات با موفقیت دریافت شد", code=200, errors=None):
     payload = {"statusCode": str(code), "status": code, "message": message}
     if errors is not None:
@@ -154,6 +161,7 @@ class PanelSettingsView(APIView):
                     for key, value in values.items():
                         if key in result[group]:
                             result[group][key] = value
+        inherit_fields(result, obj.data if obj else {})
         return envelope(result)
 
     @transaction.atomic
@@ -188,6 +196,8 @@ class PanelSettingsView(APIView):
             for group, values in obj.data.items():
                 if group in updated and isinstance(values, dict):
                     updated[group].update({key: value for key, value in values.items() if key in updated[group]})
+        if isinstance(obj.data,dict) and "geography" in obj.data:updated["geography"]=obj.data["geography"]
+        inherit_fields(updated, obj.data if obj else {})
         created_files = []
         try:
             for group, changes in incoming.items():
@@ -222,4 +232,5 @@ class PanelAppearanceView(APIView):
         if obj and isinstance(obj.data,dict):
             for group in ('general','branding','theme','seo','features','fields'):
                 if isinstance(obj.data.get(group),dict):result[group].update({key:value for key,value in obj.data[group].items() if key in result[group]})
+        inherit_fields(result, obj.data if obj else {})
         return envelope(data={key:result[key] for key in ('general','branding','theme','seo','features','fields')})

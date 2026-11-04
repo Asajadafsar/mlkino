@@ -1,3 +1,4 @@
+import {OfficeAreaFields} from '../../Components/Location/OfficeAreaFields'
 import {OfficeMap} from '../../Components/Location/OfficeMap'
 import {FieldScope} from '../../Components/PropertyRecordForm/FieldScope'
 import {Alert, FormControlLabel, Stack, Switch} from '@mui/material'
@@ -23,6 +24,8 @@ export interface AgencyType extends CommonUserType {
     license_number: string | null
     license_image: UploadValue
     landline: string | null
+    office_district?: string
+    office_neighborhood?: string
     office_address: string
     latitude: number | null
     longitude: number | null
@@ -36,7 +39,7 @@ export const agencyDefaults: AgencyType = {
     marital_status: '', ownership_type: '', lease_end_date: null, logo: null,
     has_business_license: false, license_number: null, license_image: null,
     national_code_image: null,
-    landline: null, office_address: '', latitude: null, longitude: null,
+    office_district:'', office_neighborhood:'', landline: null, office_address: '', latitude: null, longitude: null,
     description: null, office_verification_status: 'not_started',
 }
 
@@ -107,6 +110,7 @@ export function Agency({agency, setAgency, resource, editMode = false}: {
                 ] : []),
                 text('landline', 'تلفن ثابت دفتر'),
                 text('office_address', 'آدرس کامل دفتر', true),
+                <OfficeAreaFields key="location" value={agency} onChange={setAgency}/>,
                 text('description', 'توضیحات دفتر'),
                 <CustomTextField
                     key="office_verification_status" name="office_verification_status" label="وضعیت تأیید دفتر"

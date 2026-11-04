@@ -15,7 +15,7 @@ from .settings_api import envelope
 from .property_api import normalize
 
 DATA=Path(__file__).parent/'data/iran'
-@functools.lru_cache(maxsize=12)
+@functools.lru_cache(maxsize=32)
 def catalog(name):
     path=DATA/(name+'.json')
     return json.loads(path.read_text()) if path.exists() else []
@@ -27,8 +27,25 @@ def zone_label(row):
     suffix=row['name'].rsplit(' ',1)[-1]
     return 'منطقه '+suffix.translate(str.maketrans('0123456789','۰۱۲۳۴۵۶۷۸۹')) if suffix.isdigit() else row['name']
 
+def local_neighborhoods(city):
+    from .geography_admin import override
+    saved=override(city['id'])
+    if saved is not None:return saved['neighborhoods']
+    qom=[r for r in catalog('qom-neighborhoods') if r['city_id']==city['id']]
+    return qom or [r for r in catalog('neighborhoods') if r.get('city_id')==city['id']]
+
+def municipal_zones(city):
+    from .geography_admin import override
+    saved=override(city['id'])
+    if saved is not None:return [{'id':'admin-zone-'+str(i),'name':name,'city_id':city['id']} for i,name in enumerate(saved['districts'])]
+    local=local_neighborhoods(city)
+    if any(str(r['id']).startswith('qom-user-') for r in local):return [{'id':'qom-zone-'+str(i),'name':name,'city_id':city['id']} for i,name in enumerate(dict.fromkeys(r['district'] for r in local))]
+    return [{**r,'name':zone_label(r)} for r in catalog('urban-zones') if r['city_id']==city['id']]
+
 def city_neighborhoods(city):
-    rows=[r for r in catalog('neighborhoods') if r.get('city_id')==city['id']]
+    rows=local_neighborhoods(city)
+    from .geography_admin import override
+    if override(city['id']) is not None or any(str(r['id']).startswith('qom-user-') for r in rows):return rows,True
     # The public national catalog supplements local, verified municipal mappings.
     mapping=catalog('city-neighborhood-lookup').get(str(city['id']))
     if not mapping:return rows, False
@@ -70,7 +87,7 @@ class IranLocationsView(APIView):
         county=choose(counties,q.get('county',''))
         cities=[r for r in catalog('cities-filtered') if ((province and r['province_id']==province['id']) or q.get('all')=='true') and (not county or r['county_id']==county['id'])]
         city=choose(cities,q.get('city',''))
-        districts=[{**r,'name':zone_label(r)} for r in catalog('urban-zones') if city and r['city_id']==city['id']]
+        districts=municipal_zones(city) if city else []
         if level=='province': rows=provinces
         elif level=='county': rows=counties
         elif level=='city': rows=[{**c,**{k:v for k,v in catalog('city-neighborhood-lookup').get(str(c['id']),{}).items() if k in ('latitude','longitude')}} for c in cities]

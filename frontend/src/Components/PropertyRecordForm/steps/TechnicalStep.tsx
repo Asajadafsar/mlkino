@@ -1,3 +1,5 @@
+import {useContext} from 'react'
+import {FieldScope,fieldVisible} from '../FieldScope'
 import {FloorChoices} from '../components/CheckboxChoices'
 import {usePanelSettings} from '../../../Core/PanelSettingsContext'
 import {
@@ -17,6 +19,7 @@ import type {ModeStepProps} from '../types'
 import {toSelectOptions} from '../utils'
 
 export function TechnicalStep({property, setProperty, resource, mode}: ModeStepProps) {
+    const fieldScope=useContext(FieldScope)
     const {settings}=usePanelSettings()
     return (
         <>
@@ -143,7 +146,7 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                 ]}
             />
 
-            {settings.fields?.[`${mode}.amenities`]!==false && <AmenitiesGrid
+            {fieldVisible(settings.fields,fieldScope,'amenities') && <AmenitiesGrid
                 value={property.amenities}
                 onChange={(next) =>
                     setProperty((prev) => ({

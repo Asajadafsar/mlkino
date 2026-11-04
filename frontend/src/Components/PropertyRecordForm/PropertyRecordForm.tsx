@@ -139,7 +139,7 @@ export function PropertyRecordForm({
                     pt: 1.5,
                 }}
             >
-                <FieldScope.Provider value={mode}>{renderStepContent()}</FieldScope.Provider>
+                <FieldScope.Provider value={mode==='ad'?mode:`${mode}.${property.contractType==='رهن و اجاره'?'rent':'sale'}`}>{renderStepContent()}</FieldScope.Provider>
             </Box>
         </Stack>
     )

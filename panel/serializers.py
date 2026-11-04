@@ -642,7 +642,7 @@ class AgencyProfileSerializer(serializers.ModelSerializer):
     manager_name = serializers.CharField(source="manager.full_name", read_only=True)
     class Meta:
         model = AgencyProfile
-        fields = ["manager_id", "manager_name", "agency_name", "occupancy_type", "lease_end_date", "logo", "has_business_license", "license_number", "license_image", "marital_status", "landline", "office_address", "office_verification_status", "latitude", "longitude", "description"]
+        fields = ["manager_id", "manager_name", "agency_name", "occupancy_type", "lease_end_date", "logo", "has_business_license", "license_number", "license_image", "marital_status", "landline", "office_address", "office_district", "office_neighborhood", "office_verification_status", "latitude", "longitude", "description"]
         read_only_fields = ["manager_id", "manager_name", "office_verification_status"]
 
     def get_fields(self):

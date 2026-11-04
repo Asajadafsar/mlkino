@@ -1,3 +1,4 @@
+import featureOptions from './featureOptions.json'
 import fieldOptions from './fieldOptions.json'
 import type {PanelSettingsState} from './types'
 
@@ -45,7 +46,7 @@ export const SETTINGS_DEFAULTS: PanelSettingsState = {
         linkedin: '',
         whatsapp: '',
     },
-    fields: Object.fromEntries(fieldOptions.map(option => [`${option.scope}.${option.key}`, true])),
-    features: {views: false, advertisements: false, landlordTenant: false, chats: true},
+    fields: Object.fromEntries(fieldOptions.flatMap(option => [option.scope+'.'+option.key, ...(['file','request'].includes(option.scope)?[option.scope+'.sale.'+option.key,option.scope+'.rent.'+option.key]:[])].map(key=>[key,true]))),
+    features: Object.fromEntries(featureOptions.map(x=>[x.key,x.default])),
 }
 

@@ -1,0 +1,134 @@
+[
+  {
+    "key": "dashboard",
+    "link": "dashboard",
+    "label": "پیشخوان",
+    "default": true
+  },
+  {
+    "key": "announcements",
+    "link": "announcements",
+    "label": "اطلاعیه ها",
+    "default": true
+  },
+  {
+    "key": "users",
+    "link": "users",
+    "label": "کاربران",
+    "default": true
+  },
+  {
+    "key": "users/expert",
+    "link": "users/expert",
+    "label": "کارشناسان من",
+    "default": true
+  },
+  {
+    "key": "customers",
+    "link": "customers",
+    "label": "خریداران",
+    "default": true
+  },
+  {
+    "key": "owners",
+    "link": "owners",
+    "label": "مالکین",
+    "default": true
+  },
+  {
+    "key": "landlordTenant",
+    "link": "landlord-tenant",
+    "label": "موجر و مستاجر",
+    "default": false
+  },
+  {
+    "key": "files",
+    "link": "files",
+    "label": "فایل ها",
+    "default": true
+  },
+  {
+    "key": "requests",
+    "link": "requests",
+    "label": "درخواست ها",
+    "default": true
+  },
+  {
+    "key": "customers-requests",
+    "link": "customers-requests",
+    "label": "درخواست مشتریان",
+    "default": true
+  },
+  {
+    "key": "owners-requests",
+    "link": "owners-requests",
+    "label": "درخواست مالکین",
+    "default": true
+  },
+  {
+    "key": "reminders",
+    "link": "reminders",
+    "label": "یادآوری ها",
+    "default": true
+  },
+  {
+    "key": "views",
+    "link": "views",
+    "label": "بازدید ها",
+    "default": false
+  },
+  {
+    "key": "follow-ups",
+    "link": "follow-ups",
+    "label": "پیگیری ها",
+    "default": true
+  },
+  {
+    "key": "contracts",
+    "link": "contracts",
+    "label": "قراردادها",
+    "default": true
+  },
+  {
+    "key": "archives",
+    "link": "archives",
+    "label": "بایگانی ها",
+    "default": true
+  },
+  {
+    "key": "tasks",
+    "link": "tasks",
+    "label": "کارهای مهم امروز",
+    "default": true
+  },
+  {
+    "key": "chats",
+    "link": "chats",
+    "label": "چت و تماس",
+    "default": true
+  },
+  {
+    "key": "advertisements",
+    "link": "advertisements",
+    "label": "دیوارکوب",
+    "default": false
+  },
+  {
+    "key": "profile",
+    "link": "profile",
+    "label": "پروفایل",
+    "default": true
+  },
+  {
+    "key": "logs",
+    "link": "logs",
+    "label": "لاگ",
+    "default": true
+  },
+  {
+    "key": "tickets",
+    "link": "tickets",
+    "label": "تیکت‌ها",
+    "default": true
+  }
+]

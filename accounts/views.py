@@ -1253,7 +1253,7 @@ class PostalLookupView(APIView):
                     "field": "postal_code",
                     "message": str(exc),
                 }],
-                status_code=400,
+                status_code=exc.status_code,
             )
 
         return success_response(

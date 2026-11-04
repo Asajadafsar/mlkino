@@ -49,3 +49,10 @@ cd /root/mlkino-release-tools
 The script prompts for credentials via `getpass`, does not save them, and tests API/cookie/WS ping. It creates a normal login/device session; message tests remain explicit.
 
 Actual result: `deployment/audit/production-result.json`. Dedicated QA account 8 is inactive; its test ticket is closed and task is done. No test/database records were deleted. Independent-network/TURN testing and an isolated database restore drill remain unperformed.
+
+### انتشار آمار و مناطق
+- گراف migration باید فقط accounts.0013_agency_office_area را برای اجرا نشان دهد.
+- بدون ورود، /panel/dashboard/estate-analytics/ و /panel/locations/manage/ باید 401 دهند.
+- مدیر: تنظیمات ← مناطق و محله‌ها ← قم؛ ۸ منطقه و ۱۹۵ عنوان اولیه.
+- املاکی: پیشخوان فقط عملکرد خود و کارشناسان مرتبط را نمایش می‌دهد.
+- دفترهای قدیمی بدون منطقه در گروه «ثبت‌نشده» هستند؛ منطقه/محله دفتر را در ویرایش املاکی تکمیل کنید.

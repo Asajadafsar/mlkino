@@ -4,6 +4,7 @@ import KeyboardDoubleArrowRightRoundedIcon from '@mui/icons-material/KeyboardDou
 import {useEffect} from 'react'
 import {useLocation, useNavigate} from 'react-router-dom'
 import {useDispatch, useSelector} from 'react-redux'
+import featureOptions from '../../Pages/Settings/featureOptions.json'
 import {drawerItems, canAccessDrawerItem} from './DrawerItems'
 import {clearRole, selectRole} from '../../redux/RoleSlice'
 import {clearImpersonation, selectImpersonation} from '../../redux/ImpersonationSlice'
@@ -24,8 +25,8 @@ export function AppDrawer({setSelectedTitle, drawerOpen, setDrawerOpen, collapse
     const location = useLocation()
     const navigate = useNavigate()
     const dispatch = useDispatch()
-    const featureForLink: Record<string, keyof typeof settings.features> = {views: 'views', advertisements: 'advertisements', 'landlord-tenant': 'landlordTenant', chats: 'chats'}
-    const visible = drawerItems.filter(item => canAccessDrawerItem(item, role) && (role !== 'superadmin' || !featureForLink[item.link] || settings.features[featureForLink[item.link]]))
+    const featureForLink = Object.fromEntries(featureOptions.map(x=>[x.link,x.key]))
+    const visible = drawerItems.filter(item => canAccessDrawerItem(item, role) && (item.link==='settings' || settings.features[featureForLink[item.link]]!==false))
     const selected = visible.filter(item => location.pathname === `/${item.link}` || location.pathname.startsWith(`/${item.link}/`)).sort((a,b) => b.link.length - a.link.length)[0]
     useEffect(() => {setSelectedTitle(selected?.title ?? '')}, [selected?.title, setSelectedTitle])
     const logout = async () => {

@@ -633,6 +633,8 @@ class AgencyProfile(models.Model):
     marital_status = models.CharField(max_length=10, choices=MaritalStatus.choices, blank=True)
     landline = models.CharField(max_length=20, blank=True)
     office_address = models.TextField()
+    office_district = models.CharField(max_length=150, blank=True)
+    office_neighborhood = models.CharField(max_length=150, blank=True)
     office_verification_status = models.CharField(max_length=20, choices=User.VerificationStatus.choices, default=User.VerificationStatus.NOT_STARTED)
     latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
     longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)

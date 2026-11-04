@@ -65,7 +65,7 @@ def validate_payload(request, kind, previous=None):
         if not set(data['floorPreferences'])<=FLOORS: raise ValidationError({'floorPreferences':'طبقه انتخاب‌شده معتبر نیست.'})
         if 'فرقی نمی‌کند' in data['floorPreferences']: data['floorPreferences']=['فرقی نمی‌کند']
     if data.get('province'):
-        from .geography_api import catalog, choose, zone_label
+        from .geography_api import catalog, choose, municipal_zones, local_neighborhoods
         province=choose(catalog('provinces'),data['province'])
         if not province: raise ValidationError({'province':'استان معتبر انتخاب کنید.'})
         cities=[c for c in catalog('cities-filtered') if c['province_id']==province['id']]
@@ -76,12 +76,13 @@ def validate_payload(request, kind, previous=None):
             if not county or city['county_id']!=county['id']: raise ValidationError({'county':'شهر با شهرستان انتخاب‌شده مطابقت ندارد.'})
         if kind=='request':
             selected={normalize(x) for x in data.get('district',[]) if x!='همه مناطق'}
-            valid_zones={normalize(zone_label(z)) for z in catalog('urban-zones') if z['city_id']==city['id']}
+            valid_zones={normalize(z['name']) for z in municipal_zones(city)}
             if selected and not selected<=valid_zones: raise ValidationError({'district':'منطقه با شهر انتخاب‌شده مطابقت ندارد.'})
-            known={normalize(n['name']):n for n in catalog('neighborhoods') if n['city_id']==city['id']}
+            known={}
+            for n in local_neighborhoods(city):known.setdefault(normalize(n['name']),[]).append(n)
             for name in data.get('neighborhood',[]):
                 row=known.get(normalize(name))
-                if row and selected and normalize(row.get('district')) not in selected: raise ValidationError({'neighborhood':'محله با منطقه انتخاب‌شده مطابقت ندارد.'})
+                if row and selected and not any(normalize(x.get('district')) in selected for x in row): raise ValidationError({'neighborhood':'محله با منطقه انتخاب‌شده مطابقت ندارد.'})
     if data.get('requesterType') not in (None,'customer','owner'):raise ValidationError({'requesterType':'نوع درخواست‌کننده معتبر نیست.'})
     if len(json.dumps(data,ensure_ascii=False))>100000: raise ValidationError('حجم اطلاعات بیش از حد مجاز است.')
     uploads=request.FILES.getlist('images') if hasattr(request,'FILES') else []

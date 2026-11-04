@@ -1,3 +1,4 @@
+import EstateAnalytics from './EstateAnalytics'
 import {useContext, useEffect, useState} from 'react'
 import {Alert, Box, Button, Grid, Paper, Skeleton, Stack, Typography} from '@mui/material'
 import CampaignRoundedIcon from '@mui/icons-material/CampaignRounded'
@@ -38,6 +39,7 @@ export default function DashboardLayout() {
         {label: 'کارهای انجام‌شده', value: dashboard?.important_tasks.completed_count, icon: <TaskAltRoundedIcon />, color: '#13b968', bg: '#ddf9eb'},
     ]
     return <Stack spacing={3}>
+        {(user.role==='superadmin'||user.role==='agency')&&<EstateAnalytics admin={user.role==='superadmin'}/>}
         {error && <Alert severity="error">{error}</Alert>}
         <Box sx={{borderRadius: '18px', minHeight: 200, position: 'relative', overflow: 'hidden', background: 'linear-gradient(105deg,#e1edff,#eff5ff)', border: '1px solid #e1ecff', color: '#17243b'}}>
             <Box sx={{position: 'absolute', right: 0, bottom: 0, width: {xs: 200, lg: 410}, height: 210, opacity: {xs: .25, md: .9}}}><CityScene /></Box>

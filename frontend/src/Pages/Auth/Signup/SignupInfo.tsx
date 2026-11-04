@@ -1,5 +1,5 @@
 import {ACCOUNTS_URL} from '../../../Core/APP_URL'
-import {Box, Button, IconButton, InputAdornment, Stack, Typography} from '@mui/material'
+import {CircularProgress, Box, Button, IconButton, InputAdornment, Stack, Typography} from '@mui/material'
 import {useState, type Dispatch, type SetStateAction} from 'react'
 import {Controller, useForm} from 'react-hook-form'
 import {useDispatch} from 'react-redux'
@@ -55,6 +55,9 @@ const subStepLabels = ['اطلاعات شخصی', 'آدرس و رمز عبور']
 const SignupInfo = ({phone, onBack, initialValues}: Props) => {
     const dispatch = useDispatch()
     const [subStep, setSubStep] = useState<InfoSubStep>(0)
+    const [postalBusy,setPostalBusy]=useState(false)
+    const [postalError,setPostalError]=useState('')
+    const digits=(s:string)=>s.replace(/[۰-۹٠-٩]/g,c=>String(c.charCodeAt(0)-(c>='۰'?1776:1632)))
     const [addressData, setAddressData] = useState<AddressType>({} as AddressType)
     const {
         register,
@@ -150,21 +153,16 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
     }
 
     const postalLookup = async () => {
-        const postal = getValues('postal_code')
-
+        const postal=digits(getValues('postal_code')||'').replace(/\s|-/g,'')
+        if(!/^\d{10}$/.test(postal)){setPostalError('کد پستی باید دقیقاً ۱۰ رقم باشد.');return}
+        setValue('postal_code',postal);setPostalBusy(true);setPostalError('')
         try {
-            const response = await axios.get<{
-                data: AddressType
-            }>(`${ACCOUNTS_URL}/postal/lookup/`, {
-                params: {
-                    postal_code: postal,
-                },
-                withCredentials: true,
-            })
+            const response=await axios.get<{data:AddressType}>(`${ACCOUNTS_URL}/postal/lookup/`,{params:{postal_code:postal},withCredentials:true,timeout:45000})
+            if(digits(getValues('postal_code')||'').replace(/\s|-/g,'')!==postal)return
             setAddressData(response.data.data)
-        } catch (error) {
-            console.error('خطا در استعلام کد پستی:', error)
-        }
+            for(const key of ['province','city','address'] as const)setValue(key,response.data.data[key],{shouldDirty:true,shouldValidate:true})
+        } catch(error:any) {setPostalError(error.response?.data?.message||'ارتباط با سرویس استعلام برقرار نشد؛ دوباره تلاش کنید.')}
+        finally {setPostalBusy(false)}
     }
 
     return (
@@ -302,14 +300,16 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                         register={{
                             ...register('postal_code', {
                                 required: 'کد پستی الزامی است',
+                                setValueAs:(value:string)=>digits(value).replace(/\s|-/g,''),
+                                onChange:()=>{setAddressData({} as AddressType);for(const key of ['province','city','address'] as const)setValue(key,'')},
                                 pattern: {
                                     value: /^\d{10}$/,
                                     message: 'کد پستی باید ۱۰ رقم باشد',
                                 },
                             }),
                         }}
-                        error={!!errors.postal_code}
-                        helperText={errors.postal_code?.message}
+                        error={!!errors.postal_code||!!postalError}
+                        helperText={postalError||errors.postal_code?.message}
                         sx={{
                             '& input': {
                                 direction: 'ltr',
@@ -323,9 +323,10 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                                         edge="end"
                                         color="primary"
                                         aria-label="بررسی کد پستی"
+                                        disabled={postalBusy}
                                         onClick={() => postalLookup()}
                                     >
-                                        <SearchIcon fontSize="small" />
+                                        {postalBusy?<CircularProgress size={18}/>:<SearchIcon fontSize="small"/>}
                                     </IconButton>
                                 </InputAdornment>
                             ),

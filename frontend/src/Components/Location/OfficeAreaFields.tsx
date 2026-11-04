@@ -1,0 +1,8 @@
+import {useEffect,useState} from 'react'
+import {Alert,Autocomplete,Stack,TextField} from '@mui/material'
+import api from '../../Core/Request'
+export function OfficeAreaFields({value,onChange}:{value:any;onChange:(x:any)=>void}){
+ const [districts,setDistricts]=useState<string[]>([]),[neighborhoods,setNeighborhoods]=useState<string[]>([]),[error,setError]=useState('')
+ useEffect(()=>{const c=new AbortController();setDistricts([]);setNeighborhoods([]);setError('');if(value.province&&value.city){Promise.all([api.get('locations/',{params:{level:'district',province:value.province,city:value.city},signal:c.signal}),api.get('locations/',{params:{level:'neighborhood',province:value.province,city:value.city,district:value.office_district||''},signal:c.signal})]).then(([a,b])=>{if(!c.signal.aborted){setDistricts(a.data.data.results.map((x:any)=>x.name));setNeighborhoods(b.data.data.results.map((x:any)=>x.name))}}).catch(()=>{if(!c.signal.aborted)setError('دریافت مناطق دفتر انجام نشد.')})}return()=>c.abort()},[value.province,value.city,value.office_district])
+ return <Stack gap={2}><Autocomplete options={districts} value={value.office_district||null} disabled={!value.city} onChange={(_,x)=>onChange((prev:any)=>({...prev,office_district:x||'',office_neighborhood:''}))} renderInput={p=><TextField {...p} label="منطقه دفتر برای آمار"/>}/><Autocomplete options={neighborhoods} value={value.office_neighborhood||null} disabled={!value.city} onChange={(_,x)=>onChange((prev:any)=>({...prev,office_neighborhood:x||''}))} renderInput={p=><TextField {...p} label="محله دفتر برای آمار"/>}/>{error&&<Alert severity="warning">{error}</Alert>}</Stack>
+}

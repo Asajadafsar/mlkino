@@ -1,3 +1,5 @@
+from .analytics_api import EstateAnalyticsView
+from .geography_admin import GeographyAdminView
 from .estate_activity_api import EstateActivityListView, EstateActivityDetailView
 from .geography_api import IranLocationsView, GeocodeView, MapTileView
 from .property_api import PropertyListView, PropertyDetailView
@@ -12,6 +14,8 @@ app_name = "panel"
 from .settings_api import PanelAppearanceView
 
 urlpatterns = [
+    path('dashboard/estate-analytics/',EstateAnalyticsView.as_view(),name='estate-analytics'),
+    path('locations/manage/',GeographyAdminView.as_view(),name='geography-manage'),
     path('follow-ups/', EstateActivityListView.as_view(), {'kind':'follow-ups'}, name='estate-followups'),
     path('follow-ups/<int:pk>/', EstateActivityDetailView.as_view(), {'kind':'follow-ups'}, name='estate-followup'),
     path('contracts/', EstateActivityListView.as_view(), {'kind':'contracts'}, name='estate-contracts'),
