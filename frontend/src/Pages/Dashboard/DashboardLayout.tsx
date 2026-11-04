@@ -1,13 +1,17 @@
-import EstateAnalytics from './EstateAnalytics'
-import {useContext, useEffect, useState} from 'react'
-import {Alert, Box, Button, Grid, Paper, Skeleton, Stack, Typography} from '@mui/material'
-import CampaignRoundedIcon from '@mui/icons-material/CampaignRounded'
-import AssignmentTurnedInRoundedIcon from '@mui/icons-material/AssignmentTurnedInRounded'
-import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded'
+import {useContext,useEffect,useState} from 'react'
+import {Alert,Box,Button,Dialog,DialogContent,DialogTitle,LinearProgress} from '@mui/material'
+import {Link,useNavigate} from 'react-router-dom'
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
+import ApartmentRoundedIcon from '@mui/icons-material/ApartmentRounded'
+import PeopleOutlineRoundedIcon from '@mui/icons-material/PeopleOutlineRounded'
+import BusinessCenterOutlinedIcon from '@mui/icons-material/BusinessCenterOutlined'
+import NotificationsNoneRoundedIcon from '@mui/icons-material/NotificationsNoneRounded'
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded'
-import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
-import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
-import {Link} from 'react-router-dom'
+import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined'
+import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded'
 import {DataProvider} from '../../Core/DataProvider'
 import {CurrentUserContext} from '../../Core/CurrentUser'
 import {usePanelSettings} from '../../Core/PanelSettingsContext'
@@ -16,47 +20,34 @@ import {formatDate} from '../../Core/FormatDate'
 import type {AnnouncementType} from '../Announcement/Announcement'
 import {PersonalReminders} from './PersonalReminders'
 import TodayImportantTasks from './TodayImportantTasks'
-
-export interface FilterState {year: number; month: string}
-
-// A lightweight vector scene keeps the dashboard crisp at every screen size.
-function CityScene() {
-    return <svg viewBox="0 0 520 230" aria-hidden="true" style={{width: '100%', height: '100%'}}><defs><linearGradient id="hero-sky" x2="0" y2="1"><stop stopColor="#c9e0ff"/><stop offset="1" stopColor="#f1f7ff"/></linearGradient><linearGradient id="hero-wall" x2="1" y2="1"><stop stopColor="#ffffff"/><stop offset="1" stopColor="#bacce7"/></linearGradient><linearGradient id="hero-glass" x2="1" y2="1"><stop stopColor="#8aaed8"/><stop offset="1" stopColor="#344a69"/></linearGradient></defs><rect width="520" height="230" fill="url(#hero-sky)" opacity=".35"/><circle cx="342" cy="63" r="32" fill="#ffdf94" opacity=".7"/>{[12,65,110,347,397,449].map((x,i)=><g key={x} opacity=".25"><rect x={x} y={80+i%3*16} width={36+i%2*12} height={140} fill="#7ca5e8" rx="2"/>{[0,1,2,3,4].map(y=><path key={y} d={`M${x+8} ${96+y*18} h20`} stroke="#e5f0ff" strokeWidth="5"/>)}</g>)}<path d="M0 224 Q140 187 260 211 T520 218V230H0Z" fill="#bdd5df"/><ellipse cx="236" cy="221" rx="155" ry="9" fill="#7c9baa" opacity=".2"/><path d="M112 137 L222 87 L339 133 L232 173Z" fill="#fbfdff"/><path d="M112 137 L232 173 V229H112Z" fill="url(#hero-wall)"/><path d="M232 173 L339 133V222L232 229Z" fill="#c7d6e9"/><path d="M124 150L223 182V220H124Z" fill="url(#hero-glass)"/>{[151,180,208].map(x=><path key={x} d={`M${x} ${154+(x-124)*.32}V224`} stroke="#dfd8cc" strokeWidth="5"/>)}<path d="M245 178L324 148V214L245 220Z" fill="url(#hero-glass)"/><path d="M272 167V220M300 156V218" stroke="#ece4d9" strokeWidth="5"/><path d="M103 136L222 81L348 130L340 140L222 98L111 148Z" fill="#ecf2fa"/><rect x="169" y="108" width="48" height="36" rx="2" fill="#e6edf7"/><path d="M170 108L218 91L239 100L193 117Z" fill="#fff"/>{[50,83,371,406,460].map((x,i)=><g key={x}><path d={`M${x} 230V${175+i%2*15}`} stroke="#729386" strokeWidth="5"/><circle cx={x} cy={175+i%2*15} r={23-i%2*5} fill={i%2 ? '#a5cfae' : '#89bd98'}/><circle cx={x-7} cy={167+i%2*15} r="13" fill="#b8dbb5"/></g>)}</svg>
-}
-function Section({title, icon, action, href}: {title: string; icon: React.ReactNode; action: string; href: string}) {
-    return <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{mb: 1.5}}><Stack direction="row" alignItems="center" gap={1.2}><Box sx={{bgcolor: '#fff0db', color: '#ed9a23', p: 1, display: 'flex', borderRadius: '12px'}}>{icon}</Box><Typography variant="h3">{title}</Typography></Stack><Button component={Link} to={href} variant="outlined" size="small" endIcon={<ArrowBackRoundedIcon fontSize="small" />}>{action}</Button></Stack>
-}
-export default function DashboardLayout() {
-    const {user} = useContext(CurrentUserContext)
-    const {settings} = usePanelSettings()
-    const {conversations} = useRealtime()
-    const [dashboard, setDashboard] = useState<{announcements: {results: AnnouncementType[]; total_results: number}; important_tasks: {total_results: number; completed_count: number; pending_count: number}} | null>(null)
-    const [error, setError] = useState('')
-    useEffect(() => {let active = true; DataProvider.get<any>('dashboard/').then(response => {if (active) setDashboard(response.data)}).catch(error => {if (active) setError(error.message)}); return () => {active = false}}, [])
-    const stats = [
-        {label: 'گفتگوهای شما', value: conversations.length, icon: <ChatBubbleOutlineRoundedIcon />, color: '#246bfd', bg: '#e7f0ff'},
-        {label: 'کارهای امروز', value: dashboard?.important_tasks.total_results, icon: <AssignmentTurnedInRoundedIcon />, color: '#f39b20', bg: '#fff3dd'},
-        {label: 'کارهای انجام‌شده', value: dashboard?.important_tasks.completed_count, icon: <TaskAltRoundedIcon />, color: '#13b968', bg: '#ddf9eb'},
-    ]
-    return <Stack spacing={3}>
-        {(user.role==='superadmin'||user.role==='agency')&&<EstateAnalytics admin={user.role==='superadmin'}/>}
-        {error && <Alert severity="error">{error}</Alert>}
-        <Box sx={{borderRadius: '18px', minHeight: 200, position: 'relative', overflow: 'hidden', background: 'linear-gradient(105deg,#e1edff,#eff5ff)', border: '1px solid #e1ecff', color: '#17243b'}}>
-            <Box sx={{position: 'absolute', right: 0, bottom: 0, width: {xs: 200, lg: 410}, height: 210, opacity: {xs: .25, md: .9}}}><CityScene /></Box>
-            <Stack direction={{xs: 'column', lg: 'row'}} justifyContent="space-between" alignItems={{lg: 'center'}} gap={3} sx={{position: 'relative', p: {xs: 3, md: 4}, pr: {lg: '33%'}}}>
-                <Box sx={{minWidth: 225}}><Typography fontWeight={900} fontSize={{xs: 23, md: 26}}>سلام {user.first_name || 'دوست عزیز'} <span style={{fontSize: 24}}>👋</span></Typography><Typography fontSize={18} fontWeight={700} sx={{mt: .8}}>به پنل {settings.general.shortName} خوش آمدید</Typography><Typography fontSize={11} color="#7b879d" sx={{mt: 2}}>امروز {new Date().toLocaleDateString('fa-IR', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}، روز خوبی داشته باشید.</Typography></Box>
-                <Stack direction="row" gap={1.3} sx={{flexWrap: 'wrap'}}>{stats.map(stat => <Stack key={stat.label} direction="row" alignItems="center" gap={1.2} sx={{bgcolor: '#ffffffd9', border: '1px solid #fff', borderRadius: '14px', px: 1.5, py: 1.2, minWidth: 135}}><Box sx={{color: stat.color, bgcolor: stat.bg, p: 1, display: 'flex', borderRadius: '11px'}}>{stat.icon}</Box><Box><Typography fontWeight={900} fontSize={21}>{stat.value === undefined ? '—' : stat.value.toLocaleString('fa-IR')}</Typography><Typography fontSize={10} color="#7b879d">{stat.label}</Typography></Box></Stack>)}</Stack>
-            </Stack>
-        </Box>
-        <Box><Section title="اطلاعیه‌ها" icon={<CampaignRoundedIcon fontSize="small" />} href={user.role === 'superadmin' ? '/announcements' : '/dashboard'} action="مشاهده همه" />
-            {!dashboard ? <Skeleton height={170} variant="rounded" /> : dashboard.announcements.results.length ? <Grid container spacing={2}>{dashboard.announcements.results.slice(0, 4).map((announcement, index) => <Grid key={announcement.id} item xs={12} md={6}><Paper variant="outlined" sx={{p: 2.5, borderRadius: '16px', minHeight: 200, position: 'relative', overflow: 'hidden'}}><Stack direction="row" justifyContent="space-between" gap={2}><Box sx={{flex: 1, minWidth: 0}}><Stack direction="row" alignItems="center" gap={1}><Box sx={{color: 'primary.main', bgcolor: '#edf4ff', display: 'flex', p: 1, borderRadius: 2}}><CampaignRoundedIcon /></Box><Typography fontWeight={700}>{announcement.title}</Typography></Stack><Typography color="text.secondary" sx={{mt: 2, fontSize: 13, lineHeight: 2.1, whiteSpace: 'pre-wrap'}}>{announcement.description}</Typography><Stack direction="row" gap={.8} alignItems="center" sx={{mt: 3, color: 'text.secondary'}}><CalendarMonthOutlinedIcon sx={{fontSize: 14}} /><Typography fontSize={10}>{formatDate(announcement.created_at)}</Typography></Stack></Box><Stack alignItems="center" justifyContent="center" sx={{width: {xs: 65, lg: 140}, flexShrink: 0, borderRadius: '35px 12px 35px 12px', bgcolor: index % 2 ? '#f0edff' : '#edf4ff'}}><CampaignRoundedIcon sx={{fontSize: {xs: 45, lg: 78}, color: index % 2 ? '#8b86ee' : '#79a9fa', filter: 'drop-shadow(0px 10px 8px #88aaff55)', transform: 'rotate(-15deg)'}} /></Stack></Stack></Paper></Grid>)}</Grid> : <Paper variant="outlined" sx={{p: 3, textAlign: 'center', borderRadius: '16px'}}><CampaignRoundedIcon sx={{color: '#b8cbed', fontSize: 38}} /><Typography color="text.secondary">اطلاعیه جدیدی منتشر نشده است.</Typography></Paper>}
-        </Box>
-        <Box><Section title="کارهای مهم امروز" icon={<AssignmentTurnedInRoundedIcon fontSize="small" />} href="/tasks" action="مدیریت وظایف" /><TodayImportantTasks /></Box>
-        <PersonalReminders/><Grid container spacing={2} sx={{width: 'calc(100% + 16px) !important', ml: '-16px !important', mt: '8px !important'}}>{[
-            {title: 'گفتگوهای فعال', value: conversations.length, icon: <ChatBubbleOutlineRoundedIcon />, color: '#13b968', href: '/chats'},
-            {title: 'پیام‌های خوانده‌نشده', value: conversations.reduce((sum, chat) => sum + chat.unread_count, 0), icon: <ChatBubbleOutlineRoundedIcon />, color: '#246bfd', href: '/chats'},
-            {title: 'وظایف در انتظار', value: dashboard?.important_tasks.pending_count, icon: <AssignmentTurnedInRoundedIcon />, color: '#f39b20', href: '/tasks'},
-            {title: 'اطلاعیه‌های منتشرشده', value: dashboard?.announcements.total_results, icon: <CampaignRoundedIcon />, color: '#9b66ed', href: user.role === 'superadmin' ? '/announcements' : '/dashboard'},
-        ].map(item => <Grid key={item.title} item xs={6} lg={3}><Paper variant="outlined" sx={{p: 2, borderRadius: '14px', borderColor: `${item.color}35`, background: `linear-gradient(125deg, ${item.color}08, transparent)`, overflow: 'hidden', position: 'relative'}}><Stack direction="row" alignItems="center" justifyContent="space-between"><Typography fontWeight={900} fontSize={22}>{item.value === undefined ? '—' : item.value.toLocaleString('fa-IR')}</Typography><Box sx={{p: 1.4, display: 'flex', color: item.color, bgcolor: `${item.color}15`, borderRadius: '15px'}}>{item.icon}</Box></Stack><Typography color="text.secondary" fontSize={12} sx={{mt: 1}}>{item.title}</Typography><Button component={Link} to={item.href} size="small" endIcon={<ArrowBackRoundedIcon sx={{fontSize: '14px !important'}} />} sx={{p: 0, mt: 1, minHeight: 24, color: item.color}}>مشاهده</Button></Paper></Grid>)}</Grid>
-    </Stack>
+import EstateAnalytics from './EstateAnalytics'
+import DashboardMap,{CityPoint} from './DashboardMap'
+import DashboardSearch,{SearchValues} from './DashboardSearch'
+import './dashboard.css'
+export interface FilterState {year:number;month:string}
+type Counter={total:number;recent:number;previous:number}
+type Overview={counts:Record<string,Counter>;points:CityPoint[];matching_files:number;mapped_files:number}
+const metrics=[{key:'files',title:'فایل‌های ملکی',link:'/files',icon:<DescriptionOutlinedIcon/>,color:'#6255f5'},{key:'agencies',title:'دفترهای املاک',link:'/users/agencies',icon:<ApartmentRoundedIcon/>,color:'#f46288'},{key:'experts',title:'کارشناسان',link:'/users/expert',icon:<PeopleOutlineRoundedIcon/>,color:'#9354ef'},{key:'requests',title:'درخواست‌ها',link:'/requests',icon:<BusinessCenterOutlinedIcon/>,color:'#287dff'},{key:'followups',title:'پیگیری‌ها',link:'/follow-ups',icon:<NotificationsNoneRoundedIcon/>,color:'#eba22a'},{key:'contracts',title:'قراردادها',link:'/contracts',icon:<AssignmentOutlinedIcon/>,color:'#476bee'}]
+export default function DashboardLayout(){
+ const {user}=useContext(CurrentUserContext),{settings}=usePanelSettings(),{conversations}=useRealtime(),navigate=useNavigate()
+ const manager=user.role==='superadmin'||user.role==='agency',admin=user.role==='superadmin'
+ const [overview,setOverview]=useState<Overview|null>(null),[busy,setBusy]=useState(true),[overviewError,setOverviewError]=useState(''),[retry,setRetry]=useState(0)
+ const [filters,setFilters]=useState<SearchValues>({propertyType:'',city:'',district:'',priceFrom:'',priceTo:''}),[searchError,setSearchError]=useState('')
+ const [dashboard,setDashboard]=useState<{announcements:{results:AnnouncementType[];total_results:number};important_tasks:{total_results:number;completed_count:number;pending_count:number}}|null>(null),[error,setError]=useState(''),[announcementsOpen,setAnnouncementsOpen]=useState(false)
+ const key=JSON.stringify(filters)
+ useEffect(()=>{let active=true;setBusy(true);const timer=setTimeout(()=>{DataProvider.get<Overview>('dashboard/estate-overview/',JSON.parse(key)).then(r=>{if(active){setOverview(r.data);setOverviewError('')}}).catch(e=>{if(active)setOverviewError(e.response?.data?.message||'دریافت آمار و نقشه انجام نشد.')}).finally(()=>{if(active)setBusy(false)})},250);return()=>{active=false;clearTimeout(timer)}},[key,retry])
+ useEffect(()=>{let active=true;DataProvider.get<any>('dashboard/').then(r=>{if(active)setDashboard(r.data)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false}},[])
+ const search=(point?:CityPoint)=>{const values:SearchValues={...filters,...(point?{city:point.city,province:point.province,district:''}:{})};if(values.priceFrom&&values.priceTo&&Number(values.priceFrom)>Number(values.priceTo)){setSearchError('حداکثر قیمت نباید کمتر از حداقل باشد.');return}setSearchError('');const params=new URLSearchParams(Object.entries(values).filter(([,v])=>!!v));navigate('/files?'+params.toString())}
+ const announcements=dashboard?.announcements.results||[]
+ return <Box className="dashboard-home">
+ <section className="dashboard-welcome" style={{backgroundImage:"linear-gradient(to left,#e9e7ff 0%,rgba(233,231,255,0) 65%),url('/assets/estate-hero-v1.png')"}}><div><h1>👋 سلام {user.first_name||'دوست عزیز'}</h1><p>به پنل {user.role==='agency'?'دفتر املاک':admin?'مدیریت':'کاربری'} {settings.general.shortName} خوش آمدید.</p></div></section>
+ <section className={`dashboard-stat-grid${manager?'':' is-personal'}`} aria-label="خلاصه آمار">{metrics.filter(x=>manager||!['agencies','experts'].includes(x.key)).map(item=>{const count=overview?.counts[item.key];const growth=count&&count.previous?Math.round((count.recent-count.previous)/count.previous*100):null;return <Link className="dashboard-stat-card" key={item.key} to={item.key==='agencies'&&!admin?'/profile':item.link} style={{'--stat-color':item.color} as React.CSSProperties}><div className="dashboard-stat-copy"><strong>{count?count.total.toLocaleString('fa-IR'):'—'}</strong><span>{item.title}</span></div><div className="dashboard-stat-icon">{item.icon}</div><small className={growth!==null&&growth<0?'negative':''} title="ثبت جدید ۳۰ روز اخیر در مقایسه با دوره قبل">{growth!==null?<><ArrowUpwardRoundedIcon style={growth<0?{transform:'rotate(180deg)'}:undefined}/>{Math.abs(growth).toLocaleString('fa-IR')}٪ {growth<0?'کاهش':'رشد'}</>:count?`${count.recent.toLocaleString('fa-IR')} ثبت جدید`:'در حال دریافت'}</small></Link>})}</section>
+ {overviewError&&<Alert severity="error" action={<Button onClick={()=>setRetry(x=>x+1)}>تلاش مجدد</Button>}>{overviewError}</Alert>}
+ <section className="dashboard-property-workspace"><div className="dashboard-card dashboard-search-card"><div className="dashboard-section-heading"><span><SearchRoundedIcon/>جستجوی سریع ملک</span></div><DashboardSearch values={filters} onChange={x=>{setFilters(x);setSearchError('')}} onSearch={()=>search()}/>{searchError&&<Alert severity="error">{searchError}</Alert>}</div><div className="dashboard-card dashboard-map-card"><div className="dashboard-section-heading"><span><ApartmentRoundedIcon/>نمایش روی نقشه</span><span className="dashboard-map-total">{overview?`${overview.matching_files.toLocaleString('fa-IR')} فایل مطابق جستجو`:'دریافت فایل‌ها…'}</span></div>{busy&&<LinearProgress/>}<DashboardMap points={overview?.points||[]} matching={overview?.matching_files||0} mapped={overview?.mapped_files||0} onSelect={p=>search(p)}/></div></section>
+ <section className="dashboard-daily-grid"><div className="dashboard-card dashboard-announcements"><div className="dashboard-section-heading"><span><CampaignOutlinedIcon/>اطلاعیه‌ها</span>{announcements.length>0&&<span className="dashboard-count-badge">{dashboard?.announcements.total_results.toLocaleString('fa-IR')}</span>}</div>{error&&<Alert severity="error">{error}</Alert>}<div className="dashboard-announcement-rows">{announcements.slice(0,2).map(row=><button className="dashboard-announcement-row" key={row.id} onClick={()=>setAnnouncementsOpen(true)}><span className="dashboard-announcement-icon"><DescriptionOutlinedIcon/></span><div><strong>{row.title}</strong><p>{row.description}</p><small>{formatDate(row.created_at)}</small></div></button>)}{dashboard&&!announcements.length&&<div className="dashboard-empty-small">اطلاعیه جدیدی منتشر نشده است.</div>}{!dashboard&&!error&&<LinearProgress/>}</div><button className="dashboard-section-footer" onClick={()=>setAnnouncementsOpen(true)}>مشاهده همه اطلاعیه‌ها ←</button></div>
+ <div className="dashboard-card dashboard-today"><div className="dashboard-section-heading"><span><TaskAltRoundedIcon/>کارهای مهم امروز</span><span className="dashboard-count-badge">{dashboard?.important_tasks.total_results.toLocaleString('fa-IR')||'—'}</span></div><TodayImportantTasks compact onUpdated={()=>{DataProvider.get<any>('dashboard/').then(r=>setDashboard(r.data)).catch(()=>setError('به‌روزرسانی خلاصه وظایف انجام نشد.'))}}/><Link to="/tasks" className="dashboard-section-footer">مدیریت وظایف ←<small>{dashboard?`${dashboard.important_tasks.completed_count.toLocaleString('fa-IR')} انجام شده`:''}</small></Link></div><div className="dashboard-card dashboard-upcoming"><PersonalReminders compact/></div></section>
+ {manager&&<EstateAnalytics admin={admin} embedded/>}
+ <section className="dashboard-shortcuts">{settings.features.chats&&<Link to="/chats"><ForumOutlinedIcon/><span>گفتگوهای من</span><strong>{conversations.length.toLocaleString('fa-IR')}</strong><small>{conversations.reduce((s,c)=>s+c.unread_count,0).toLocaleString('fa-IR')} پیام خوانده‌نشده</small></Link>}<Link to="/reminders"><NotificationsNoneRoundedIcon/><span>یادآوری شخصی</span><small>زمان‌بندی و پیگیری کارها</small></Link><Link to="/tasks"><TaskAltRoundedIcon/><span>کارهای امروز</span><small>{dashboard?.important_tasks.pending_count.toLocaleString('fa-IR')||'۰'} کار در انتظار</small></Link></section>
+ <Dialog fullWidth maxWidth="md" open={announcementsOpen} onClose={()=>setAnnouncementsOpen(false)}><DialogTitle>اطلاعیه‌های سامانه<Button onClick={()=>setAnnouncementsOpen(false)} sx={{float:'left'}}>بستن</Button></DialogTitle><DialogContent><div className="dashboard-all-announcements">{announcements.map(row=><article key={row.id}><h3>{row.title}</h3><p>{row.description}</p><small>{formatDate(row.created_at)}</small></article>)}{!announcements.length&&<p>اطلاعیه‌ای منتشر نشده است.</p>}</div></DialogContent></Dialog>
+ </Box>
 }

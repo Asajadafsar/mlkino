@@ -1,0 +1,17 @@
+import {useEffect,useState} from 'react'
+import {Autocomplete,Button,TextField} from '@mui/material'
+import ApartmentRoundedIcon from '@mui/icons-material/ApartmentRounded'
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
+import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined'
+import LandscapeOutlinedIcon from '@mui/icons-material/LandscapeOutlined'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import api from '../../Core/Request'
+export type SearchValues=Record<string,string>
+const types=[{name:'آپارتمان',icon:<ApartmentRoundedIcon/>},{name:'ویلایی',icon:<HomeOutlinedIcon/>},{name:'تجاری',icon:<BusinessOutlinedIcon/>},{name:'اداری',icon:<BusinessOutlinedIcon/>},{name:'زمین',icon:<LandscapeOutlinedIcon/>}]
+export default function DashboardSearch({values,onChange,onSearch}:{values:SearchValues;onChange:(x:SearchValues)=>void;onSearch:()=>void}){
+ const [cities,setCities]=useState<string[]>([]),[districts,setDistricts]=useState<string[]>([]),[error,setError]=useState('')
+ useEffect(()=>{const c=new AbortController();api.get('locations/',{params:{level:'city',all:true},signal:c.signal}).then(r=>{if(!c.signal.aborted)setCities(Array.from(new Set(r.data.data.results.map((x:any)=>x.name))) as string[])}).catch(()=>{if(!c.signal.aborted)setError('فهرست شهرها دریافت نشد.')});return()=>c.abort()},[])
+ useEffect(()=>{const c=new AbortController();setDistricts([]);if(values.city)api.get('locations/',{params:{level:'district',all:true,city:values.city},signal:c.signal}).then(r=>{if(!c.signal.aborted)setDistricts(r.data.data.results.map((x:any)=>x.name))}).catch(()=>{if(!c.signal.aborted)setError('فهرست مناطق دریافت نشد.')});return()=>c.abort()},[values.city])
+ const digits=(s:string)=>s.replace(/[۰-۹٠-٩]/g,c=>String(c.charCodeAt(0)-(c>='۰'?1776:1632))).replace(/[^0-9]/g,'')
+ return <form className="dashboard-search-form" onSubmit={e=>{e.preventDefault();onSearch()}}><div className="dashboard-property-types" role="group" aria-label="نوع ملک">{types.map(t=><button type="button" key={t.name} className={values.propertyType===t.name?'selected':''} aria-pressed={values.propertyType===t.name} onClick={()=>onChange({...values,propertyType:values.propertyType===t.name?'':t.name})}>{t.icon}<span>{t.name}</span></button>)}</div><div className="dashboard-search-grid"><Autocomplete options={cities} value={values.city||null} onChange={(_,x)=>onChange({...values,city:x||'',district:''})} renderInput={p=><TextField {...p} size="small" label="شهر" placeholder="همه شهرها"/>}/><Autocomplete options={districts} value={values.district||null} disabled={!values.city||!districts.length} onChange={(_,x)=>onChange({...values,district:x||''})} renderInput={p=><TextField {...p} size="small" label="منطقه" placeholder="همه مناطق"/>}/><TextField size="small" label="قیمت از (تومان)" value={values.priceFrom||''} onChange={e=>onChange({...values,priceFrom:digits(e.target.value)})} inputProps={{inputMode:'numeric',maxLength:17}}/><TextField size="small" label="قیمت تا (تومان)" value={values.priceTo||''} onChange={e=>onChange({...values,priceTo:digits(e.target.value)})} inputProps={{inputMode:'numeric',maxLength:17}}/></div>{error&&<span className="dashboard-inline-error">{error}</span>}<Button type="submit" variant="contained" fullWidth endIcon={<SearchRoundedIcon/>}>جستجوی ملک</Button></form>
+}

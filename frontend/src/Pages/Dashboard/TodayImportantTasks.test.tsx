@@ -13,7 +13,8 @@ test('loads backend tasks and refreshes their status after toggling the actual t
         .mockResolvedValueOnce({data: {total_results: 1, results: [task]}})
         .mockResolvedValueOnce({data: {total_results: 1, results: [{...task, status: 'done'}]}})
     ;(DataProvider.patch as jest.Mock).mockResolvedValue({})
-    render(<TodayImportantTasks />)
+    const updated=jest.fn()
+    render(<TodayImportantTasks onUpdated={updated} />)
     const checkbox = await screen.findByRole('checkbox', {name: `تغییر وضعیت ${task.title}`})
     expect(DataProvider.get).toHaveBeenCalledWith('tasks/?period=today')
     expect((checkbox as HTMLInputElement).checked).toBe(false)
@@ -21,6 +22,7 @@ test('loads backend tasks and refreshes their status after toggling the actual t
     await waitFor(() => expect(DataProvider.patch).toHaveBeenCalledWith('dashboard/tasks/7/toggle/'))
     await waitFor(() => expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(true))
     expect(DataProvider.get).toHaveBeenCalledTimes(2)
+    expect(updated).toHaveBeenCalledTimes(1)
 })
 
 test('a failed toggle leaves the saved status unchanged and reports the error', async () => {

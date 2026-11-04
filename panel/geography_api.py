@@ -129,8 +129,10 @@ class MapTileView(APIView):
     throttle_classes=[TileThrottle]
     def get(self,request,z,x,y):
         if not 4<=z<=19 or not 0<=x<2**z or not 0<=y<2**z:return HttpResponse(status=404)
-        lon=(x+.5)/2**z*360-180;lat=math.degrees(math.atan(math.sinh(math.pi*(1-2*(y+.5)/2**z))))
-        if not 40<=lon<=68 or not 22<=lat<=43:return HttpResponse(status=404)
+        west=x/2**z*360-180;east=(x+1)/2**z*360-180
+        north=math.degrees(math.atan(math.sinh(math.pi*(1-2*y/2**z))))
+        south=math.degrees(math.atan(math.sinh(math.pi*(1-2*(y+1)/2**z))))
+        if east<40 or west>68 or north<22 or south>43:return HttpResponse(status=404)
         folder=Path(getattr(settings,'MLKINO_TILE_CACHE_DIR',Path(settings.BASE_DIR)/'.map-cache'))
         path=folder/str(z)/str(x)/(str(y)+'.png')
         import time

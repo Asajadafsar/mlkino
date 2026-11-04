@@ -24,7 +24,7 @@ import {
     Typography,
 } from '@mui/material'
 
-export default function TodayImportantTasks() {
+export default function TodayImportantTasks({compact=false,onUpdated}:{compact?:boolean;onUpdated?:()=>void}) {
     const dispatch = useDispatch()
     const role = useSelector(selectRole)
     const [tasks, setTasks] = useState<TasksType[]>([])
@@ -66,6 +66,7 @@ export default function TodayImportantTasks() {
         try {
             await DataProvider.patch(`dashboard/tasks/${id}/toggle/`)
             await getTasks(false)
+            onUpdated?.()
         } catch (error: any) {
             dispatch(
                 setUtil({
@@ -82,6 +83,7 @@ export default function TodayImportantTasks() {
 
     return (
         <Paper
+            className={compact?'dashboard-task-list':undefined}
             elevation={0}
             sx={{p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider'}}
         >
