@@ -141,6 +141,7 @@ export function RealtimeProvider({children}: {children: React.ReactNode}) {
                 let parsed: RealtimeEvent
                 try {parsed = JSON.parse(event.data)} catch {return}
                 if (!parsed || typeof parsed.event !== 'string') return
+                if(parsed.event==='identity.changed'){window.location.replace('/dashboard');return}
                 if (parsed.event.startsWith('call.')) signalHandler.current(parsed).catch(() => {setNotice('خطا در برقراری تماس'); end()})
                 else if (parsed.event !== 'chat.pong' && parsed.event !== 'inbox.connected') {
                     setLastEvent(parsed)

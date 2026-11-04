@@ -21,7 +21,9 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     async def valid_identity(self):
         from .ws_auth import authenticated_user
         user = await authenticated_user(self.scope.get('access_token'), self.scope.get('impersonation_token'))
-        return bool(user and user.is_authenticated and user.pk == self.user.pk)
+        valid=bool(user and user.is_authenticated and user.pk == self.user.pk)
+        if valid:self.user=user
+        return valid
 
     async def connect(self):
         self.chat_id = self.scope['url_route']['kwargs']['chat_id']
@@ -82,7 +84,9 @@ class InboxConsumer(AsyncJsonWebsocketConsumer):
     async def valid_identity(self):
         from .ws_auth import authenticated_user
         user = await authenticated_user(self.scope.get('access_token'), self.scope.get('impersonation_token'))
-        return bool(user and user.is_authenticated and user.pk == self.user.pk)
+        valid=bool(user and user.is_authenticated and user.pk == self.user.pk)
+        if valid:self.user=user
+        return valid
 
     async def connect(self):
         self.user = self.scope.get('user')

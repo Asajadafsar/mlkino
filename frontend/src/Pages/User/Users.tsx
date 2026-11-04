@@ -1,3 +1,4 @@
+import {RoleChange} from './RoleChange'
 import {Stack, Typography} from '@mui/material'
 import type {Dispatch,SetStateAction} from 'react'
 import type {CommonUserType} from './UserTypes'
@@ -9,6 +10,7 @@ export function Users<T extends UsersType>({users,setUsers,resource,editMode=tru
  return <Stack spacing={3}>
   <ProfileIdentityHero value={users} onChange={change} title={editMode?'پرونده کاربری':'ایجاد حساب جدید'} description={users.role==='agency'?'تصویر مدیر دفتر را در بخش عکس پروفایل بارگذاری کنید. اطلاعات شخصی و مشخصات حساب را با دقت تکمیل کنید.':'اطلاعات شخصی و مشخصات حساب را با دقت تکمیل کنید.'}/>
   {editMode&&<ImpersonateButton target={users}/>}
+  {editMode&&<RoleChange target={users}/>}
   <Typography fontWeight={700} fontSize={18}>اطلاعات شخصی</Typography>
   <ProfileDetailsForm value={users} onChange={change} mode={editMode?'manage':'create'} role={users.role}/>
  </Stack>

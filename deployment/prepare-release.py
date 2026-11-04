@@ -12,7 +12,7 @@ out.mkdir(parents=True, exist_ok=False)
 sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
 base = json.loads((ROOT/args.baseline).read_text())['files']
 files = [f'accounts/{name}.py' for name in ['authentication','client_ip','cookies','models','serializers','urls','validators','views','middleware','notices','profile_api','sessions']]
-files += [f'panel/{name}.py' for name in ['models','serializers','urls','views','settings_api','settings_models','settings_runtime','ws_auth','ws_consumers','call_config','property_api','geography_api','estate_activity_api','analytics_api','dashboard_estate_api','geography_admin','ws_events','ws_routing']]
+files += [f'panel/{name}.py' for name in ['models','serializers','urls','views','settings_api','settings_models','settings_runtime','ws_auth','ws_consumers','call_config','property_api','geography_api','estate_activity_api','analytics_api','dashboard_estate_api','role_api','geography_admin','ws_events','ws_routing']]
 files += ['panel/settings_defaults.json','mlkino/asgi.py','mlkino/production_release.py','accounts/migrations/0011_user_profile_updated_at_accountnotification_and_more.py','accounts/migrations/0012_user_national_code_image.py','accounts/migrations/0013_agency_office_area.py']
 sources = {name:ROOT/name for name in files}
 for path in (ROOT/'panel/data/iran').rglob('*'):

@@ -145,8 +145,10 @@ export function Home(props) {
         }
 
         getProfile()
+        window.addEventListener('focus',getProfile)
 
         return () => {
+            window.removeEventListener('focus',getProfile)
             active = false
         }
     }, [dispatch, reduxStore, attempt])

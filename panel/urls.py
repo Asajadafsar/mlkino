@@ -1,3 +1,4 @@
+from .role_api import UserRoleView
 from .dashboard_estate_api import DashboardEstateView
 from .analytics_api import EstateAnalyticsView
 from .geography_admin import GeographyAdminView
@@ -15,6 +16,7 @@ app_name = "panel"
 from .settings_api import PanelAppearanceView
 
 urlpatterns = [
+    path('users/<int:user_id>/role/',UserRoleView.as_view(),name='user-role-change'),
     path('dashboard/estate-overview/',DashboardEstateView.as_view(),name='dashboard-estate-overview'),
     path('dashboard/estate-analytics/',EstateAnalyticsView.as_view(),name='estate-analytics'),
     path('locations/manage/',GeographyAdminView.as_view(),name='geography-manage'),
