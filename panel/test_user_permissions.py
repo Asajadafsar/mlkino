@@ -1,6 +1,10 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
+from io import BytesIO
+from PIL import Image
 from accounts.models import AgencyExpert, ExpertProfile
 
 User = get_user_model()
@@ -64,3 +68,25 @@ class UserManagementScopeTests(TestCase):
         self.assertEqual(created.role, 'superadmin')
         self.assertTrue(created.is_staff)
         self.assertFalse(created.is_superuser)
+
+    @override_settings(MEDIA_ROOT='/private/tmp/mlkino-test-media')
+    def test_superadmin_can_create_agency_with_manager_and_national_card_images(self):
+        self.client.force_authenticate(self.admin)
+        image = BytesIO()
+        Image.new('RGB', (2, 2), color='white').save(image, format='PNG')
+        png = image.getvalue()
+        payload = {
+            'phone': '09123333009', 'password': 'agency-password',
+            'first_name': 'مدیر', 'last_name': 'دفتر', 'role': 'agency',
+            'user_type': 'investor', 'agency_name': 'املاک نمونه',
+            'occupancy_type': 'owner', 'office_address': 'تهران، خیابان نمونه',
+            'avatar': SimpleUploadedFile('manager.png', png, content_type='image/png'),
+            'national_code_image': SimpleUploadedFile('national-card.png', png, content_type='image/png'),
+        }
+        response = self.client.post('/panel/users/', payload, format='multipart')
+        self.assertEqual(response.status_code, 201, response.data)
+        created = User.objects.get(pk=response.data['data']['id'])
+        self.assertEqual(created.user_type, User.UserType.CONSUMER)
+        self.assertTrue(created.avatar.name)
+        self.assertTrue(created.national_code_image.name)
+        self.assertEqual(response.data['data']['agency_profile']['agency_name'], 'املاک نمونه')

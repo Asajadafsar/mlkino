@@ -1,3 +1,5 @@
+import {FloorChoices} from '../components/CheckboxChoices'
+import {usePanelSettings} from '../../../Core/PanelSettingsContext'
 import {
     AD_AMENITIES_OPTIONS,
     BUILD_YEAR_OPTIONS,
@@ -15,6 +17,7 @@ import type {ModeStepProps} from '../types'
 import {toSelectOptions} from '../utils'
 
 export function TechnicalStep({property, setProperty, resource, mode}: ModeStepProps) {
+    const {settings}=usePanelSettings()
     return (
         <>
             <GridProducer
@@ -31,7 +34,7 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                     />,
 
                     // وضعیت اشتغال و حمام در «آگهی» لازم نیستند
-                    ...(mode === 'ad'
+                    ...(mode !== 'file'
                         ? []
                         : [
                               <CustomSelectField
@@ -123,14 +126,7 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                         options={toSelectOptions(DIRECTION_OPTIONS)}
                     />,
                     mode === 'request' ? (
-                        <RangeField
-                            key="totalFloor"
-                            baseName="totalFloor"
-                            label="طبقه کل"
-                            property={property}
-                            setProperty={setProperty}
-                            resource={resource}
-                        />
+                        <FloorChoices key="floorPreferences" value={property.floorPreferences || []} onChange={next=>setProperty(prev=>({...prev,floorPreferences:next}))}/>
                     ) : (
                         <CustomTextField
                             key="totalFloor"
@@ -147,7 +143,7 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                 ]}
             />
 
-            <AmenitiesGrid
+            {settings.fields?.[`${mode}.amenities`]!==false && <AmenitiesGrid
                 value={property.amenities}
                 onChange={(next) =>
                     setProperty((prev) => ({
@@ -157,7 +153,7 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                 }
                 // در «آگهی» لیست نقاط قوت تبلیغاتی، جدا از امکانات فنی ساختمان است
                 options={mode === 'ad' ? AD_AMENITIES_OPTIONS : undefined}
-            />
+            />}
         </>
     )
 }

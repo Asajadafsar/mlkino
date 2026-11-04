@@ -18,7 +18,7 @@ export function PanelSettingsProvider({children}: {children: React.ReactNode}) {
     const dark = useMediaQuery('(prefers-color-scheme: dark)')
     useEffect(() => {
         let active = true
-        api.get(isAdmin?'settings/':'appearance/').then(response => {if (active) setSettings({...SETTINGS_DEFAULTS,...response.data.data,general:{...SETTINGS_DEFAULTS.general,...response.data.data.general,dateFormat:'YYYY/MM/DD'}})}).catch(error => {if (active) setError(error.message || 'دریافت تنظیمات انجام نشد')}).finally(() => {if (active) setLoading(false)})
+        api.get(isAdmin?'settings/':'appearance/').then(response => {if (active) setSettings({...SETTINGS_DEFAULTS,...response.data.data,fields:{...SETTINGS_DEFAULTS.fields,...response.data.data.fields},features:{...SETTINGS_DEFAULTS.features,...response.data.data.features},general:{...SETTINGS_DEFAULTS.general,...response.data.data.general,dateFormat:'YYYY/MM/DD'}})}).catch(error => {if (active) setError(error.message || 'دریافت تنظیمات انجام نشد')}).finally(() => {if (active) setLoading(false)})
         return () => {active = false}
     }, [isAdmin])
     useEffect(() => {

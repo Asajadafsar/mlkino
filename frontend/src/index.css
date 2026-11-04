@@ -82,3 +82,6 @@ body, html, #root { background: #f5f7fb; }
 button, input, textarea, select { font-family: inherit; }
 a { color: inherit; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* Leaflet positions its tiles and controls in a left-to-right coordinate system. */
+.leaflet-container, .leaflet-container * { direction: ltr; }

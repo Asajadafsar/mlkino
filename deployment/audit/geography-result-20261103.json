@@ -1,0 +1,10 @@
+{
+  "date": "2026-11-03",
+  "backend_release": "20261103-002-geography",
+  "frontend_release": "20261103-003-geography",
+  "rollback_backend": "/var/backups/mlkino/backend-20261103-002-geography",
+  "previous_frontend": "20261031-004-calls",
+  "validation": {"backend_tests": 51, "frontend_tests": 102, "deployment_tests": 6, "typescript": "passed", "build": "passed", "production_migration_lineage": "passed", "browser_ui": "passed with mocked account/postal data and real map renderer"},
+  "coverage": {"provinces": 31, "counties": 484, "administrative_districts": 1193, "cities": 1481, "urban_zones": 191, "rurals": 2777, "local_neighborhoods": 828, "national_neighborhood_city_lookups": 787},
+  "limitations": ["No source guarantees every neighborhood or municipal-region association throughout Iran", "Approximate geocoding asks the user to adjust the map pin", "No live user postal lookup or production account impersonation performed"]
+}

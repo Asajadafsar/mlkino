@@ -1,3 +1,4 @@
+import {recordPayload} from '../../../Components/PropertyRecordForm/payload'
 import React from 'react'
 import {CreatePage} from '../../../Components/Table/CreatePage'
 import { PropertyRecordForm } from '../../../Components/PropertyRecordForm'
@@ -15,7 +16,7 @@ export function RequestCreate({
         <CreatePage
             title={'درخواست جدید'}
             resource={resource + '/'}
-            isFormData={true}
+            buildRequestData={recordPayload}
             redirect={resource}
             formDetails={data}
             buttonText={'ذخیره'}

@@ -5,3 +5,6 @@ deployment/artifacts/
 !.env.example
 __pycache__/
 *.py[cod]
+
+# Rebuildable first-party map cache, never release user or provider caches.
+.map-cache/

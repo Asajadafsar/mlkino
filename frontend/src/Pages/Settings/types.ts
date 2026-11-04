@@ -44,6 +44,13 @@ export interface PanelSettingsState {
         linkedin: string
         whatsapp: string
     }
+    fields: Record<string, boolean>
+    features: {
+        views: boolean
+        advertisements: boolean
+        landlordTenant: boolean
+        chats: boolean
+    }
 }
 
 export type SettingsSetter = Dispatch<SetStateAction<PanelSettingsState>>

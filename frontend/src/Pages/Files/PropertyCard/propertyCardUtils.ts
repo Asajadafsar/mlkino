@@ -45,7 +45,7 @@ export function useDerivedPropertyInfo(item: Partial<PropertyType>) {
         : undefined
 
     const roomCountText = isFilled(item.roomCount) ? `${item.roomCount} خوابه` : undefined
-    const totalFloorText = formatNumber(item.totalFloor) ?? formatRange(item.totalFloorFrom, item.totalFloorTo)
+    const totalFloorText = item.floorPreferences?.length ? item.floorPreferences.join('، ') : formatNumber(item.totalFloor) ?? formatRange(item.totalFloorFrom, item.totalFloorTo)
 
     const totalPriceText = formatNumber(item.totalPrice) ?? formatRange(item.totalPriceFrom, item.totalPriceTo)
     const mortgagePriceText =
@@ -76,7 +76,7 @@ export function useDerivedPropertyInfo(item: Partial<PropertyType>) {
     const quickFacts = {
         areaText,
         roomCountText,
-        totalFloorText: totalFloorText ? `${totalFloorText} طبقه` : undefined,
+        totalFloorText: item.floorPreferences?.length ? totalFloorText : totalFloorText ? `${totalFloorText} طبقه` : undefined,
         direction: item.direction,
     }
 

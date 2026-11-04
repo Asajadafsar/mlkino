@@ -27,6 +27,7 @@
                 method: 'POST',
                 data: params?.data,
                 onUploadProgress: params?.onUploadProgress,
+                timeout: params?.timeout,
             }
 
             return HttpRequest<ApiResponse<DataType>>(url, options)

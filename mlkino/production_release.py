@@ -83,3 +83,7 @@ MLKINO_TRUST_PROXY_HEADERS_WITHOUT_REMOTE = True
 MIDDLEWARE = [entry for entry in MIDDLEWARE if entry != 'accounts.utils.ActivityAuditMiddleware']
 
 LANGUAGE_CODE = 'fa'
+
+# Ephemeral TURN credentials; shared secret stays in the service environment.
+MLKINO_TURN_SECRET = _os.environ.get("MLKINO_TURN_SECRET", "")
+MLKINO_TURN_URLS = ["turn:api.mlkino.com:3478?transport=udp", "turn:api.mlkino.com:3478?transport=tcp"]

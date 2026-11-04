@@ -1,17 +1,10 @@
+import {Alert} from '@mui/material'
+import {useEstateActivities} from '../../../Components/Estate/useEstateActivities'
+import {EstateActivityList} from '../../../Components/Estate/EstateActivityList'
 import {Box, Button, IconButton, Modal, Stack, Typography} from '@mui/material'
-import TableCell from '@mui/material/TableCell'
 import CloseIcon from '@mui/icons-material/Close'
-import AddIcon from '@mui/icons-material/Add'
 import {useState} from 'react'
-import {useQueryParams} from 'use-query-params'
 
-import {createCardField} from '../../../Components/Card/CustomCard'
-import {CustomCardList} from '../../../Components/Card/CustomCardList'
-import {CustomTable} from '../../../Components/Table/CustomTable'
-import {createTableHeadCells} from '../../../Components/Table/CustomTableHead'
-import {ListPage} from '../../../Components/Table/ListPage'
-import {formatDate} from '../../../Core/FormatDate'
-import {createQueryParam} from '../../../Core/QueryParams'
 import {FollowUpsType} from '../FollowUps'
 
 import {
@@ -161,75 +154,7 @@ function CustomModal({
 /* Table                                                                      */
 /* -------------------------------------------------------------------------- */
 
-const tableHeadCells = [
-    createTableHeadCells('شناسه', 'id'),
-    createTableHeadCells('ملک', 'file_name'),
-    createTableHeadCells('نام و نام خانوادگی', 'full_name'),
-    createTableHeadCells('شماره تماس', 'phone_number'),
-    createTableHeadCells('تاریخ', 'date'),
-    createTableHeadCells('توضیحات کاربر', 'description'),
-    createTableHeadCells('', ''),
-    createTableHeadCells('', ''),
-]
-
-const cardFields = [
-    createCardField('شناسه', 'id'),
-
-    createCardField('ملک', 'file_name'),
-
-    createCardField('نام و نام خانوادگی', 'full_name'),
-
-    createCardField('شماره تماس', 'phone_number'),
-
-    createCardField('تاریخ', 'date', {
-        render: (row: FollowUpsType) => formatDate(row.date),
-    }),
-
-    createCardField('توضیحات کاربر', 'description', {
-        fullWidth: true,
-    }),
-]
-
-const queryNames = tableHeadCells.slice(1,4).map((cell) => ({
-    field: cell.name,
-    label: cell.label,
-    type: '',
-}))
-
-const cellText = (
-    value: string | number | null | undefined,
-) => (
-    <Typography
-        variant="body2"
-        fontSize={{
-            xs: '13px',
-            sm: '14px',
-            md: '16px',
-            xl: '17px',
-        }}
-        sx={{
-            whiteSpace: 'nowrap',
-        }}
-    >
-        {value !== null &&
-        value !== undefined &&
-        value !== ''
-            ? String(value)
-            : '--'}
-    </Typography>
-)
-
-/* -------------------------------------------------------------------------- */
-/* Component                                                                  */
-/* -------------------------------------------------------------------------- */
-
 export function FollowUpsList() {
-    const [search, setSearch] = useQueryParams(
-        createQueryParam(queryNames),
-    )
-
-    const [loading] = useState(false)
-
     /* ---------------------------------------------------------------------- */
     /* Status Modal                                                           */
     /* ---------------------------------------------------------------------- */
@@ -276,69 +201,11 @@ export function FollowUpsList() {
     })
 
     /* ---------------------------------------------------------------------- */
-    /* Mock Data                                                              */
+    /* Persistent data                                                              */
     /* ---------------------------------------------------------------------- */
 
-    const [followUps] = useState<{
-        total_results: number
-        data: FollowUpsType[]
-    }>({
-        total_results: 5,
-
-        data: [
-            {
-                id: 1,
-                file_name: 'آپارتمان سالاریه',
-                full_name: 'محمد احمدی',
-                phone_number: '09121234567',
-                date: '2026-08-06T13:30:55.008241+03:30',
-                description:
-                    'سلام، برای بازدید این ملک در صورت امکان ساعت ۵ عصر مراجعه می‌کنم.',
-            },
-
-            {
-                id: 2,
-                file_name: 'ویلای جمکران',
-                full_name: 'علی رضایی',
-                phone_number: '09129876543',
-                date: '2026-08-07T10:15:20.008241+03:30',
-                description:
-                    'در صورت امکان می‌خواهم ملک را از نزدیک مشاهده کنم.',
-            },
-
-            {
-                id: 3,
-                file_name: 'دفتر بلوار امین',
-                full_name: 'سارا کریمی',
-                phone_number: '09351234567',
-                date: '2026-08-08T16:45:10.008241+03:30',
-                description:
-                    'لطفاً برای هماهنگی بازدید با من تماس بگیرید.',
-            },
-
-            {
-                id: 4,
-                file_name: 'واحد صفائیه',
-                full_name: 'رضا مرادی',
-                phone_number: '09107654321',
-                date: '2026-08-09T12:20:35.008241+03:30',
-                description:
-                    'ترجیحاً بازدید در ساعات بعدازظهر انجام شود.',
-            },
-
-            {
-                id: 5,
-                file_name: 'آپارتمان زنبیل آباد',
-                full_name: 'نگار موسوی',
-                phone_number: '09361234567',
-                date: '2026-08-10T09:40:15.008241+03:30',
-                description:
-                    'برای این ملک درخواست بازدید دارم.',
-            },
-        ],
-    })
-
-    const getFollowUps = () => {}
+    const {rows,loading,error,reload,save,canWrite}=useEstateActivities('follow-ups')
+    const [actionError,setActionError]=useState('')
 
     /* ---------------------------------------------------------------------- */
     /* Status Handlers                                                        */
@@ -373,13 +240,10 @@ export function FollowUpsList() {
         })
     }
 
-    const handleSubmitStatus = () => {
+    const handleSubmitStatus = async () => {
         if (!selectedFollowUp) return
 
-        console.log('تغییر وضعیت بازدید:', {
-            followUpId: selectedFollowUp.id,
-            ...statusData,
-        })
+        try{await save({...selectedFollowUp,...statusData,status:statusData.archive||statusData.nextStatus==='contract'?'انجام شده':statusData.nextStatus==='cancelled'?'نیازمند اقدام':'در حال پیگیری'});setActionError('')}catch(e:any){setActionError(e.message);return}
 
         handleCloseStatusModal()
     }
@@ -409,7 +273,7 @@ export function FollowUpsList() {
     })
 }
 
-   const handleSubmitNewVisit = () => {
+   const handleSubmitNewVisit = async () => {
     if (!selectedFile) return
 
     if (
@@ -419,12 +283,7 @@ export function FollowUpsList() {
         return
     }
 
-    console.log('بازدید جدید:', {
-        fileId: selectedFile.id,
-        fileName: selectedFile.file_name,
-        customerName: newVisitData.customerName,
-        date: newVisitData.date,
-    })
+    try{await save({file_name:selectedFile.file_name,date:newVisitData.date,full_name:newVisitData.customerName,description:'بازدید مجدد',status:'در حال پیگیری'});setActionError('')}catch(e:any){setActionError(e.message);return}
 
     handleCloseNewVisitModal()
 }
@@ -433,217 +292,11 @@ export function FollowUpsList() {
     /* Shared                                                                 */
     /* ---------------------------------------------------------------------- */
 
-    const shared = {
-        title: 'بازدید',
-        resource: RESOURCE,
-        rows: followUps.data,
-        count: followUps.total_results,
-        params: search,
-        setParams: setSearch,
-        loading,
-        getList: getFollowUps,
-        hasDetail: true,
-    }
-
     return (
         <>
-            <ListPage
-                viewKey={RESOURCE}
-                defaultView="list"
-                header="مدیریت پیگیری ها"
-                href={`${RESOURCE}/create`}
-                searchField="full_name"
-                searchText="نام و نام خانوادگی"
-                setParams={setSearch}
-                params={search}
-                resource={RESOURCE}
-                getList={getFollowUps}
-                filtersData={queryNames}
-                noCreate
-                defaultState={{
-                    name: '',
-                }}
-            >
-                {(view) =>
-                    view === 'card' ? (
-                        <CustomCardList
-                            {...shared}
-                            fields={cardFields}
-                            columns={{
-                                xs: 1,
-                                sm: 2,
-                                md: 3,
-                                xl: 4,
-                            }}
-                            renderers={{
-                                title: (
-                                    row: FollowUpsType,
-                                ) =>
-                                    row.file_name || '--',
+            {actionError&&<Alert severity="error" onClose={()=>setActionError('')}>{actionError}</Alert>}
+            <EstateActivityList kind="follow-ups" rows={rows} loading={loading} error={error} onRetry={reload} onStatus={canWrite?handleOpenStatusModal:undefined} onVisit={canWrite?handleOpenNewVisitModal:undefined} onSave={canWrite?save:undefined}/>
 
-                                subtitle: (
-                                    row: FollowUpsType,
-                                ) =>
-                                    row.full_name || '--',
-
-                                actions: (
-                                    row: FollowUpsType,
-                                ) => (
-                                    <Stack spacing={1}>
-                                        <Button
-                                            fullWidth
-                                            variant="outlined"
-                                            color="secondary"
-                                            size="small"
-                                            onClick={(
-                                                event,
-                                            ) => {
-                                                event.stopPropagation()
-
-                                                handleOpenStatusModal(
-                                                    row,
-                                                )
-                                            }}
-                                           
-                                        >
-                                            تغییر وضعیت
-                                        </Button>
-
-                                        <Button
-                                            fullWidth
-                                            variant="outlined"
-                                            color="primary"
-                                            size="small"
-                                            startIcon={
-                                                <AddIcon />
-                                            }
-                                            onClick={(
-                                                event,
-                                            ) => {
-                                                event.stopPropagation()
-
-                                                handleOpenNewVisitModal(
-                                                    row,
-                                                )
-                                            }}
-                                            sx={{
-                                                height: 34,
-                                                borderRadius:
-                                                    '9px',
-                                                fontSize:
-                                                    '12px',
-                                                fontWeight: 600,
-                                                whiteSpace:
-                                                    'nowrap',
-                                            }}
-                                        >
-                                            بازدید جدید
-                                        </Button>
-                                    </Stack>
-                                ),
-                            }}
-                        />
-                    ) : (
-                        <CustomTable
-                            {...shared}
-                            headCells={tableHeadCells}
-                            handleSort={getFollowUps}
-                            tableBodyCells={followUps.data.map(
-                                (item) => (
-                                    <>
-                                        <TableCell>
-                                            {cellText(item.id)}
-                                        </TableCell>
-
-                                        <TableCell>
-                                            {cellText(
-                                                item.file_name,
-                                            )}
-                                        </TableCell>
-
-                                        <TableCell>
-                                            {cellText(
-                                                item.full_name,
-                                            )}
-                                        </TableCell>
-
-                                        <TableCell>
-                                            {cellText(
-                                                item.phone_number,
-                                            )}
-                                        </TableCell>
-
-                                        <TableCell>
-                                            <Typography
-                                                sx={{
-                                                    whiteSpace:
-                                                        'nowrap',
-                                                }}
-                                            >
-                                                {formatDate(
-                                                    item.date,
-                                                )}
-                                            </Typography>
-                                        </TableCell>
-
-                                        <TableCell>
-                                            {cellText(
-                                                item.description,
-                                            )}
-                                        </TableCell>
-
-                                        <TableCell>
-                                            <Stack
-                                                direction="row"
-                                                spacing={1}
-                                                sx={{
-                                                    justifyContent:
-                                                        'center',
-                                                }}
-                                            >
-                                                <Button
-                                                    variant="outlined"
-                                                    color="secondary"
-                                                    size="small"
-                                                    onClick={() =>
-                                                        handleOpenStatusModal(
-                                                            item,
-                                                        )
-                                                    }
-                                                     sx={{
-                                                        whiteSpace:'nowrap'
-                                                    }}
-                                                >
-                                                    تغییر وضعیت
-                                                </Button>
-
-                                                <Button
-                                                    variant="contained"
-                                                    color="primary"
-                                                    size="small"
-                                                    startIcon={
-                                                        <AddIcon />
-                                                    }
-                                                    onClick={() =>
-                                                        handleOpenNewVisitModal(
-                                                            item,
-                                                        )
-                                                    }
-                                                    sx={{
-                                                        whiteSpace:'nowrap'
-                                                    }}
-                                                >
-                                                    بازدید جدید
-                                                </Button>
-                                            </Stack>
-                                        </TableCell>
-                                    </>
-                                ),
-                            )}
-                        />
-                    )
-                }
-            </ListPage>
 
             {/* ---------------------------------------------------------------- */}
             {/* تغییر وضعیت                                                     */}

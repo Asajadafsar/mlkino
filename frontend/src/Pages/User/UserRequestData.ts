@@ -7,12 +7,12 @@ export function buildUserRequestData(
 ): Record<string, unknown> | FormData {
     const common = [
         ...(create ? ['password'] : []), 'first_name', 'last_name', 'phone', 'email', 'national_code', 'birth_date',
-        'avatar', 'province', 'city', 'address', 'postal_code', 'user_type', 'role',
+        'avatar', 'province', 'city', 'address', 'postal_code', 'role',
         'account_status', 'verification_status', 'is_active',
     ]
     const specific = {
-        user: [],
-        agency: ['agency_name', 'marital_status', 'ownership_type', 'lease_end_date', 'logo',
+        user: ['user_type'],
+        agency: ['national_code_image', 'agency_name', 'marital_status', 'ownership_type', 'lease_end_date', 'logo',
             'has_business_license', 'license_number', 'license_image', 'landline',
             'office_address', 'latitude', 'longitude', 'description',
             ...(canVerifyOffice ? ['office_verification_status'] : [])],
@@ -42,8 +42,8 @@ export function buildUserRequestData(
     return formData
 }
 
-export function isAgencyValid(data: {agency_name?: string; office_address?: string}) {
-    return Boolean(data.agency_name?.trim() && data.office_address?.trim())
+export function isAgencyValid(data: {agency_name?: string; office_address?: string; ownership_type?: string; lease_end_date?: string | null; avatar?: unknown; national_code_image?: unknown}) {
+    return Boolean(data.agency_name?.trim() && data.office_address?.trim() && ['owner', 'tenant'].includes(data.ownership_type || '') && (data.ownership_type !== 'tenant' || data.lease_end_date) && data.avatar instanceof File && data.national_code_image instanceof File)
 }
 
 // PATCH validates required fields only when the user actually changes them.

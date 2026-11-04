@@ -1,3 +1,4 @@
+import {FieldSettings} from './FieldSettings'
 import {useEffect, useRef, useState} from 'react'
 import {Alert, Box, Button, LinearProgress, Stack, Typography, Paper, List, ListItemButton, ListItemIcon, ListItemText} from '@mui/material'
 
@@ -6,6 +7,7 @@ import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import ContactMailOutlinedIcon from '@mui/icons-material/ContactMailOutlined'
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded'
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
 import {PageHero} from '../../Components/Workspace/PageHero'
 import {usePanelSettings} from '../../Core/PanelSettingsContext'
@@ -19,6 +21,7 @@ import {ThemeSettings} from './ThemeSettings'
 import {SeoSettings} from './SeoSettings'
 import {PanelPreview, type PanelPreviewRef} from './PanelPreview'
 import { ContactSettings } from './ContactSettings'
+import {FeatureSettings} from './FeatureSettings'
 
 export default function PanelSettings() {
     const {settings: saved, loading, error, save} = usePanelSettings()
@@ -61,6 +64,8 @@ export default function PanelSettings() {
         {id:'theme',title:'رنگ و ظاهر',description:'رنگ‌های اصلی و پیش‌نمایش',icon:<PaletteOutlinedIcon/>},
         {id:'seo',title:'موتورهای جستجو',description:'عنوان، توضیحات و اشتراک‌گذاری',icon:<SearchOutlinedIcon/>},
         {id:'contact',title:'اطلاعات تماس',description:'آدرس و شبکه‌های اجتماعی',icon:<ContactMailOutlinedIcon/>},
+        {id:'fields',title:'فیلدهای فرم‌ها',description:'نمایش فیلدها در هر بخش',icon:<TuneRoundedIcon/>},
+        {id:'features',title:'بخش‌های پنل',description:'نمایش امکانات در منو',icon:<TuneRoundedIcon/>},
     ]
     return <Stack spacing={2.5}>
         <PageHero title="تنظیمات سامانه" description="هویت، ظاهر و تنظیمات ملکینو را از یک جای مشخص مدیریت کنید." illustration="/assets/settings-3d.png" />
@@ -77,6 +82,8 @@ export default function PanelSettings() {
                     {section==='theme' && <ThemeSettings settings={settings} setSettings={setSettings} previewRef={previewRef}/>}
                     {section==='seo' && <SeoSettings settings={settings} setSettings={setSettings}/>}
                     {section==='contact' && <ContactSettings settings={settings} setSettings={setSettings}/>}
+                    {section==='fields' && <FieldSettings settings={settings} setSettings={setSettings}/>}
+                    {section==='features' && <FeatureSettings settings={settings} setSettings={setSettings}/>}
                 </Stack>
                 {section==='theme' && <PanelPreview ref={previewRef} settings={settings}/>}
                 <Paper variant="outlined" sx={{p:2,borderRadius:3}}><Stack direction="row" justifyContent="flex-end" gap={1}><Button variant="outlined" onClick={resetSettings} disabled={saving||loading}>بازگرداندن فرم</Button>{isAdmin&&<Button variant="contained" startIcon={<SaveOutlinedIcon/>} onClick={saveChanges} disabled={saving||loading}>{saving?'در حال ذخیره…':'ذخیره تنظیمات'}</Button>}</Stack></Paper>

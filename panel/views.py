@@ -167,6 +167,15 @@ def describe_http_activity(obj):
 
 def _validation_error(serializer):
     errors = []
+    labels = {
+        "phone": "شماره موبایل", "first_name": "نام", "last_name": "نام خانوادگی",
+        "password": "رمز عبور", "email": "ایمیل", "national_code": "کد ملی",
+        "national_code_image": "تصویر کارت ملی", "role": "نقش", "agency_id": "دفتر املاک",
+        "agency_profile": "اطلاعات دفتر", "expert_profile": "اطلاعات کارشناس",
+        "agency_name": "نام دفتر", "occupancy_type": "نوع مالکیت دفتر",
+        "office_address": "نشانی دفتر", "lease_end_date": "تاریخ پایان اجاره",
+        "postal_code": "کد پستی", "avatar": "تصویر مدیر دفتر",
+    }
 
     for field, messages in serializer.errors.items():
         if not isinstance(messages, (list, tuple)):
@@ -175,11 +184,12 @@ def _validation_error(serializer):
         for message in messages:
             errors.append({
                 "field": field,
+                "label": labels.get(field, field),
                 "message": str(message),
             })
 
     return error_response(
-        message="اطلاعات ارسالی معتبر نیست.",
+        message="اطلاعات ارسالی معتبر نیست: " + "؛ ".join(f"{error['label']}: {error['message']}" for error in errors),
         errors=errors,
         status_code=400,
     )
@@ -583,7 +593,7 @@ class PanelUserCreateSerializer(serializers.ModelSerializer):
         fields = (
             "phone", "password", "first_name", "last_name", "email",
             "role", "agency_id", "user_type", "national_code",
-            "birth_date", "province", "city", "postal_code", "address", "avatar",
+            "national_code_image", "birth_date", "province", "city", "postal_code", "address", "avatar",
             "admin_level", "is_staff", "is_superuser",
         )
         extra_kwargs = {
@@ -611,6 +621,16 @@ class PanelUserCreateSerializer(serializers.ModelSerializer):
         role = attrs.get("role")
         if role not in (User.Role.SUPER_ADMIN, User.Role.AGENCY, User.Role.EXPERT, User.Role.USER):
             raise serializers.ValidationError({"role": "ایجاد این نقش مجاز نیست."})
+        if role == User.Role.AGENCY:
+            missing_documents = {}
+            if not attrs.get("avatar"):
+                missing_documents["avatar"] = "تصویر مدیر دفتر الزامی است؛ آن را در بخش تصویر پروفایل بارگذاری کنید."
+            if not attrs.get("national_code_image"):
+                missing_documents["national_code_image"] = "تصویر کارت ملی مدیر دفتر الزامی است."
+            if missing_documents:
+                raise serializers.ValidationError(missing_documents)
+        elif attrs.get("national_code_image"):
+            raise serializers.ValidationError({"national_code_image": "تصویر کارت ملی فقط برای ثبت املاکی قابل استفاده است."})
         if _is_agency(request.user):
             if role != User.Role.EXPERT:
                 raise serializers.ValidationError({"role": "املاکی فقط می‌تواند کارشناس ایجاد کند."})
@@ -652,7 +672,7 @@ def _role_profile_payload(request, role, partial=False, instance=None, data_over
     if not isinstance(data, dict):
         raise serializers.ValidationError({field_name: "اطلاعات پروفایل باید به صورت آبجکت ارسال شود."})
     serializer = cls(instance=instance, data=data, partial=partial, context={"request": request})
-    serializer.is_valid(raise_exception=True)
+    serializer.is_valid()
     return serializer
 
 
@@ -743,9 +763,13 @@ class PanelUserListView(APIView):
 
         values = dict(serializer.validated_data)
         role = values["role"]
+        if role != User.Role.USER:
+            values.pop("user_type", None)
         profile_serializer = None
         if role in (User.Role.AGENCY, User.Role.EXPERT):
             profile_serializer = _role_profile_payload(request, role)
+            if not profile_serializer.is_valid():
+                return _validation_error(profile_serializer)
         password = values.pop("password")
         agency_id = values.pop("agency_id", None)
         values["is_staff"] = role == User.Role.SUPER_ADMIN
@@ -836,7 +860,7 @@ class PanelUserDetailView(APIView):
 
         submitted_fields = set(payload.keys())
         role_profile_key = "agency_profile" if user.role == User.Role.AGENCY else "expert_profile" if user.role == User.Role.EXPERT else None
-        extra_fields = {"avatar"}
+        extra_fields = {"avatar", "national_code_image"}
         if is_admin:
             extra_fields.update({"is_staff", "is_superuser"})
         if role_profile_key:
@@ -974,6 +998,10 @@ class PanelUserDetailView(APIView):
             avatar = serializers.ImageField(allow_null=True).run_validation(payload["avatar"])
             user.avatar = avatar
             user.save(update_fields=["avatar"])
+        if "national_code_image" in payload:
+            image = serializers.ImageField(allow_null=True).run_validation(payload["national_code_image"])
+            user.national_code_image = image
+            user.save(update_fields=["national_code_image"])
         if profile_serializer:
             if user.role == User.Role.AGENCY:
                 profile_serializer.save(manager=user)

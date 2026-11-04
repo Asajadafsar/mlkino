@@ -20,6 +20,7 @@ export function AgencyCreate({
     return (
         <CreatePage
             title={'افزودن املاکی'}
+            timeout={120000}
             resource={resource + '/'}
             isFormData={true}
             buildRequestData={(values: Record<string, unknown>) => buildUserRequestData(values, 'agency', isSuperAdmin, true)}

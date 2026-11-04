@@ -1,3 +1,7 @@
+from .estate_activity_api import EstateActivityListView, EstateActivityDetailView
+from .geography_api import IranLocationsView, GeocodeView, MapTileView
+from .property_api import PropertyListView, PropertyDetailView
+from .call_config import CallConfigView
 
 from django.urls import path
 from panel import views
@@ -8,6 +12,17 @@ app_name = "panel"
 from .settings_api import PanelAppearanceView
 
 urlpatterns = [
+    path('follow-ups/', EstateActivityListView.as_view(), {'kind':'follow-ups'}, name='estate-followups'),
+    path('follow-ups/<int:pk>/', EstateActivityDetailView.as_view(), {'kind':'follow-ups'}, name='estate-followup'),
+    path('contracts/', EstateActivityListView.as_view(), {'kind':'contracts'}, name='estate-contracts'),
+    path('contracts/<int:pk>/', EstateActivityDetailView.as_view(), {'kind':'contracts'}, name='estate-contract'),
+    path('locations/', IranLocationsView.as_view(), name='iran-locations'),
+    path('locations/geocode/', GeocodeView.as_view(), name='geocode'),
+    path('locations/tiles/<int:z>/<int:x>/<int:y>.png', MapTileView.as_view(), name='map-tile'),
+    path('files/', PropertyListView.as_view(), {'kind':'file'}, name='property-files'),
+    path('files/<int:pk>/', PropertyDetailView.as_view(), {'kind':'file'}, name='property-file'),
+    path('requests/', PropertyListView.as_view(), {'kind':'request'}, name='property-requests'),
+    path('requests/<int:pk>/', PropertyDetailView.as_view(), {'kind':'request'}, name='property-request'),
     path('appearance/', PanelAppearanceView.as_view(),name='panel-appearance'),
     path("settings/", PanelSettingsView.as_view(), name="panel-settings"),
     # اطلاعیه‌ها
@@ -97,6 +112,7 @@ path(
     path("tickets/<int:ticket_id>/assign/", views.TicketAssignView.as_view(), name="ticket-assign"),
     path("activity-logs/", views.ActivityLogListView.as_view(), name="activity-log-list"),
     path("activity-logs/<int:log_id>/", views.ActivityLogDetailView.as_view(), name="activity-log-detail"),
+    path('chats/call-config/', CallConfigView.as_view(), name='chat-call-config'),
     path('chats/contacts/', views.ChatContactsView.as_view(), name='chat-contacts'),
     path('chats/', views.ChatConversationListView.as_view(), name='chat-list'),
     path('chats/<int:chat_id>/', views.ChatConversationDetailView.as_view(), name='chat-detail'),

@@ -61,10 +61,11 @@ export function RealtimeProvider({children}: {children: React.ReactNode}) {
     }, [send, cleanup])
     const createPeer = async (current: Call) => {
         if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === 'undefined') throw new Error('مرورگر از تماس پشتیبانی نمی‌کند. از HTTPS یا localhost و مرورگر به‌روز استفاده کنید.')
+        const config = await api.get('chats/call-config/')
         const stream = await navigator.mediaDevices.getUserMedia({audio: true, video: current.video})
         if (callRef.current?.id !== current.id) {stream.getTracks().forEach(track => track.stop()); throw new Error('تماس پایان یافت')}
         media.current = stream; setLocalStream(stream)
-        let servers: RTCIceServer[] = [{urls: 'stun:stun.l.google.com:19302'}]
+        let servers: RTCIceServer[] = config.data.data.ice_servers
         if (process.env.REACT_APP_ICE_SERVERS) servers = JSON.parse(process.env.REACT_APP_ICE_SERVERS)
         const peer = new RTCPeerConnection({iceServers: servers})
         pc.current = peer
@@ -72,6 +73,7 @@ export function RealtimeProvider({children}: {children: React.ReactNode}) {
         peer.ontrack = event => setRemoteStream(event.streams[0] || new MediaStream([event.track]))
         peer.onicecandidate = event => {if (event.candidate) send('call.ice', {conversation: current.conversation, call_id: current.id, candidate: event.candidate.toJSON()})}
         peer.onconnectionstatechange = () => {
+            if (pc.current !== peer || callRef.current?.id !== current.id) return
             if (peer.connectionState === 'connected' && callRef.current) {clearTimeout(disconnectTimer.current); updateCall({...callRef.current, status: 'active'})}
             if (peer.connectionState === 'disconnected') {
                 clearTimeout(disconnectTimer.current)
@@ -119,8 +121,9 @@ export function RealtimeProvider({children}: {children: React.ReactNode}) {
             else if (ice.current.size < 5) {const list = ice.current.get(data.call_id) || []; if (list.length < 100) ice.current.set(data.call_id, [...list, data.candidate])}
         } else if (current && current.id === data.call_id && current.conversation === data.conversation) {
             if (event.event === 'call.answer' && pc.current) {
-                await pc.current.setRemoteDescription(data.description); await flushIce(current.id)
-                updateCall({...current, status: 'connecting'})
+                const peer = pc.current
+                await peer.setRemoteDescription(data.description); await flushIce(current.id)
+                if (callRef.current?.id === current.id && pc.current === peer) updateCall({...callRef.current, status: peer.connectionState === 'connected' ? 'active' : 'connecting'})
             } else if (event.event === 'call.end' || event.event === 'call.reject') {setNotice(event.event === 'call.reject' ? 'مخاطب در دسترس نیست یا تماس را رد کرد.' : 'تماس پایان یافت.'); end(false)}
         }
     }
@@ -158,7 +161,8 @@ export function RealtimeProvider({children}: {children: React.ReactNode}) {
             ws.onclose = event => {
                 if (disposed) return
                 setConnected(false)
-                if (callRef.current) {setNotice('اتصال تماس قطع شد'); end(false)}
+                // Media uses its own connection. Keep an established call alive while signaling reconnects.
+                if (callRef.current && pc.current?.connectionState !== 'connected') setNotice('در حال اتصال مجدد…')
                 timer = setTimeout(async () => {
                     if (event.code === 4401) {try {await api.get(`${ACCOUNTS_URL}/profile/`)} catch {return}}
                     connect()

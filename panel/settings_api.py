@@ -56,8 +56,8 @@ def http_url(value):
 
 def validate_value(group, key, value):
     if isinstance(value, bool):
-        return None if (group, key) == ("general", "maintenanceMode") else "مقدار این فیلد معتبر نیست."
-    if (group, key) == ("general", "maintenanceMode"):
+        return None if (group, key) == ("general", "maintenanceMode") or group in ("features", "fields") else "مقدار این فیلد معتبر نیست."
+    if (group, key) == ("general", "maintenanceMode") or group in ("features", "fields"):
         return "لطفاً وضعیت روشن یا خاموش را انتخاب کنید."
     if not isinstance(value, str):
         return "مقدار این فیلد باید متن باشد."
@@ -220,6 +220,6 @@ class PanelAppearanceView(APIView):
         obj=PanelSettings.objects.filter(pk=1).first()
         result=copy.deepcopy(DEFAULTS)
         if obj and isinstance(obj.data,dict):
-            for group in ('general','branding','theme','seo'):
+            for group in ('general','branding','theme','seo','features','fields'):
                 if isinstance(obj.data.get(group),dict):result[group].update({key:value for key,value in obj.data[group].items() if key in result[group]})
-        return envelope(data={key:result[key] for key in ('general','branding','theme','seo')})
+        return envelope(data={key:result[key] for key in ('general','branding','theme','seo','features','fields')})

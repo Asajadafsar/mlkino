@@ -5,6 +5,9 @@ import {CustomTextField} from '../../Components/Input/CustomTextField'
 import {GridProducer} from '../../Components/Table/GridProducer'
 
 export type ContractsType = {
+    status?: string
+    image?: string
+    contract_type?: string
     id: number
     file_name: string
     contract_datetime: string

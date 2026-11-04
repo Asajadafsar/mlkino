@@ -2,13 +2,14 @@ import FilterAltIcon from '@mui/icons-material/FilterAlt'
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined'
 import SearchIcon from '@mui/icons-material/Search'
 import {Box, Button, Collapse, Divider, IconButton, InputBase, Stack} from '@mui/material'
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {CustomFilter} from '../Filter/CustomFilter'
 
 export function Searchbar(props) {
     const {filtersData, setParams, searchField, placeholder, noFilters, params} = props
     const [filterIn, setFilterIn] = useState(params.filter)
-    const [textFieldData, setTextfieldData] = useState('')
+    const [textFieldData, setTextfieldData] = useState(params.search || '')
+    useEffect(()=>setTextfieldData(params.search || ''),[params.search])
     const handleFilterIn = () => {
         setFilterIn(!filterIn)
     }
@@ -16,7 +17,7 @@ export function Searchbar(props) {
         const value = event.target.value
         setTextfieldData(value)
         setParams((filter) => {
-            const newFilter = {...filter}
+            const newFilter = {...filter, page: 1}
 
             if (value === null) {
                 delete newFilter.search

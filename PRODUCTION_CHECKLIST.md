@@ -18,7 +18,7 @@ After approval, before activation:
 - [x] New root-private Django key generated without printing it; current JWT signing key retained deliberately.
 - [x] Panel certificate issued for its own domain; existing API certificate untouched.
 - [x] Staged production `check`, `check --deploy`, security checks, migration plan and `makemigrations --check` pass.
-- [x] Only accounts.0011 is pending; no existing ticket/chat/settings table recreated.
+- [x] For this release, only accounts.0012 is pending; no existing ticket/chat/settings table is recreated.
 - [x] `nginx -t` passes before every reload.
 
 After activation:

@@ -1,3 +1,4 @@
+import {FieldScope} from './FieldScope'
 import {useState} from 'react'
 import {Box, Button, Stack, Tab, Tabs, Typography} from '@mui/material'
 import type {Dispatch, SetStateAction} from 'react'
@@ -138,7 +139,7 @@ export function PropertyRecordForm({
                     pt: 1.5,
                 }}
             >
-                {renderStepContent()}
+                <FieldScope.Provider value={mode}>{renderStepContent()}</FieldScope.Provider>
             </Box>
         </Stack>
     )

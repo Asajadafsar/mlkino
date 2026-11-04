@@ -7,9 +7,9 @@ export interface UsersType extends CommonUserType {}
 export function Users<T extends UsersType>({users,setUsers,resource,editMode=true}:{users:T;setUsers:Dispatch<SetStateAction<T>>;resource:string;editMode?:boolean}){
  const change=(value:T)=>setUsers(value)
  return <Stack spacing={3}>
-  <ProfileIdentityHero value={users} onChange={change} title={editMode?'پرونده کاربری':'ایجاد حساب جدید'} description="اطلاعات شخصی و مشخصات حساب را با دقت تکمیل کنید."/>
+  <ProfileIdentityHero value={users} onChange={change} title={editMode?'پرونده کاربری':'ایجاد حساب جدید'} description={users.role==='agency'?'تصویر مدیر دفتر را در بخش عکس پروفایل بارگذاری کنید. اطلاعات شخصی و مشخصات حساب را با دقت تکمیل کنید.':'اطلاعات شخصی و مشخصات حساب را با دقت تکمیل کنید.'}/>
   {editMode&&<ImpersonateButton target={users}/>}
   <Typography fontWeight={700} fontSize={18}>اطلاعات شخصی</Typography>
-  <ProfileDetailsForm value={users} onChange={change} mode={editMode?'manage':'create'}/>
+  <ProfileDetailsForm value={users} onChange={change} mode={editMode?'manage':'create'} role={users.role}/>
  </Stack>
 }

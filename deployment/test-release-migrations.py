@@ -23,7 +23,10 @@ call_command('makemigrations',check=True,dry_run=True,verbosity=1)
 from django.db.migrations.recorder import MigrationRecorder
 applied=set(MigrationRecorder.Migration.objects.values_list('app','name'))
 assert ('panel','0006_panelsettings') in applied
+assert ('panel','0007_property_records') in applied
+assert ('panel','0008_estate_activity') in applied
 assert ('accounts','0011_user_profile_updated_at_accountnotification_and_more') in applied
+assert ('accounts','0012_user_national_code_image') in applied
 assert ('panel','0003_support_tickets') not in applied
 print('Production migration lineage validated; no fake migrations, no production DB connection.')
 """

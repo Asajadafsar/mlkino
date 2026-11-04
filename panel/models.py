@@ -239,3 +239,33 @@ class ChatReport(models.Model):
     reviewed_at = models.DateTimeField(null=True, blank=True)
 
 from .settings_models import PanelSettings
+
+
+class PropertyRecord(models.Model):
+    class Kind(models.TextChoices):
+        FILE = 'file', 'فایل'
+        REQUEST = 'request', 'درخواست'
+
+    kind = models.CharField(max_length=12, choices=Kind.choices, db_index=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='property_records')
+    data = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+
+class EstateActivity(models.Model):
+    class Kind(models.TextChoices):
+        FOLLOW_UP = 'follow-ups', 'پیگیری'
+        CONTRACT = 'contracts', 'قرارداد'
+
+    kind = models.CharField(max_length=16, choices=Kind.choices, db_index=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='estate_activities')
+    data = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']

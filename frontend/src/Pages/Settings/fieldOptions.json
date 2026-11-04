@@ -1,0 +1,172 @@
+[
+  {
+    "scope": "file",
+    "key": "monthlyCharge",
+    "label": "شارژ ماهانه"
+  },
+  {
+    "scope": "file",
+    "key": "direction",
+    "label": "جهت ملک"
+  },
+  {
+    "scope": "file",
+    "key": "roomCount",
+    "label": "تعداد اتاق"
+  },
+  {
+    "scope": "file",
+    "key": "amenities",
+    "label": "امکانات"
+  },
+  {
+    "scope": "file",
+    "key": "description",
+    "label": "توضیحات"
+  },
+  {
+    "scope": "file",
+    "key": "internalNote",
+    "label": "یادداشت داخلی"
+  },
+  {
+    "scope": "file",
+    "key": "mortgageTerms",
+    "label": "شرایط رهن و اجاره"
+  },
+  {
+    "scope": "file",
+    "key": "occupancyStatus",
+    "label": "وضعیت اشغال"
+  },
+  {
+    "scope": "file",
+    "key": "bathroom",
+    "label": "حمام"
+  },
+  {
+    "scope": "file",
+    "key": "heating",
+    "label": "گرمایش"
+  },
+  {
+    "scope": "file",
+    "key": "cooling",
+    "label": "سرمایش"
+  },
+  {
+    "scope": "file",
+    "key": "flooring",
+    "label": "کف‌پوش"
+  },
+  {
+    "scope": "file",
+    "key": "facade",
+    "label": "نما"
+  },
+  {
+    "scope": "file",
+    "key": "totalFloor",
+    "label": "تعداد طبقات"
+  },
+  {
+    "scope": "file",
+    "key": "virtualTourLink",
+    "label": "تور مجازی"
+  },
+  {
+    "scope": "file",
+    "key": "ownerName",
+    "label": "نام مالک"
+  },
+  {
+    "scope": "file",
+    "key": "ownerPhone2",
+    "label": "تلفن دوم مالک"
+  },
+  {
+    "scope": "file",
+    "key": "ownerJob",
+    "label": "شغل مالک"
+  },
+  {
+    "scope": "file",
+    "key": "images",
+    "label": "تصاویر ملک"
+  },
+  {
+    "scope": "request",
+    "key": "monthlyCharge",
+    "label": "شارژ ماهانه"
+  },
+  {
+    "scope": "request",
+    "key": "direction",
+    "label": "جهت ملک"
+  },
+  {
+    "scope": "request",
+    "key": "roomCount",
+    "label": "تعداد اتاق"
+  },
+  {
+    "scope": "request",
+    "key": "amenities",
+    "label": "امکانات"
+  },
+  {
+    "scope": "request",
+    "key": "description",
+    "label": "توضیحات"
+  },
+  {
+    "scope": "request",
+    "key": "internalNote",
+    "label": "یادداشت داخلی"
+  },
+  {
+    "scope": "request",
+    "key": "mortgageTerms",
+    "label": "شرایط رهن و اجاره"
+  },
+  {
+    "scope": "request",
+    "key": "floorPreferences",
+    "label": "طبقات موردنظر"
+  },
+  {
+    "scope": "agency",
+    "key": "marital_status",
+    "label": "وضعیت تأهل مدیر"
+  },
+  {
+    "scope": "agency",
+    "key": "logo",
+    "label": "لوگوی دفتر"
+  },
+  {
+    "scope": "agency",
+    "key": "landline",
+    "label": "تلفن ثابت دفتر"
+  },
+  {
+    "scope": "agency",
+    "key": "description",
+    "label": "توضیحات دفتر"
+  },
+  {
+    "scope": "agency",
+    "key": "office_verification_status",
+    "label": "وضعیت تأیید دفتر"
+  },
+  {
+    "scope": "user",
+    "key": "email",
+    "label": "ایمیل"
+  },
+  {
+    "scope": "user",
+    "key": "national_code",
+    "label": "کد ملی"
+  }
+]

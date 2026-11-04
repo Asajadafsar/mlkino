@@ -21,6 +21,7 @@ export function ExpertCreate({
     return (
         <CreatePage
             title={title}
+            timeout={120000}
             resource={resource + '/'}
             isFormData={true}
             buildRequestData={(values: Record<string, unknown>) => buildUserRequestData(values, 'expert', false, true)}

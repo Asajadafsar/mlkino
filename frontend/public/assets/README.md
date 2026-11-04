@@ -14,3 +14,6 @@ Generated transparent raster illustrations for the panel redesign: support-3d.pn
 ## Authentication and personal reminders
 auth-villa.png: Generated photorealistic blue-hour contemporary glass villa, warm interior, pool and garden; no text or logos. Used as the responsive login/signup photographic panel.
 reminders-3d.png: Generated transparent pearl/cobalt calendar, floating note and golden bell, soft studio product lighting; no text. Used in personal reminders.
+
+## estate-hero-v1.png
+Generated with OpenAI image generation for this project: modern glass villa on the left, soft lavender background fading to open space on the right; no text. Used on estate management pages.

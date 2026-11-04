@@ -1,3 +1,4 @@
+import {PropertyLocationFields} from '../../Location/PropertyLocationFields'
 import {InputAdornment} from '@mui/material'
 
 import {
@@ -94,7 +95,7 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                 />,
 
                 // شارژ ماهانه فقط وقتی نوع ملک «آپارتمان» باشد نمایش داده می‌شود
-                ...(isApartment
+                ...(isApartment && isMortgageRent
                     ? [
                           mode === 'request' ? (
                               <RangeField
@@ -169,98 +170,9 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                       ]
                     : []),
 
-                // در «آگهی» شهر و اختصاص‌دادن نمایش داده نمی‌شود (در آن فرم موقعیت از روی نقشه انتخاب می‌شود)
-                ...(mode !== 'ad'
-                    ? [
-                          <CustomSelectField
-                              key="city"
-                              name="city"
-                              setData={setProperty}
-                              resource={resource}
-                              label="شهر"
-                              defaultValue={property.city}
-                              options={toSelectOptions(CITY_OPTIONS)}
-                          />,
-
-                          //   // در حالت «فایل» اختصاص به مشتری و در حالت «درخواست» اختصاص به کارشناس است
-                          //   <CustomSelectField
-                          //       key="assignedTo"
-                          //       name="assignedTo"
-                          //       setData={setProperty}
-                          //       resource={resource}
-                          //       label={mode === 'file' ? 'اختصاص به مشتری' : 'اختصاص به کارشناس'}
-                          //       defaultValue={property.assignedTo}
-                          //       options={toSelectOptions(
-                          //           mode === 'file' ? CUSTOMER_OPTIONS : EXPERT_OPTIONS,
-                          //       )}
-                          //   />,
-                      ]
-                    : []),
-
-                // در «آگهی» فقط یک فیلد «محله یا محدوده» داریم؛ منطقه‌ی جدا لازم نیست
-                ...(mode === 'ad'
-                    ? []
-                    : [
-                          mode === 'request' ? (
-                              <MultiValueField
-                                  key="district"
-                                  label="منطقه"
-                                  value={asStringArray(property.district)}
-                                  onChange={(next) =>
-                                      setProperty((prev) => ({
-                                          ...prev,
-                                          district: next,
-                                      }))
-                                  }
-                              />
-                          ) : (
-                              <CustomTextField
-                                  key="district"
-                                  name="district"
-                                  setData={setProperty}
-                                  resource={resource}
-                                  label="منطقه"
-                                  defaultValue={property.district as string}
-                              />
-                          ),
-                      ]),
-                mode === 'request' && (
-                    <CustomSelectField
-                        key="requestStatus"
-                        name="requestStatus"
-                        setData={setProperty}
-                        resource={resource}
-                        label="وضعیت"
-                        defaultValue={property.requestStatus}
-                        options={toSelectOptions(['در انتظار بررسی توسط کارشناس', 'تایید شده'])}
-                    />
-                ),
-                mode === 'request' ? (
-                    <MultiValueField
-                        key="neighborhood"
-                        label="محله"
-                        value={asStringArray(property.neighborhood)}
-                        onChange={(next) =>
-                            setProperty((prev) => ({
-                                ...prev,
-                                neighborhood: next,
-                            }))
-                        }
-                    />
-                ) : (
-                    <CustomTextField
-                        key="neighborhood"
-                        name="neighborhood"
-                        setData={setProperty}
-                        resource={resource}
-                        // در آگهی این فیلد نقش «محله یا محدوده» را دارد
-                        label={mode === 'ad' ? 'محله یا محدوده' : 'محله'}
-                        defaultValue={property.neighborhood as string}
-                    />
-                ),
-
+                <PropertyLocationFields key="location" property={property} setProperty={setProperty} resource={resource} mode={mode}/>,
                 // آدرس دقیق در متن آگهی عمومی نمایش داده نمی‌شود
-                ...(mode === 'ad'
+                ...(mode !== 'file'
                     ? []
                     : [
                           <CustomTextField
@@ -283,6 +195,7 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                               resource={resource}
                               label="لینک تور مجازی ایتا"
                               defaultValue={property.virtualTourLink?.eitaa ?? ''}
+                              change={e=>setProperty(prev=>({...prev,virtualTourLink:{...prev.virtualTourLink,eitaa:e.target.value}}))}
                           />,
                           <CustomTextField
                               key="virtualTourLink"
@@ -291,6 +204,7 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                               resource={resource}
                               label="لینک تور مجازی تلگرام"
                               defaultValue={property.virtualTourLink?.telegram ?? ''}
+                              change={e=>setProperty(prev=>({...prev,virtualTourLink:{...prev.virtualTourLink,telegram:e.target.value}}))}
                           />,
                           <CustomTextField
                               key="virtualTourLink"
@@ -299,6 +213,7 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                               resource={resource}
                               label="لینک تور مجازی اینستاگرام"
                               defaultValue={property.virtualTourLink?.instagram ?? ''}
+                              change={e=>setProperty(prev=>({...prev,virtualTourLink:{...prev.virtualTourLink,instagram:e.target.value}}))}
                           />,
                           <CustomSelectField
                               key="publicationStatus"

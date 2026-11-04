@@ -25,7 +25,8 @@ export function CustomFilter({filtersData, setParams, params}: CustomFilterProps
         setParams((params) => {
             return {
                 ...params,
-                [item.field]: event.target.value,
+                [item.field]: event.target.value || undefined,
+                page: 1,
             }
         })
     }
@@ -34,8 +35,8 @@ export function CustomFilter({filtersData, setParams, params}: CustomFilterProps
         setParams((params) => {
             return {
                 ...params,
-
                 [item.field]: hasZeroId ? value?.label : value?.id,
+                page: 1,
             }
         })
     }
@@ -49,7 +50,7 @@ export function CustomFilter({filtersData, setParams, params}: CustomFilterProps
                                 options={item?.choice?.map((itemChoice) => {
                                     return {label: itemChoice.label, id: itemChoice.id}
                                 })}
-                                value={params?.filter ? params.filter[item.field] : null}
+                                value={params?.[item.field] ?? null}
                                 onChange={(e, value) => {
                                     handleChangeAutocomplete(value, item)
                                 }}
@@ -61,7 +62,7 @@ export function CustomFilter({filtersData, setParams, params}: CustomFilterProps
                             </Box>
                         ) : (
                             <CustomTextField
-                                value={params?.filter ? params?.filter[item.field] : null}
+                                value={params?.[item.field] ?? null}
                                 onChange={(e) => handleChange(e, item)}
                                 label={item.label}
                                 sx={{

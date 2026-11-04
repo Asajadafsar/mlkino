@@ -131,6 +131,13 @@ class User(AbstractUser):
         verbose_name="کد ملی",
     )
 
+    national_code_image = models.ImageField(
+        upload_to="identity/national-cards/",
+        null=True,
+        blank=True,
+        verbose_name="تصویر کارت ملی",
+    )
+
     birth_date = models.DateField(
         null=True,
         blank=True,

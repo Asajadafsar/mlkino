@@ -1,4 +1,6 @@
-import {FormControlLabel, Stack, Switch} from '@mui/material'
+import {OfficeMap} from '../../Components/Location/OfficeMap'
+import {FieldScope} from '../../Components/PropertyRecordForm/FieldScope'
+import {Alert, FormControlLabel, Stack, Switch} from '@mui/material'
 import {useEffect, type Dispatch, type SetStateAction} from 'react'
 import {useSelector} from 'react-redux'
 import {CustomTextField} from '../../Components/Input/CustomTextField'
@@ -26,12 +28,14 @@ export interface AgencyType extends CommonUserType {
     longitude: number | null
     description: string | null
     office_verification_status: string
+    national_code_image: UploadValue
 }
 
 export const agencyDefaults: AgencyType = {
     ...commonUserDefaults, role: 'agency', agency_name: '', manager_name: '',
     marital_status: '', ownership_type: '', lease_end_date: null, logo: null,
     has_business_license: false, license_number: null, license_image: null,
+    national_code_image: null,
     landline: null, office_address: '', latitude: null, longitude: null,
     description: null, office_verification_status: 'not_started',
 }
@@ -65,13 +69,14 @@ export function Agency({agency, setAgency, resource, editMode = false}: {
             value={agency[name] ?? ''}
             required={required}
             multiline={name === 'office_address' || name === 'description'}
-            change={(event) => setAgency((prev) => ({...prev, [name]: event.target.value || (required ? '' : null)}))}
+            change={(event) => setAgency((prev) => ({...prev, [name]: event.target.value || (required ? '' : null),...(name==='office_address'?{latitude:null,longitude:null}:{})}))}
         />
     )
     return (
         <Stack spacing={2}>
+            {!editMode&&<Alert severity="info">برای ثبت دفتر، تصویر مدیر، تصویر کارت ملی مدیر و نشانی و نوع مالکیت دفتر را تکمیل کنید. برای دفتر اجاره‌ای تاریخ پایان اجاره هم لازم است.</Alert>}
             <Users users={agency} setUsers={setAgency} resource={resource} editMode={editMode} />
-            <GridProducer data={[
+            <FieldScope.Provider value="agency"><GridProducer data={[
                 text('agency_name', 'نام دفتر املاک', true),
                 <CustomTextField key="manager_name" label="مدیر دفتر" value={[agency.first_name, agency.last_name].filter(Boolean).join(' ') || agency.full_name || agency.manager_name || ''} disabled />,
                 <CustomSelectField key="marital_status" name="marital_status" setData={setAgency} resource={resource} label="وضعیت تأهل مدیر" value={agency.marital_status ?? ''} options={[
@@ -102,18 +107,6 @@ export function Agency({agency, setAgency, resource, editMode = false}: {
                 ] : []),
                 text('landline', 'تلفن ثابت دفتر'),
                 text('office_address', 'آدرس کامل دفتر', true),
-                ...(['latitude', 'longitude'] as const).map((name) => (
-                    <CustomTextField
-                        key={name} name={name} label={name === 'latitude' ? 'عرض جغرافیایی' : 'طول جغرافیایی'}
-                        type="number" value={agency[name] ?? ''}
-                        inputProps={{step: 'any', min: name === 'latitude' ? -90 : -180, max: name === 'latitude' ? 90 : 180}}
-                        change={(event) => {
-                            const value = event.target.value === '' ? null : Number(event.target.value)
-                            if (value !== null && (!Number.isFinite(value) || Math.abs(value) > (name === 'latitude' ? 90 : 180))) return
-                            setAgency((prev) => ({...prev, [name]: value}))
-                        }}
-                    />
-                )),
                 text('description', 'توضیحات دفتر'),
                 <CustomTextField
                     key="office_verification_status" name="office_verification_status" label="وضعیت تأیید دفتر"
@@ -122,7 +115,8 @@ export function Agency({agency, setAgency, resource, editMode = false}: {
                         if (isSuperAdmin) setAgency((prev) => ({...prev, office_verification_status: event.target.value}))
                     }}
                 />,
-            ]} />
+            ]} /></FieldScope.Provider>
+            <OfficeMap value={agency} onChange={setAgency}/>
         </Stack>
     )
 }

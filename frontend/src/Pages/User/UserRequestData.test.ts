@@ -27,14 +27,24 @@ test('file requests retain actual files and serialize structured fields', () => 
     expect(data.get('is_active')).toBe('true')
 })
 
-test('agency requires both a name and an office address', () => {
+test('agency requires a name, office address, ownership type, and lease date for tenants', () => {
     expect(isAgencyValid({agency_name: ' ', office_address: 'تهران'})).toBe(false)
     expect(isAgencyValid({agency_name: 'املاک', office_address: ''})).toBe(false)
-    expect(isAgencyValid({agency_name: 'املاک', office_address: 'تهران'})).toBe(true)
+    expect(isAgencyValid({agency_name: 'املاک', office_address: 'تهران'})).toBe(false)
+    const files = {avatar: new File(['manager'], 'manager.png', {type: 'image/png'}), national_code_image: new File(['card'], 'card.png', {type: 'image/png'})}
+    expect(isAgencyValid({agency_name: 'املاک', office_address: 'تهران', ownership_type: 'owner', ...files})).toBe(true)
+    expect(isAgencyValid({agency_name: 'املاک', office_address: 'تهران', ownership_type: 'tenant'})).toBe(false)
+    expect(isAgencyValid({agency_name: 'املاک', office_address: 'تهران', ownership_type: 'tenant', lease_end_date: '2027-01-01', ...files})).toBe(true)
 })
 
 test('ordinary user requests cannot inherit admin or agency fields from a previous form', () => {
     expect(buildUserRequestData({first_name: 'نام', is_superuser: true, agency_name: 'دفتر'}, 'user')).toEqual({first_name: 'نام'})
+})
+
+test('user type is sent only for ordinary users', () => {
+    expect(buildUserRequestData({role: 'agency', user_type: 'investor', agency_name: 'دفتر'}, 'agency')).toEqual({role: 'agency', agency_name: 'دفتر'})
+    expect(buildUserRequestData({role: 'expert', user_type: 'investor', job_title: 'فروش'}, 'expert')).toEqual({role: 'expert', job_title: 'فروش'})
+    expect(buildUserRequestData({role: 'user', user_type: 'investor'}, 'user')).toEqual({role: 'user', user_type: 'investor'})
 })
 
 test('office verification is omitted from agency requests without superadmin permission', () => {

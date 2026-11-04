@@ -1,0 +1,8 @@
+import {Autocomplete, Checkbox, Chip, FormControl, FormControlLabel, FormGroup, FormLabel, TextField, Typography} from '@mui/material'
+export const FLOOR_PREFERENCES = ['طبقه اول','طبقه آخر','پیلوت','فرقی نمی‌کند','سایر طبقات']
+export function FloorChoices({value=[],onChange}:{value?:string[];onChange:(value:string[])=>void}) {
+ return <FormControl component="fieldset"><FormLabel component="legend">طبقات موردنظر</FormLabel><FormGroup row>{FLOOR_PREFERENCES.map(option=><FormControlLabel key={option} label={option} control={<Checkbox checked={value.includes(option)} onChange={(_,checked)=>onChange(!checked?value.filter(x=>x!==option):option==='فرقی نمی‌کند'?[option]:[...value.filter(x=>x!=='فرقی نمی‌کند'),option])}/>}/>)}</FormGroup><Typography variant="caption" color="text.secondary">چند گزینه قابل انتخاب است. «سایر طبقات» یعنی طبقات میانی، به‌جز اول، آخر و پیلوت.</Typography></FormControl>
+}
+export function CheckboxChoices({label,options,value,onChange,disabled=false,helperText}:{label:string;options:string[];value:string[];onChange:(next:string[])=>void;disabled?:boolean;helperText?:string}) {
+ return <Autocomplete multiple disableCloseOnSelect disabled={disabled} options={options} value={value} onChange={(_,next)=>onChange(next)} noOptionsText="گزینه‌ای ثبت نشده است" renderOption={(props,option,{selected})=><li {...props}><Checkbox checked={selected}/>{option}</li>} renderTags={(values,getTagProps)=>values.map((value,index)=><Chip label={value} {...getTagProps({index})} key={value} size="small"/>)} renderInput={params=><TextField {...params} label={label} helperText={helperText}/>}/>
+}

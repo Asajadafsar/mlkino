@@ -2,13 +2,16 @@ import {useEffect, useMemo, useRef, useState} from 'react'
 import type {Swiper as SwiperClass} from 'swiper'
 import {Swiper, SwiperSlide} from 'swiper/react'
 import './swiper.css'
-import {Box, IconButton, Stack, Typography} from '@mui/material'
+import {Box, Dialog, IconButton, Stack, Typography} from '@mui/material'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 
 export function ImageGallery({images, height}: {images: (string | File)[]; height: number}) {
     const [activeIndex, setActiveIndex] = useState(0)
+    const [fullscreen, setFullscreen] = useState(false)
     const swiperRef = useRef<SwiperClass | null>(null)
+    const fullscreenSwiperRef = useRef<SwiperClass | null>(null)
 
     // اگر آیتم از قبل رشته (مسیر import شده یا URL) است همون رو استفاده کن،
     // اگر File بود با createObjectURL تبدیلش کن
@@ -59,12 +62,17 @@ export function ImageGallery({images, height}: {images: (string | File)[]; heigh
                 {urls.map((url, i) => (
                     <SwiperSlide key={i}>
                         <Box
+                            onClick={() => setFullscreen(true)}
+                            role="button"
+                            aria-label="نمایش تصویر ملک در اندازه کامل"
+                            tabIndex={0}
+                            onKeyDown={(event) => {if (event.key === 'Enter' || event.key === ' ') setFullscreen(true)}}
                             sx={{
                                 width: '100%',
                                 height: '100%',
                                 backgroundImage: `url(${url})`,
                                 backgroundSize: 'cover',
-                                backgroundPosition: 'center',
+                                backgroundPosition: 'center', cursor: 'zoom-in',
                             }}
                         />
                     </SwiperSlide>
@@ -137,6 +145,14 @@ export function ImageGallery({images, height}: {images: (string | File)[]; heigh
                     </Typography>
                 </>
             )}
+
+            <Dialog open={fullscreen} onClose={() => setFullscreen(false)} fullScreen PaperProps={{sx:{bgcolor:'#080b12'}}}>
+                <IconButton aria-label="بستن تصویر" onClick={() => setFullscreen(false)} sx={{position:'absolute',top:16,insetInlineEnd:16,zIndex:20,bgcolor:'#ffffff22',color:'#fff'}}><CloseRoundedIcon/></IconButton>
+                <Swiper key={`fullscreen-${multiple ? 'loop' : 'single'}`} dir="rtl" loop={multiple} initialSlide={activeIndex} onSwiper={(swiper) => (fullscreenSwiperRef.current = swiper)} onSlideChange={(swiper) => setActiveIndex(swiper.realIndex)} style={{width:'100%',height:'100%'}}>
+                    {urls.map((url, index) => <SwiperSlide key={index}><Box sx={{width:'100%',height:'100%',display:'grid',placeItems:'center',p:2}}><Box component="img" src={url} alt={`تصویر ${index+1} ملک`} sx={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/></Box></SwiperSlide>)}
+                </Swiper>
+                {multiple&&<><IconButton aria-label="تصویر قبلی" onClick={()=>fullscreenSwiperRef.current?.slidePrev()} sx={{...arrowSx,insetInlineStart:16}}><ChevronRightRoundedIcon sx={{fontSize:36}}/></IconButton><IconButton aria-label="تصویر بعدی" onClick={()=>fullscreenSwiperRef.current?.slideNext()} sx={{...arrowSx,insetInlineEnd:16}}><ChevronLeftRoundedIcon sx={{fontSize:36}}/></IconButton></>}
+            </Dialog>
         </Box>
     )
 }

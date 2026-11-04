@@ -16,6 +16,8 @@ export type PropertyType = {
     // در حالت «فایل» یعنی اختصاص به مشتری و در حالت «درخواست» یعنی اختصاص به کارشناس
     assignedTo?: string
     monthlyCharge: string
+    monthlyChargeFrom?: number
+    monthlyChargeTo?: number
     city: string
     virtualTourLink: {
         eitaa: string
@@ -45,6 +47,10 @@ export type PropertyType = {
     mortgagePriceTo?: number
     monthlyRentFrom?: number
     monthlyRentTo?: number
+    province?: string
+    county?: string
+    floorPreferences?: string[]
+    floor?: number
     totalFloorFrom?: number
     totalFloorTo?: number
 

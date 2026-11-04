@@ -4,6 +4,7 @@ import {GridProducer} from '../../Components/Table/GridProducer'
 import DatePickerFilter from '../../Components/Filter/DatePicker'
 
 export type FollowUpsType = {
+    status?: string
     id: number
     file_name: string
     full_name: string

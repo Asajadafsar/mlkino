@@ -17,6 +17,7 @@ export function CreatePage(props) {
         buttonText,
         buildRequestData,
         onSuccess,
+        timeout,
     } = props
     const navigate = useNavigate()
     const dispatch = useDispatch()
@@ -44,6 +45,7 @@ export function CreatePage(props) {
             dispatch(setUtil({loading: true}))
             const res = await DataProvider.post(resource, {
                 data: buildRequestData ? buildRequestData(formDetails) : isFormData ? formData : formDetails,
+                timeout,
                 headers: {
                     'Content-Type': isFormData ? 'multipart/form-data' : 'application/json',
                 },
