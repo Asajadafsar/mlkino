@@ -1,0 +1,38 @@
+{
+  "release": "20261104-001-estate",
+  "revision": "61dc1606a466ca9a41976241f06a490de7625c0b",
+  "backend_files_matched": 53,
+  "frontend_files_matched": 27,
+  "served_assets": "index.html, main.d8f2be45.css, main.58665c36.js matched manifest",
+  "http": {
+    "schema": 200,
+    "follow-ups": 401,
+    "contracts": 401,
+    "files": 401,
+    "call-config": 401
+  },
+  "services": {
+    "gunicorn": "active",
+    "mlkino-asgi": "active",
+    "coturn": "active"
+  },
+  "rollback_backend": "/var/backups/mlkino/backend-20261104-001-estate",
+  "previous_frontend": "20261103-003-geography",
+  "validation": {
+    "backend_tests": 59,
+    "frontend_tests": 106,
+    "deployment_tests": 6,
+    "typescript": "passed",
+    "production_build": "passed",
+    "production_migration_lineage": "passed",
+    "desktop_mobile_browser": "four pages, search, audience, no overflow passed",
+    "isolated_real_database_browser": "create/edit/refresh/direct link passed for follow-ups and contracts",
+    "local_frontend": 200,
+    "local_backend_schema": 200
+  },
+  "limitations": [
+    "No production account impersonation or real-user data writes used for verification",
+    "Live two-device audio/video call was not performed in this release; coturn service and authenticated endpoint protection verified",
+    "National neighborhood completeness limitations remain documented in geography-result-20261103.json"
+  ]
+}
