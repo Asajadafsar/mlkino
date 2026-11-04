@@ -1,0 +1,27 @@
+{
+  "release": "20261104-004-roles",
+  "revision": "5f43b3a21a9301b19f83b7e0c35cf8e195d7d223",
+  "backend_files_matched": 59,
+  "frontend_files_matched": 27,
+  "served_assets": "index.html, main.b6d32aa9.css, main.0cb7db87.js matched",
+  "role_endpoint_unauthenticated": 401,
+  "services": {
+    "gunicorn": "active",
+    "mlkino-asgi": "active",
+    "coturn": "active"
+  },
+  "previous_frontend": "20261104-003-dashboard",
+  "rollback_backend": "/var/backups/mlkino/backend-20261104-004-roles",
+  "new_migrations": [],
+  "validation": {
+    "frontend_tests": 115,
+    "backend_tests": 76,
+    "deployment_tests": 6,
+    "typescript": "passed",
+    "build": "passed",
+    "migration_lineage": "passed",
+    "real_browser": "agency to normal user and back, correct routes and restored office details after reload; isolated database only",
+    "old_jwt_permission_test": "demoted administrator immediately receives 403 with same token"
+  },
+  "production_role_changes_for_testing": false
+}
