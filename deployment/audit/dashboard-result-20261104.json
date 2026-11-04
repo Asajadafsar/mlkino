@@ -1,0 +1,43 @@
+{
+  "release": "20261104-003-dashboard",
+  "revision": "fd7795590a551a62313b261c64f70e836d745ac3",
+  "backend_files_matched": 58,
+  "frontend_files_matched": 27,
+  "served": {
+    "index.html": "matched",
+    "static/css/main.b6d32aa9.css": "matched",
+    "static/js/main.1c7e8a54.js": "matched",
+    "/dashboard": "matched"
+  },
+  "http": {
+    "schema": 200,
+    "estate-overview-unauthenticated": 401,
+    "estate-analytics-unauthenticated": 401,
+    "map-tile-unauthenticated": 401
+  },
+  "services": {
+    "gunicorn": "active",
+    "mlkino-asgi": "active",
+    "coturn": "active"
+  },
+  "new_migrations_applied": [],
+  "rollback_backend": "/var/backups/mlkino/backend-20261104-003-dashboard",
+  "previous_frontend": "20261104-002-analytics",
+  "validation": {
+    "frontend_tests": 115,
+    "backend_tests": 72,
+    "deployment_tests": 6,
+    "typescript": "passed",
+    "production_build": "passed",
+    "production_migration_lineage": "passed, no pending migration",
+    "real_browser_isolated_database": "admin and agency desktop/mobile; real counters, map marker popup and filtered city navigation, task PATCH, reminder dialog, announcement dialog; no page errors or document overflow",
+    "local_frontend": 200,
+    "local_backend_schema": 200,
+    "local_overview_unauthenticated": 401
+  },
+  "limitations": [
+    "Map markers represent city centers and grouped visible file counts, not exact property coordinates",
+    "No existing production account impersonated or modified for verification",
+    "Public OpenStreetMap tile service availability is external; cached first-party tile proxy and visible failure state remain in place"
+  ]
+}
