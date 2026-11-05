@@ -1,5 +1,7 @@
+import {authDestination} from '../../../Core/AuthDestination'
+import {useLocation} from 'react-router-dom'
 import {ACCOUNTS_URL} from '../../../Core/APP_URL'
-import {CircularProgress, Box, Button, IconButton, InputAdornment, Stack, Typography} from '@mui/material'
+import {Alert,CircularProgress, Box, Button, IconButton, InputAdornment, Stack, Typography} from '@mui/material'
 import {useState, type Dispatch, type SetStateAction} from 'react'
 import {Controller, useForm} from 'react-hook-form'
 import {useDispatch} from 'react-redux'
@@ -55,10 +57,11 @@ const subStepLabels = ['اطلاعات شخصی', 'آدرس و رمز عبور']
 const SignupInfo = ({phone, onBack, initialValues}: Props) => {
     const dispatch = useDispatch()
     const [subStep, setSubStep] = useState<InfoSubStep>(0)
+    const [manual,setManual]=useState(false)
+    const [canManual,setCanManual]=useState(false)
     const [postalBusy,setPostalBusy]=useState(false)
     const [postalError,setPostalError]=useState('')
     const digits=(s:string)=>s.replace(/[۰-۹٠-٩]/g,c=>String(c.charCodeAt(0)-(c>='۰'?1776:1632)))
-    const [addressData, setAddressData] = useState<AddressType>({} as AddressType)
     const {
         register,
         handleSubmit,
@@ -88,6 +91,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
     })
 
     const password = watch('password')
+    const location = useLocation()
     const navigate = useNavigate()
     // CustomSelectField uses a state setter; forward its value to react-hook-form.
     const setData: Dispatch<SetStateAction<any>> = (updater) => {
@@ -119,6 +123,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
     const onSubmit = async (data: SignupInfoForm) => {
         const payload = {
             phone,
+            postal_manual:manual,
             first_name: data.first_name,
             last_name: data.last_name,
             national_code: data.national_code,
@@ -136,9 +141,9 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
         dispatch(setUtil({loading: true}))
         try {
             // Keep the API field names exactly as specified by the backend schema.
-            await registerUser(payload as Parameters<typeof registerUser>[0])
-            dispatch(setUtil({open: true, message: 'اطلاعات ثبت شد', severity: 'success'}))
-            navigate('/dashboard')
+            const result=await registerUser(payload as Parameters<typeof registerUser>[0])
+            dispatch(setUtil({open:true,message:result?.data?.message||'اطلاعات ثبت شد',severity:result?.data?.data?.user?.verification_status==='pending'?'info':'success'}))
+            navigate(authDestination(location.search))
         } catch (error: any) {
             dispatch(
                 setUtil({
@@ -155,13 +160,13 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
     const postalLookup = async () => {
         const postal=digits(getValues('postal_code')||'').replace(/\s|-/g,'')
         if(!/^\d{10}$/.test(postal)){setPostalError('کد پستی باید دقیقاً ۱۰ رقم باشد.');return}
-        setValue('postal_code',postal);setPostalBusy(true);setPostalError('')
+        setValue('postal_code',postal);setPostalBusy(true);setPostalError('');setCanManual(false)
         try {
             const response=await axios.get<{data:AddressType}>(`${ACCOUNTS_URL}/postal/lookup/`,{params:{postal_code:postal},withCredentials:true,timeout:45000})
             if(digits(getValues('postal_code')||'').replace(/\s|-/g,'')!==postal)return
-            setAddressData(response.data.data)
+            setManual(false);setCanManual(false);
             for(const key of ['province','city','address'] as const)setValue(key,response.data.data[key],{shouldDirty:true,shouldValidate:true})
-        } catch(error:any) {setPostalError(error.response?.data?.message||'ارتباط با سرویس استعلام برقرار نشد؛ دوباره تلاش کنید.')}
+        } catch(error:any) {setPostalError(error.response?.data?.message||'ارتباط با سرویس استعلام برقرار نشد؛ دوباره تلاش کنید.');setCanManual(!!error.response?.data?.manual_address_allowed||!error.response||error.response?.status>=500||error.response?.status===429)}
         finally {setPostalBusy(false)}
     }
 
@@ -222,6 +227,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                             register={{
                                 ...register('national_code', {
                                     required: 'کد ملی الزامی است',
+                                    setValueAs:(v:string)=>digits(v).replace(/\s|-/g,''),
                                     pattern: {
                                         value: /^\d{10}$/,
                                         message: 'کد ملی باید ۱۰ رقم باشد',
@@ -301,7 +307,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                             ...register('postal_code', {
                                 required: 'کد پستی الزامی است',
                                 setValueAs:(value:string)=>digits(value).replace(/\s|-/g,''),
-                                onChange:()=>{setAddressData({} as AddressType);for(const key of ['province','city','address'] as const)setValue(key,'')},
+                                onChange:()=>{setManual(false);setCanManual(false);for(const key of ['province','city','address'] as const)setValue(key,'')},
                                 pattern: {
                                     value: /^\d{10}$/,
                                     message: 'کد پستی باید ۱۰ رقم باشد',
@@ -333,32 +339,10 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                         }}
                     />
 
-                    <Stack direction={{xs: 'column', sm: 'row'}} spacing={2}>
-                        <CustomTextField
-                            label="استان"
-                            name="province"
-                            value={addressData.province ?? ''}
-                            fullWidth
-                            disabled
-                        />
-                        <CustomTextField
-                            label="شهر"
-                            name="city"
-                            value={addressData.city ?? ''}
-                            fullWidth
-                            disabled
-                        />
-                    </Stack>
-
-                    <CustomTextField
-                        label="آدرس"
-                        name="address"
-                        multiline
-                        minRows={2}
-                        value={addressData.address ?? ''}
-                        fullWidth
-                        disabled
-                    />
+                    {canManual&&!manual&&<Alert severity="warning" action={<Button onClick={()=>{setManual(true);setValue('province','');setValue('city','');setValue('address','');}}>ورود دستی نشانی</Button>}>استعلام در دسترس نیست؛ می‌توانید نشانی را خودتان وارد کنید.</Alert>}
+                    {manual&&<Alert severity="info">نشانی به صورت دستی ثبت می‌شود و تأیید پستی ندارد. نام استان، شهر و نشانی کامل را بنویسید.</Alert>}
+                    <Stack direction={{xs:'column',sm:'row'}} spacing={2}>{(['province','city'] as const).map(key=><Controller key={key} name={key} control={control} rules={{required:manual?'این فیلد الزامی است':false}} render={({field,fieldState})=><CustomTextField label={key==='province'?'استان':'شهر'} name={key} value={field.value||''} fullWidth disabled={!manual} onChange={field.onChange} error={!!fieldState.error} helperText={fieldState.error?.message}/>}/>)}</Stack>
+                    <Controller name="address" control={control} rules={{required:manual?'آدرس کامل را وارد کنید':false,minLength:manual?{value:10,message:'نشانی حداقل ۱۰ حرف باشد'}:undefined}} render={({field,fieldState})=><CustomTextField label="آدرس" name="address" value={field.value||''} disabled={!manual} fullWidth multiline minRows={2} onChange={field.onChange} error={!!fieldState.error} helperText={fieldState.error?.message}/>}/>
 
                     <Stack direction={{xs: 'column', sm: 'row'}} spacing={2}>
                         <CustomTextField

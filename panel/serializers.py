@@ -302,7 +302,7 @@ class PanelUserDetailSerializer(serializers.ModelSerializer):
             "province",
             "city",
             "postal_code",
-            "address",
+            "address", "address_source",
             "user_type",
             "user_type_display",
             "role",
@@ -369,6 +369,10 @@ class PanelUserUpdateSerializer(serializers.ModelSerializer):
             field: {"required": False}
             for field in fields
         }
+
+    def update(self,instance,validated_data):
+        if any(key in validated_data and validated_data[key]!=getattr(instance,key) for key in ('province','city','address','postal_code')):instance.address_source='manual'
+        return super().update(instance,validated_data)
 
     def validate_first_name(self, value):
         value = value.strip()

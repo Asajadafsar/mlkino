@@ -11,9 +11,9 @@ out = ROOT/'deployment/artifacts'/args.release
 out.mkdir(parents=True, exist_ok=False)
 sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
 base = json.loads((ROOT/args.baseline).read_text())['files']
-files = [f'accounts/{name}.py' for name in ['authentication','client_ip','cookies','models','serializers','urls','validators','views','middleware','notices','profile_api','sessions']]
+files = [f'accounts/{name}.py' for name in ['authentication','client_ip','cookies','models','serializers','urls','validators','views','middleware','lookup_policy','notices','profile_api','sessions']]
 files += [f'panel/{name}.py' for name in ['models','serializers','urls','views','settings_api','settings_models','settings_runtime','ws_auth','ws_consumers','call_config','property_api','geography_api','estate_activity_api','analytics_api','dashboard_estate_api','role_api','geography_admin','ws_events','ws_routing']]
-files += ['panel/settings_defaults.json','mlkino/asgi.py','mlkino/production_release.py','accounts/migrations/0011_user_profile_updated_at_accountnotification_and_more.py','accounts/migrations/0012_user_national_code_image.py','accounts/migrations/0013_agency_office_area.py']
+files += ['panel/settings_defaults.json','mlkino/asgi.py','mlkino/production_release.py','accounts/migrations/0011_user_profile_updated_at_accountnotification_and_more.py','accounts/migrations/0012_user_national_code_image.py','accounts/migrations/0013_agency_office_area.py','accounts/migrations/0014_user_address_source.py']
 sources = {name:ROOT/name for name in files}
 for path in (ROOT/'panel/data/iran').rglob('*'):
     if path.is_file():sources[str(path.relative_to(ROOT))]=path
@@ -23,7 +23,7 @@ for path in (ROOT/'deployment/server-reference/panel/migrations').glob('*.py'):
 sources['accounts/migrations/0010_agencyprofile_expertprofile.py'] = ROOT/'deployment/server-reference/accounts/migrations/0010_agencyprofile_expertprofile.py'
 with tarfile.open(out/'backend.tar.gz','w:gz') as archive:
     for name, path in sorted(sources.items()): archive.add(path, arcname=name, recursive=False)
-manifest = {'release':args.release,'created_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'backend_base_revision':'a9db304','baseline':base,'files':{name:sha(path) for name,path in sorted(sources.items())},'new_migrations':['accounts.0012_user_national_code_image','accounts.0013_agency_office_area','panel.0007_property_records','panel.0008_estate_activity'],'protected':['mlkino/settings.py','mlkino/urls.py','accounts/services/','accounts/utils.py','accounts/permissions.py','media/','venv/','.env*','staticfiles/']}
+manifest = {'release':args.release,'created_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'backend_base_revision':'a9db304','baseline':base,'files':{name:sha(path) for name,path in sorted(sources.items())},'new_migrations':['accounts.0012_user_national_code_image','accounts.0013_agency_office_area','accounts.0014_user_address_source','panel.0007_property_records','panel.0008_estate_activity'],'protected':['mlkino/settings.py','mlkino/urls.py','accounts/services/','accounts/utils.py','accounts/permissions.py','media/','venv/','.env*','staticfiles/']}
 for name,repo in [('backend',ROOT),('frontend',ROOT/'frontend')]:
     manifest[name+'_revision'] = subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip()
     (out/(name+'-worktree-status.txt')).write_text(subprocess.check_output(['git','-C',str(repo),'status','--short'],text=True))

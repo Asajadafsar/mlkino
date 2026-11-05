@@ -1,3 +1,4 @@
+from accounts.lookup_policy import identity_lookup,resolve_postal,service_error,outage
 from rest_framework.exceptions import AuthenticationFailed
 
 import logging
@@ -136,7 +137,7 @@ def _issue_login_response(user, message="ورود موفق.", request=None):
             "is_registered": True,
             "next_step": (
                 "dashboard"
-                if user.has_profile
+                if not user.registration_required
                 else "complete_register"
             ),
             "user": UserSerializer(user).data,
@@ -392,7 +393,7 @@ class VerifyOtpView(APIView):
 
         tokens = build_tokens_for_user(user, request)
 
-        if not user.has_profile:
+        if user.registration_required:
             response = success_response(
                 message="کد تأیید شد.",
                 data={
@@ -457,38 +458,22 @@ class CompleteRegisterView(APIView):
             "national_code"
         ]
 
+        identity_verified=True
+        identity_notice=""
         try:
-            shahkar_match(
-                national_code,
-                user.phone,
-            )
-
+            identity_lookup(national_code,user.phone,shahkar_match)
         except JibitError as exc:
-            return error_response(
-                message=str(exc),
-                errors=[{
-                    "field": "national_code",
-                    "message": str(exc),
-                }],
-                status_code=400,
-            )
-
+            if outage(exc):identity_verified=False;identity_notice=str(exc)
+            else:return error_response(message=str(exc),errors=[{"field":"national_code","message":str(exc)}],status_code=exc.status_code)
         try:
-            postal_address = postal_lookup(
-                serializer.validated_data["postal_code"]
-            )
-
+            postal_address=resolve_postal(serializer.validated_data['postal_code'],serializer.validated_data,postal_lookup)
         except JibitError as exc:
-            return error_response(
-                message=str(exc),
-                errors=[{
-                    "field": "postal_code",
-                    "message": str(exc),
-                }],
-                status_code=400,
-            )
-
-        serializer.context["postal_address"] = postal_address
+            result=error_response(message=str(exc),errors=[{"field":"postal_code","message":str(exc)}],status_code=exc.status_code)
+            result.data['manual_address_allowed']=outage(exc)
+            result.data['error_code']=exc.code
+            return result
+        serializer.context['postal_address']=postal_address
+        serializer.context['identity_verified']=identity_verified
 
         new_avatar = serializer.validated_data.get(
             "avatar"
@@ -515,7 +500,7 @@ class CompleteRegisterView(APIView):
                 )
 
         return success_response(
-            message="ثبت‌نام با موفقیت تکمیل شد.",
+            message="ثبت‌نام تکمیل شد." if identity_verified else "حساب شما ثبت شد و احراز هویت در انتظار بررسی است. "+identity_notice,
             data={
                 "user": UserSerializer(user).data,
                 "next_step": "dashboard",
@@ -922,17 +907,6 @@ class LoginWithOtpView(APIView):
                     status_code=403,
                 )
 
-            if not user.has_profile:
-                return error_response(
-                    message="پروفایل شما کامل نیست.",
-                    errors=[{
-                        "code": "incomplete_profile",
-                        "next_step": "complete_register",
-                        "register_endpoint": "/accounts/complete-register/",
-                    }],
-                    status_code=400,
-                )
-
             otp.is_used = True
             otp.save(update_fields=["is_used"])
 
@@ -1093,6 +1067,7 @@ class ProfileView(APIView):
             "city": user.city,
             "postal_code": user.postal_code,
             "address": user.address,
+            "address_source": user.address_source,
             "user_type": user.user_type,
             "user_type_display":
                 user.get_user_type_display(),
@@ -1114,6 +1089,7 @@ class ProfileView(APIView):
             "is_superuser": user.is_superuser,
             "admin_level": user.admin_level,
             "has_profile": user.has_profile,
+            "registration_required": user.registration_required,
             "last_login": user.last_login,
             "date_joined": user.date_joined,
             "profile_updated_at": user.profile_updated_at,
@@ -1175,25 +1151,14 @@ class ProfileView(APIView):
                 status_code=400,
             )
 
-        if serializer.validated_data.get("postal_code") is not None:
-            try:
-                postal_address = postal_lookup(
-                    serializer.validated_data["postal_code"]
-                )
-
+        location_fields={'postal_code','province','city','address','postal_manual'}
+        if location_fields.intersection(request.data) and (serializer.validated_data.get('postal_code') or user.postal_code):
+            code=serializer.validated_data.get('postal_code') or user.postal_code
+            try:serializer.context['postal_address']=resolve_postal(code,{**request.data,**serializer.validated_data},postal_lookup)
             except JibitError as exc:
-                return error_response(
-                    message=str(exc),
-                    errors=[{
-                        "field": "postal_code",
-                        "message": str(exc),
-                    }],
-                    status_code=400,
-                )
-
-            serializer.context[
-                "postal_address"
-            ] = postal_address
+                result=error_response(message=str(exc),errors=[{'field':'postal_code','message':str(exc)}],status_code=exc.status_code)
+                result.data['manual_address_allowed']=outage(exc)
+                return result
 
         user = serializer.save()
         user.profile_updated_at = timezone.now()
@@ -1247,7 +1212,8 @@ class PostalLookupView(APIView):
             )
 
         except JibitError as exc:
-            return error_response(
+            exc=service_error(exc,"postal")
+            result=error_response(
                 message=str(exc),
                 errors=[{
                     "field": "postal_code",
@@ -1255,6 +1221,9 @@ class PostalLookupView(APIView):
                 }],
                 status_code=exc.status_code,
             )
+            result.data["manual_address_allowed"]=outage(exc)
+            result.data["error_code"]=exc.code
+            return result
 
         return success_response(
             message="آدرس کد پستی دریافت شد.",
@@ -1285,3 +1254,32 @@ class RecordActivityEventView(APIView):
             metadata={},
         )
         return success_response("رویداد ثبت شد.", data={"recorded": True})
+
+
+class IdentityRetryView(APIView):
+    permission_classes=[IsAuthenticated]
+    def post(self,request):
+        user=request.user
+        if request.data:return error_response(message='این استعلام فقط برای اطلاعات حساب خودتان است.',status_code=400)
+        if not user.national_code:return error_response(message='ابتدا کد ملی را در تکمیل حساب ثبت کنید.',status_code=400)
+        if not user.national_code_verified:
+            try:identity_lookup(user.national_code,user.phone,shahkar_match)
+            except JibitError as exc:return error_response(message=str(exc),status_code=exc.status_code)
+            user.national_code_verified=True;user.verification_status=User.VerificationStatus.VERIFIED;user.profile_updated_at=timezone.now();user.save(update_fields=['national_code_verified','verification_status','profile_updated_at'])
+        return success_response(message='تطبیق هویت با موفقیت انجام شد.',data={'national_code_verified':user.national_code_verified,'verification_status':user.verification_status})
+
+
+class LandingSessionView(APIView):
+    """Minimal cookie-authenticated identity for the public landing header."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        avatar = request.build_absolute_uri(user.avatar.url) if user.avatar else None
+        response = success_response(data={
+            'id': user.pk, 'full_name': user.full_name,
+            'avatar': avatar, 'role_display': user.get_role_display(),
+        }, message='وضعیت ورود دریافت شد.')
+        response['Cache-Control'] = 'private, no-store'
+        response['Vary'] = 'Cookie, Origin'
+        return response

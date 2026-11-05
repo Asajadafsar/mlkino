@@ -1,3 +1,4 @@
+import {authEntry} from '../../Core/AuthDestination'
 import api from '../../Core/Request'
 import {canAccessUserRoute} from '../../Core/AccessControl'
 import {PanelSettingsProvider} from '../../Core/PanelSettingsContext'
@@ -157,14 +158,19 @@ export function Home(props) {
         if (authStatus === 'loading' || authStatus === 'error') return
 
         if (authStatus === 'unauth') {
-            navigate('/login', {replace: true})
+            navigate(authEntry('/login',location.pathname+location.search+location.hash), {replace: true})
+            return
+        }
+
+        if (user.registration_required === true) {
+            navigate(authEntry('/signup',location.pathname+location.search+location.hash), {replace: true, state: {completion: {phone: user.phone, first_name: user.first_name, last_name: user.last_name}}})
             return
         }
 
         if (location.pathname === '/') {
             navigate('/dashboard', {replace: true})
         }
-    }, [authStatus, navigate, location.pathname])
+    }, [authStatus, navigate, location.pathname, location.search, location.hash, user])
 
     useEffect(() => {
         const onStorage = (event: StorageEvent) => {
@@ -182,7 +188,7 @@ export function Home(props) {
         return <Alert severity="error" action={<Button onClick={() => {setAuthStatus('loading'); setAttempt(value => value + 1)}}>تلاش مجدد</Button>}>دریافت اطلاعات حساب انجام نشد. اتصال به سرور را بررسی کنید.</Alert>
     }
 
-    if (authStatus === 'unauth') {
+    if (authStatus === 'unauth' || user.registration_required === true) {
         return null
     }
 

@@ -9,7 +9,7 @@ class PostalEndpointTests(TestCase):
     @patch('accounts.views.postal_lookup')
     def test_preserves_provider_failure_status_and_explains_error(self,lookup):
         lookup.side_effect=JibitError('سرویس موقتاً در دسترس نیست',code='providers.not_available',status_code=503)
-        r=self.client.get('/accounts/postal/lookup/',{'postal_code':'1234567890'});self.assertEqual(r.status_code,503);self.assertEqual(r.data['message'],'سرویس موقتاً در دسترس نیست')
+        r=self.client.get('/accounts/postal/lookup/',{'postal_code':'1234567890'});self.assertEqual(r.status_code,503);self.assertIn('کد پستی',r.data['message']);self.assertTrue(r.data['manual_address_allowed'])
     @patch('accounts.views.postal_lookup')
     def test_valid_lookup_returns_address_without_requiring_profile(self,lookup):
         lookup.return_value={'postal_code':'1234567890','province':'قم','city':'قم','address':'نشانی آزمایشی'}

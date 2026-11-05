@@ -40,3 +40,21 @@ class DashboardEstateTests(TestCase):
             self.assertEqual(self.client.get('/panel/locations/tiles/5/19/12.png').status_code,200)
             self.assertEqual(self.client.get('/panel/locations/tiles/5/0/0.png').status_code,404)
             self.assertEqual(get.call_count,1)
+
+    def test_chart_data_and_map_layers_follow_agency_scope(self):
+        self.file.data.update(area=100);self.file.save(update_fields=['data'])
+        self.old.data.update(province='قم');self.old.save(update_fields=['data'])
+        d=self.get(self.agency,map_layers='files|requests',city='قم').data['data']
+        self.assertEqual(len(d['trend']),30)
+        self.assertEqual(sum(x['count'] for x in d['trend']),1)
+        self.assertEqual(d['distribution'],[{'label':'آپارتمان','count':1}])
+        self.assertEqual(d['points'][0]['files'],1)
+        self.assertEqual(d['points'][0]['requests'],1)
+        self.assertEqual(d['matching_items'],2)
+        self.assertEqual(len(d['recent_requests']),1)
+        self.assertEqual(d['market_index']['sample_size'],1)
+        self.assertEqual(d['market_index']['price_per_meter'],2)
+        self.assertEqual(self.get(self.user).data['data']['recent_requests'],[])
+        self.assertEqual(self.get(self.agency,map_layers='').data['data']['points'],[])
+        self.assertEqual(self.get(self.admin,priceFrom='1',priceTo='0').status_code,400)
+        self.assertEqual(self.get(self.admin,priceFrom='',priceTo='100').status_code,200)

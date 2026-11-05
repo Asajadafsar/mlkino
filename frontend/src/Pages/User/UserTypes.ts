@@ -22,6 +22,7 @@ export interface CommonUserType {
     phone_verified: boolean
     national_code_verified: boolean
     is_active: boolean
+    registration_required?: boolean
     has_profile: boolean
     date_joined: string
     last_login: string | null

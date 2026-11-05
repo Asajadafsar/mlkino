@@ -1,3 +1,4 @@
+import LandingEntry from './Pages/Auth/Shared/LandingEntry'
 import {CssBaseline, GlobalStyles} from '@mui/material'
 import {ThemeProvider} from '@mui/material/styles'
 import {AdapterMoment} from '@mui/x-date-pickers/AdapterMoment'
@@ -15,7 +16,6 @@ import {RTL} from './RTL'
 import {AppTheme} from './Theme'
 import LoginPage from './Pages/Auth/Login/LoginPage'
 import SignupPage from './Pages/Auth/Signup/SignupPage'
-import ChangePassword from './Pages/Auth/ChangePassword/ChangePassword'
 import ChangePasswordPage from './Pages/Auth/ChangePassword/ChangePasswordPage'
 function App() {
     return (
@@ -35,6 +35,7 @@ function App() {
                             <LoadingBackdrop />
                             <QueryParamProvider adapter={ReactRouter6Adapter}>
                                 <Routes>
+                                    <Route path="/" element={<LandingEntry/>} />
                                     <Route path="/*" element={<Home />} />
                                     <Route path="login" element={<LoginPage />} />
                                     <Route path="signup" element={<SignupPage />} />

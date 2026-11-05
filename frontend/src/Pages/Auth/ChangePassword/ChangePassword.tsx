@@ -1,3 +1,5 @@
+import {authDestination} from '../../../Core/AuthDestination'
+import {useLocation} from 'react-router-dom'
 import {ACCOUNTS_URL} from '../../../Core/APP_URL'
 import {Button, Stack} from '@mui/material'
 import IconButton from '@mui/material/IconButton'
@@ -19,6 +21,7 @@ type ChangePasswordForm = {
 
 const ChangePassword = () => {
     const dispatch = useDispatch()
+    const location = useLocation()
     const navigate = useNavigate()
 
     const [showOldPassword, setShowOldPassword] = useState(false)
@@ -63,7 +66,7 @@ const ChangePassword = () => {
                 }),
             )
 
-            navigate('/dashboard')
+            navigate(authDestination(location.search))
         } catch (error: any) {
             dispatch(
                 setUtil({

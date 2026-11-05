@@ -19,6 +19,8 @@ ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, 'api.mlkino.com']))  # noqa:
 CORS_ALLOWED_ORIGINS = list(dict.fromkeys([
     *[origin for origin in CORS_ALLOWED_ORIGINS if origin.startswith('https://')],  # noqa: F405
     'https://panel.mlkino.com',
+    'https://mlkino.com',
+    'https://www.mlkino.com',
 ]))
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = list(dict.fromkeys([*CORS_ALLOWED_ORIGINS, 'https://api.mlkino.com']))
@@ -45,7 +47,7 @@ PANEL_SETTINGS_PUBLIC_BASE_URL = 'https://api.mlkino.com'
 
 # Preserve server-installed apps and its audit/provider integrations.
 MIDDLEWARE = list(dict.fromkeys(MIDDLEWARE))  # noqa: F405
-for middleware in reversed(['accounts.middleware.RequestTimezoneMiddleware', 'accounts.middleware.ActivityFailureMiddleware']):
+for middleware in reversed(['accounts.middleware.TrustedBrowserOriginMiddleware', 'accounts.middleware.RequestTimezoneMiddleware', 'accounts.middleware.ActivityFailureMiddleware']):
     if middleware not in MIDDLEWARE:
         MIDDLEWARE.insert(MIDDLEWARE.index('django.middleware.security.SecurityMiddleware') + 1, middleware)
 

@@ -47,6 +47,7 @@ class UserSerializer(serializers.ModelSerializer):
     )
     full_name = serializers.CharField(read_only=True)
     has_profile = serializers.BooleanField(read_only=True)
+    registration_required = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
@@ -54,13 +55,13 @@ class UserSerializer(serializers.ModelSerializer):
             "agency_profile", "expert_profile",
             "id", "phone", "email", "first_name", "last_name", "full_name",
             "national_code", "birth_date", "avatar",
-            "province", "city", "postal_code", "address",
+            "province", "city", "postal_code", "address", "address_source",
             "user_type", "user_type_display",
             "role", "role_display",
             "account_status", "account_status_display",
             "phone_verified", "national_code_verified",
             "verification_status", "verification_status_display",
-            "has_profile", "admin_level", "is_active",
+            "has_profile", "registration_required", "admin_level", "is_active",
             "last_login", "date_joined", "profile_updated_at",
         ]
         read_only_fields = fields
@@ -87,6 +88,10 @@ class VerifyOtpSerializer(serializers.Serializer):
 
 
 class CompleteRegisterSerializer(serializers.Serializer):
+    postal_manual = serializers.BooleanField(required=False, default=False)
+    province = serializers.CharField(required=False,allow_blank=True,max_length=50)
+    city = serializers.CharField(required=False,allow_blank=True,max_length=50)
+    address = serializers.CharField(required=False,allow_blank=True,max_length=2000)
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
 
@@ -179,15 +184,14 @@ class CompleteRegisterSerializer(serializers.Serializer):
         user.province = postal["province"]
         user.city = postal["city"]
         user.address = postal["address"]
+        user.address_source = postal.get("address_source","postal")
 
         user.user_type = data["user_type"]
         user.set_password(data["password"])
 
         user.role = User.Role.USER
-        user.national_code_verified = True
-        user.verification_status = (
-            User.VerificationStatus.VERIFIED
-        )
+        user.national_code_verified = self.context.get("identity_verified",True)
+        user.verification_status = User.VerificationStatus.VERIFIED if user.national_code_verified else User.VerificationStatus.PENDING
 
         user.save()
 
@@ -334,6 +338,7 @@ class LoginOtpSerializer(serializers.Serializer):
 
 
 class ProfileUpdateSerializer(serializers.ModelSerializer):
+    postal_manual = serializers.BooleanField(required=False,write_only=True)
     avatar = serializers.ImageField(
         required=False,
         allow_null=True,
@@ -364,7 +369,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             "email",
             "birth_date",
             "avatar",
-            "postal_code",
+            "postal_code", "postal_manual", "province", "city", "address",
         ]
 
         extra_kwargs = {
@@ -432,6 +437,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
         postal = self.context.get("postal_address")
+        validated_data.pop("postal_manual",None)
 
         if (
             validated_data.get("postal_code") is not None
@@ -443,16 +449,18 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             })
 
         for field, value in validated_data.items():
-            if field != "postal_code":
+            if field not in ("postal_code","province","city","address"):
                 setattr(instance, field, value)
 
         if 'postal_code' in validated_data and validated_data['postal_code'] is None:
             instance.postal_code = instance.province = instance.city = instance.address = None
+            instance.address_source = ""
         if postal:
             instance.postal_code = postal["postal_code"]
             instance.province = postal["province"]
             instance.city = postal["city"]
             instance.address = postal["address"]
+            instance.address_source = postal.get("address_source","postal")
 
         instance.save()
 

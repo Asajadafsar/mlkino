@@ -7,7 +7,7 @@ def validate_iranian_national_code(value: str) -> str:
     if not value:
         raise ValidationError("کد ملی الزامی است.")
 
-    value = str(value).strip()
+    value = str(value).strip().translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩","01234567890123456789"))
 
     if not re.fullmatch(r"\d{10}", value):
         raise ValidationError("کد ملی باید ۱۰ رقم عددی باشد.")

@@ -1,0 +1,28 @@
+[Unit]
+Description=Melkino public landing (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+User=mlkino-landing
+Group=mlkino-landing
+WorkingDirectory=/var/www/mlkino-landing/current
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3101
+Environment=NEXT_TELEMETRY_DISABLED=1
+Environment=HOME=/var/cache/mlkino-landing
+ExecStart=/opt/mlkino-node/bin/node /var/www/mlkino-landing/current/server.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/cache/mlkino-landing /var/www/mlkino-landing/current/.next/cache
+UMask=0027
+LimitNOFILE=32768
+
+[Install]
+WantedBy=multi-user.target

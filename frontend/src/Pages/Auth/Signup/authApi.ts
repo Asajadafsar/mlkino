@@ -7,6 +7,7 @@ const api = axios.create({
 })
 
 export interface RegisterPayload {
+    postal_manual?: boolean
     phone: string
     first_name: string
     last_name: string
@@ -40,6 +41,7 @@ export const verifyOtp = (phone: string, code: string) =>
 export const registerUser = (payload: RegisterPayload) => {
     const formData = new FormData()
 
+    if(payload.postal_manual)formData.append('postal_manual','true')
     formData.append('phone', payload.phone)
     formData.append('first_name', payload.first_name)
     formData.append('last_name', payload.last_name)
@@ -58,6 +60,7 @@ export const registerUser = (payload: RegisterPayload) => {
     }
 
     return api.post('/accounts/complete-register/', formData, {
+        timeout:60000,
         withCredentials: true,
     })
 }

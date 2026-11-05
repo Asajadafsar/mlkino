@@ -1,3 +1,5 @@
+import {authDestination} from '../../../Core/AuthDestination'
+import {useLocation} from 'react-router-dom'
 import {ACCOUNTS_URL} from '../../../Core/APP_URL'
 import { Box, Button, Stack, Typography } from '@mui/material'
 import axios from 'axios'
@@ -32,6 +34,7 @@ interface Props {
 }
 
 export default function SubmitCode({ getValues, children, phoneNumber }: Props) {
+    const location = useLocation()
     const navigate = useNavigate()
     const dispatch = useDispatch()
 
@@ -58,7 +61,7 @@ export default function SubmitCode({ getValues, children, phoneNumber }: Props) 
             )
 
             dispatch(setRole(response.data.data.user.role))
-            navigate('/dashboard', {replace: true})
+            navigate(authDestination(location.search), {replace: true})
         } catch (error: any) {
             dispatch(
                 setUtil({

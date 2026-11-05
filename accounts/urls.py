@@ -6,6 +6,8 @@ from accounts import views
 app_name = "accounts"
 
 urlpatterns = [
+    path("session/", views.LandingSessionView.as_view(), name="landing-session"),
+    path("identity/retry/", views.IdentityRetryView.as_view(),name="identity-retry"),
     # احراز هویت
     path("send-otp/", views.SendOtpView.as_view(), name="send-otp"),
     path("verify-otp/", views.VerifyOtpView.as_view(), name="verify-otp"),

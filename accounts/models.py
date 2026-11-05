@@ -152,6 +152,7 @@ class User(AbstractUser):
     )
 
     # Location
+    address_source = models.CharField(max_length=16, blank=True, default="")
 
     province = models.CharField(
         max_length=50,
@@ -279,6 +280,14 @@ class User(AbstractUser):
             and self.province
             and self.city
         )
+
+    @property
+    def registration_required(self):
+        # OTP-created drafts have no usable password. Existing accounts with
+        # missing optional/legacy profile fields must retain panel access.
+        return (self.role == self.Role.USER and not self.is_staff
+                and not self.is_superuser and not self.has_profile
+                and not self.has_usable_password())
 
     @property
     def is_agency(self):

@@ -41,8 +41,9 @@ export default function Profile(){
  useEffect(()=>{if(lastEvent?.event==='account.notification'&&tab==='notifications')loadSection()},[lastEvent,tab,loadSection])
  const run=async(action:()=>Promise<void>)=>{setSaving(true);setError('');setMessage('');try{await action()}catch(error:any){setError(error.message||'ذخیره انجام نشد.')}finally{setSaving(false)}}
  const saveProfile=()=>run(async()=>{
-  const allowed=['first_name','last_name','email','birth_date','avatar','postal_code']
+  const allowed=['first_name','last_name','email','birth_date','avatar','postal_code','province','city','address']
   const changed=Object.fromEntries(allowed.filter(key=>profile[key]!==initial[key]).map(key=>[key,profile[key]]))
+  if(profile.postal_manual)Object.assign(changed,{postal_manual:true,postal_code:profile.postal_code,province:profile.province,city:profile.city,address:profile.address})
   if(!Object.keys(changed).length){setMessage('اطلاعات تغییری نکرده است.');return}
   let data:any=changed
   if(changed.avatar instanceof File){data=new FormData();Object.entries(changed).forEach(([key,value])=>data.append(key,value instanceof File?value:value===null?'':String(value)))}
