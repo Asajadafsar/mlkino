@@ -1,0 +1,17 @@
+# Application dependencies matching the verified production environment.
+# Install with Python 3.13+; configure a separate local PostgreSQL database.
+-r requirements-extra.txt
+Django==6.1.2
+djangorestframework==3.18.3
+djangorestframework-simplejwt==5.5.1
+drf-spectacular==0.30.0
+channels==4.3.2
+channels-redis==4.3.0
+daphne==4.2.3
+uvicorn==0.54.0
+django-cors-headers==4.9.0
+gunicorn==26.2.0
+Pillow==13.0.0
+psycopg2-binary==2.9.13
+requests==2.34.2
+zeep==4.3.3

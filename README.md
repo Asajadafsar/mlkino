@@ -388,7 +388,8 @@ Unauthorized copying, distribution, modification, or commercial use of this soft
 - `landing/`: لندینگ Next.js؛ دامنه `https://mlkino.com`، لوکال پورت 3001.
 
 ```sh
-# API؛ پس از تنظیم دیتابیس لوکال و نصب requirements-extra.txt
+# API؛ پس از ساخت virtualenv با Python 3.13+ و تنظیم دیتابیس لوکال
+python3 -m pip install -r requirements.txt
 python3 manage.py migrate
 python3 manage.py runserver 127.0.0.1:8000
 # در ترمینال‌های جداگانه
