@@ -379,3 +379,23 @@ Unauthorized copying, distribution, modification, or commercial use of this soft
 <p align="center">
   Built with ❤️ for the future of real estate.
 </p>
+
+
+## مخزن کامل ملکینو
+
+- `accounts/` و `panel/`: بک‌اند Django؛ API در Production روی `https://api.mlkino.com`.
+- `frontend/`: پنل React؛ دامنه `https://panel.mlkino.com`، لوکال پورت 3000.
+- `landing/`: لندینگ Next.js؛ دامنه `https://mlkino.com`، لوکال پورت 3001.
+
+```sh
+# API؛ پس از تنظیم دیتابیس لوکال و نصب requirements-extra.txt
+python3 manage.py migrate
+python3 manage.py runserver 127.0.0.1:8000
+# در ترمینال‌های جداگانه
+npm --prefix frontend ci
+npm --prefix frontend start
+npm --prefix landing ci
+npm --prefix landing run dev
+```
+
+برای ساخت Production لندینگ، Node.js 24 LTS استفاده شده است. متغیرهای عمومی در `landing/.env.example` و `frontend/.env.production.example` توضیح داده شده‌اند. فایل‌های واقعی Secret، داده کاربران، node_modules و خروجی بیلد در Git قرار نمی‌گیرند. نشست ورود با کوکی HttpOnly روی API نگه‌داری می‌شود و لندینگ فقط مشخصات محدود حساب را از API می‌خواند.

@@ -1,6 +1,6 @@
 # اتصال لندینگ اصلی به پنل
 
-مخزن لندینگ در پوشه کناری `../melkino-landing` کلون شده است. راهنمای تنظیم دامنه در `../melkino-landing/docs/PANEL-INTEGRATION.md` است.
+منبع کامل لندینگ در `landing/` همین مخزن قرار دارد. راهنمای تنظیم دامنه در `landing/docs/PANEL-INTEGRATION.md` است.
 
 - لندینگ محلی: http://localhost:3001
 - پنل محلی: http://localhost:3000

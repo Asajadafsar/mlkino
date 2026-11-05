@@ -1,0 +1,179 @@
+.home {
+  padding-bottom: 40px;
+  min-width: 0;
+}
+
+.home :global(.home-banner) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(110deg, #a9ceff, #e4edff);
+}
+
+.home :global(.home-banner-copy) {
+  min-width: 0;
+  padding: clamp(24px, 4vw, 48px);
+  align-self: center;
+}
+
+.home :global(.home-banner-copy h1) {
+  font-size: clamp(24px, 2.8vw, 38px);
+  font-weight: 850;
+  line-height: 1.7;
+  color: #101d4c;
+}
+
+.home :global(.home-banner-copy p) {
+  color: #617b9f;
+  font-size: clamp(14px, 1.5vw, 18px);
+  margin-block: 8px 22px;
+}
+
+.home :global(.home-banner-copy .MuiButton-root) {
+  border-radius: 12px;
+  min-height: 48px;
+  padding: 10px 24px;
+  font-size: 16px;
+}
+
+.home :global(.home-banner-image) {
+  min-height: 260px;
+  background: url('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=85') center / cover;
+  mask-image: linear-gradient(to right, #000 70%, transparent);
+}
+
+.home :global(.home-stats) {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.home :global(.home-stat) {
+  background: #fff;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 18px 12px;
+  min-width: 0;
+}
+
+.home :global(.home-stat-icon) {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 3px;
+}
+
+.home :global(.home-stat strong) { font-size: 25px; font-weight: 800; color: #151d32; }
+.home :global(.home-stat span) { font-size: 14px; color: #697895; text-align: center; }
+.home :global(.home-properties) { min-width: 0; }
+.home :global(.home-properties [role=tablist]) { width: 100%; }
+.home :global(.home-properties [role=tab]) {
+  min-height: 76px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 13px;
+  white-space: normal;
+  text-align: center;
+}
+
+.home :global(.home-section-heading) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.home :global(.home-section-heading h2) { font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 7px; }
+.home :global(.home-section-heading a) { color: #1667ff; font-size: 14px; display: flex; align-items: center; gap: 6px; min-height: 44px; }
+.home :global(.home-section-heading a svg) { font-size: 18px; }
+
+.home :global(.home-grid) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+.home :global(.home-list) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.home :global(.home-grid > div), .home :global(.home-list > div) { min-width: 0; }
+.home :global(.home-grid .MuiCard-root) {
+  background: #fff;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  border: 0;
+  border-radius: 18px;
+  padding: 10px;
+  box-shadow: 0 5px 24px #233d7710;
+}
+.home :global(.home-grid .MuiCard-root > .MuiBox-root:first-child) {
+  border-radius: 12px;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  flex-shrink: 0;
+}
+.home :global(.home-grid .MuiCardContent-root) { padding: 14px 6px 6px; gap: 12px; }
+.home :global(.home-grid .MuiCardContent-root > .MuiBox-root:first-child) { flex-direction: column-reverse; }
+.home :global(.home-grid .MuiTypography-subtitle1) { font-size: 16px; margin-bottom: 6px; white-space: normal; overflow-wrap: anywhere; }
+.home :global(.home-grid .MuiCardContent-root > .MuiBox-root:nth-child(2)) { background: transparent; padding: 4px 0; }
+.home :global(.home-grid .MuiTypography-h6) { font-size: 20px; overflow-wrap: anywhere; min-width: 0; }
+.home :global(.home-grid .MuiButton-root) { font-size: 13px; min-width: 0; min-height: 44px; padding: 8px; box-shadow: none; }
+.home :global(.home-grid .MuiIconButton-root) { min-width: 44px; min-height: 44px; }
+.home :global(.home-grid .MuiCardContent-root > .MuiStack-root:last-child > .MuiStack-root) { flex-wrap: wrap; gap: 8px; }
+.home :global(.home-grid .MuiCardContent-root > .MuiStack-root:last-child > .MuiStack-root > .MuiButton-root) { flex: 1 1 120px; width: auto; margin: 0; }
+
+.home :global(.home-category-list) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+}
+.home :global(.home-category-list .MuiButton-root) { display: flex; flex-direction: column; gap: 8px; color: #253252; background: #fff; border: 1px solid #e3e8f2; border-radius: 15px; padding: 16px 8px; font-size: 14px; min-height: 88px; }
+.home :global(.home-category-list .MuiButton-root:first-child) { color: #1667ff; border-color: #adcaff; background: #edf4ff; }
+.home :global(.file-toolbar) { gap: 12px; }
+.home :global(.file-toolbar select) { min-height: 44px; font-size: 14px; max-width: 100%; }
+
+@media (min-width: 1100px) {
+  .home { padding-bottom: 40px; }
+}
+
+@media (max-width: 599px) {
+  .home { gap: 20px; }
+  .home :global(.home-banner) { grid-template-columns: minmax(0, 1fr); }
+  .home :global(.home-banner-copy) { padding: 24px; }
+  .home :global(.home-banner-copy h1) { font-size: 25px; }
+  .home :global(.home-banner-copy .MuiButton-root) { width: 100%; }
+  .home :global(.home-banner-image) { min-height: 0; aspect-ratio: 2 / 1; mask-image: none; }
+  .home :global(.home-stats) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .home :global(.home-stat) { padding: 16px 10px; }
+  .home :global(.home-properties [role=tab]) { padding: 10px 6px; font-size: 13px; }
+  .home :global(.home-section-heading h2) { font-size: 17px; }
+  .home :global(.file-toolbar) { padding: 12px; }
+  .home :global(.home-category-list) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home :global(.MuiCard-root), .home :global(.MuiCard-root img) { transition: none; transform: none; }
+}
+
+/* A list card keeps readable content when there is no room for a side image. */
+.home :global(.home-list .MuiCard-root) { min-width: 0; background: #fff; }
+@media (max-width: 599px) {
+  .home :global(.home-list .MuiCard-root) { flex-direction: column; }
+  .home :global(.home-list .MuiCard-root > .MuiBox-root:first-child) {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+    align-self: stretch;
+  }
+  .home :global(.home-list .MuiCardContent-root) { width: 100%; min-width: 0; }
+  .home :global(.home-list .MuiButton-root) { min-height: 44px; font-size: 13px; }
+}

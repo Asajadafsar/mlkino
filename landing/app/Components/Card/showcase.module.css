@@ -1,0 +1,51 @@
+.card { display:flex; flex-direction:column; min-width:0; padding:6px; background:#ffffffed; border:1px solid #ffffff; border-radius:22px; box-shadow:0 7px 20px #2448960c; color:#0e1945; transition:box-shadow 200ms ease,translate 200ms ease; }
+.cover { position:relative; min-width:0; }
+.imageLink { display:block; width:100%; aspect-ratio:1.9; border:0; padding:0; border-radius:16px; overflow:hidden; background:#e9edf7; cursor:pointer; }
+.imageLink img { width:100%; height:100%; object-fit:cover; transition:transform 350ms ease; }
+.favorite { position:absolute; top:10px; left:10px; display:grid; place-items:center; width:32px; height:32px; border:0; border-radius:11px; background:#ffffffed; color:#1a2851; cursor:pointer; }
+.favorite svg { font-size:22px; }
+.favorite[aria-pressed=true] { color:#ed657e; }
+.badge { position:absolute; top:9px; right:9px; border-radius:20px; padding:4px 13px; font-size:12px; font-weight:750; color:#fff; background:#11bc17; pointer-events:none; }
+.presale { background:#ff9f00; }
+.rent { background:#a847ff; }
+.body { display:flex; flex-direction:column; gap:8px; padding:10px 8px 4px; min-width:0; flex:1; }
+.title { border:0; background:transparent; text-align:start; font:inherit; font-size:14px; font-weight:850; color:#101a45; line-height:1.7; cursor:pointer; }
+.location { display:flex; align-items:center; gap:4px; color:#7580a0; font-size:11px; line-height:1.6; }
+.location svg { font-size:15px; flex-shrink:0; }
+.metrics { display:flex; flex-wrap:wrap; justify-content:flex-start; gap:6px 20px; color:#58678b; font-size:11px; }
+.metrics > span { display:flex; align-items:center; gap:4px; }
+.metrics svg { font-size:17px; }
+.footer { display:flex; flex-direction:row-reverse; justify-content:space-between; align-items:center; gap:6px; margin-top:auto; padding-top:2px; }
+.price { background:none; border:0; padding:0; color:#075bff; font:inherit; font-size:13px; font-weight:850; text-align:start; line-height:1.7; overflow-wrap:anywhere; cursor:pointer; }
+.price span { font-size:11px; }
+.price small { font-size:10px; }
+.advisor { display:flex; align-items:center; gap:2px; flex-shrink:0; }
+.advisor > img { width:28px; height:28px; border-radius:50%; object-fit:cover; }
+.more { position:relative; }
+.more summary { display:grid; place-items:center; width:28px; height:32px; cursor:pointer; border-radius:8px; list-style:none; color:#7180a0; }
+.more summary::-webkit-details-marker { display:none; }
+.menu { position:absolute; bottom:38px; inset-inline-end:0; width:180px; z-index:10; display:grid; padding:6px; border:1px solid #e6e9f5; border-radius:12px; background:#fff; box-shadow:0 8px 28px #263b6926; }
+.menu button { min-height:44px; text-align:start; font:inherit; font-size:12px; border:0; border-radius:8px; background:#fff; padding:8px 10px; color:#162448; cursor:pointer; }
+.menu button:hover { background:#f0f4ff; }
+.card button:focus-visible, .more summary:focus-visible { outline:3px solid #ffb000; outline-offset:3px; }
+@media(hover:hover){.card:hover { box-shadow:0 12px 28px #24489618; translate:0 -3px; }.card:hover .imageLink img { transform:scale(1.035); }}
+@media(max-width:1099px){ .imageLink { aspect-ratio:1.6; }.title { font-size:16px; }.price { font-size:15px; }.body { padding:12px; }.metrics { font-size:13px; }.location { font-size:12px; }.favorite { width:40px;height:40px; } }
+@media(max-width:599px){
+  .card { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); direction:ltr; padding:8px; gap:10px; border-radius:23px; }
+  .cover { height:100%; }
+  .imageLink { height:100%; min-height:168px; aspect-ratio:auto; border-radius:17px; }
+  .body { direction:rtl; padding:6px 2px; gap:10px; }
+  .title { font-size:16px; line-height:1.65; }
+  .location { font-size:11px; }
+  .metrics { font-size:11px; gap:8px; }
+  .metrics svg { font-size:16px; }
+  .footer { flex-direction:column; align-items:stretch; }
+  .price { font-size:14px; }
+  .advisor { justify-content:flex-end; }
+  .advisor > img { display:none; }
+  .more summary { height:24px; }
+  .badge { font-size:11px; padding:4px 10px; top:7px;right:7px; }
+  .favorite { width:34px;height:34px;top:7px;left:7px; }
+}
+@media(max-width:359px){.card { grid-template-columns:minmax(0,.85fr) minmax(0,1fr);gap:8px;}.title{font-size:14px}.price{font-size:12px}.metrics{font-size:10px}}
+@media(prefers-reduced-motion:reduce){ .card,.imageLink img { transition:none; } }
