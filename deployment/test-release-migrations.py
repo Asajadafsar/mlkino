@@ -29,6 +29,9 @@ assert ('accounts','0011_user_profile_updated_at_accountnotification_and_more') 
 assert ('accounts','0012_user_national_code_image') in applied
 assert ('accounts','0013_agency_office_area') in applied
 assert ('accounts','0014_user_address_source') in applied
+assert ('accounts','0016_versioned_expert_share') in applied
+assert ('panel','0012_versioned_expert_share') in applied
+assert ('panel','0013_public_catalog_index') in applied
 assert ('panel','0003_support_tickets') not in applied
 print('Production migration lineage validated; no fake migrations, no production DB connection.')
 """

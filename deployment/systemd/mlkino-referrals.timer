@@ -1,0 +1,11 @@
+[Unit]
+Description=Check MLKINO referral deadlines every minute
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=60
+AccuracySec=5
+Unit=mlkino-referrals.service
+
+[Install]
+WantedBy=timers.target

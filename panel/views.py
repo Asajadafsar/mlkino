@@ -891,6 +891,7 @@ class PanelUserDetailView(APIView):
             agency_allowed_fields = {
                 "first_name",
                 "last_name",
+                "commission_share_rate",
                 "email", "phone", "birth_date", "province", "city", "postal_code", "address", "user_type", "account_status", "is_active", "avatar", "expert_profile", "expert_code", "job_title", "specialties", "experience_years", "professional_document", "job_details", "bio",
             }
 
@@ -2151,6 +2152,10 @@ class ChatMessagesView(APIView):
             allowed = {".jpg", ".jpeg", ".png", ".webp", ".pdf", ".docx", ".xlsx", ".zip", ".mp3", ".ogg", ".wav", ".m4a", ".webm"}
             if ext not in allowed or (kind == "voice" and ext not in {".mp3", ".ogg", ".wav", ".m4a", ".webm"}):
                 return error_response("فرمت پیوست مجاز نیست")
+            if ext in {'.jpg','.jpeg','.png','.webp'}:
+                from accounts.media_processing import sanitized_document
+                upload=sanitized_document(upload,images_only=True)
+                ext='.webp'
             import uuid as _uuid
             upload.name = str(_uuid.uuid4()) + ext
         reply_id = request.data.get("reply_to")

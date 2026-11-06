@@ -1,7 +1,7 @@
 import {Box, Stack, Typography} from '@mui/material'
 import {CustomTextField} from '../../Components/Input/CustomTextField'
 import {GridProducer} from '../../Components/Table/GridProducer'
-import LogoImage from '../../Images/melkino.png'
+import LogoImage from '../../Images/melkino.webp'
 import { CustomSelectField } from '../../Components/Input/CustomSelectField'
 import { toSelectOptions } from '../../Components/PropertyRecordForm/utils'
 

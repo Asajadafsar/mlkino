@@ -71,7 +71,7 @@ class WorkflowTests(TestCase):
         data={'kind':'invoice','amount':'100.01','direction':'debit','entries':[{'account':'cash','debit':'100.01','credit':'0'},{'account':'income','credit':'100.01','debit':'0'}]}
         self.assertEqual(self.post('workflows/finance/',data,self.owner).status_code,403)
         bad={**data,'entries':[{'account':'cash','debit':'100','credit':'0'},{'account':'income','credit':'99','debit':'0'}]};self.assertEqual(self.post('workflows/finance/',bad,self.agency).status_code,400)
-        r=self.post('workflows/finance/',data);self.assertEqual(r.status_code,201,r.data);pk=r.data['data']['id']
+        r=self.post('workflows/finance/',{**data,'metadata':{'payment_date':None}});self.assertEqual(r.status_code,201,r.data);pk=r.data['data']['id']
         self.assertEqual(self.post(f'workflows/finance/{pk}/post/',{}).status_code,200);self.assertEqual(self.post(f'workflows/finance/{pk}/post/',{}).status_code,200)
         original=FinancialDocument.objects.get(pk=pk);self.assertEqual(original.amount,Decimal('100.01'))
         reverse=self.post('workflows/finance/',{'kind':'reversal','amount':'1','reverses_id':pk,'idempotency_key':str(uuid.uuid4())});self.assertEqual(reverse.status_code,201,reverse.data)
@@ -89,6 +89,33 @@ class WorkflowTests(TestCase):
         r=self.post('workflows/roles/',{'user_id':self.buyer.pk,'workspace_id':self.agency.pk,'roles':['finance']},self.admin);self.assertEqual(r.status_code,200)
         self.assertEqual(self.post('workflows/finance/',{'kind':'invoice','amount':'20'},self.buyer).status_code,201)
         self.assertEqual(self.post('workflows/finance/',{'kind':'invoice','amount':'20','workspace_id':self.next.pk}).status_code,403)
+        UserBusinessRole.objects.filter(user=self.buyer).delete()
+        self.assertEqual(self.client.get('/panel/workflows/finance/').data['data']['total_results'],0)
+        self.assertEqual(self.post('workflows/finance/',{'kind':'invoice','amount':'20'}).status_code,403)
+    def test_expert_share_versions_preserve_original_calculations(self):
+        from accounts.models import ExpertProfile
+        from .models import ExpertShareAgreement
+        profile=ExpertProfile.objects.create(user=self.expert,commission_share_rate=Decimal('35.1234'))
+        rate=self.post('workflows/financial-settings/',{'effective_from':str(timezone.localdate()),'commission_rate':'2','expert_share_rate':'10','mode':'agreed'},self.agency)
+        payload={'rate_version_id':rate.data['data']['id'],'transaction_amount':'100000','expert_id':self.expert.pk}
+        first=self.post('workflows/commission/calculate/',payload);self.assertEqual(first.status_code,200,first.data)
+        self.assertEqual(first.data['data']['expert_share'],'702.47')
+        first_version=first.data['data']['agreement_version']
+        profile.commission_share_rate=Decimal('50');profile.save()
+        second=self.post('workflows/commission/calculate/',payload)
+        self.assertEqual(second.data['data']['expert_share'],'1000.00')
+        self.assertNotEqual(first_version,second.data['data']['agreement_version'])
+        self.assertEqual(ExpertShareAgreement.objects.get(pk=first_version).share_percent,Decimal('35.1234'))
+        self.assertEqual(self.post('workflows/commission/calculate/',{**payload,'rate_version_id':'invalid'}).status_code,400)
+    def test_contact_requires_login_and_public_catalog_hides_phone(self):
+        self.row.publication_state='published';self.row.assigned_expert=self.expert
+        self.row.data['workPhone']=self.expert.phone;self.row.save()
+        self.assertIsNone(self.client.get(f'/panel/public/catalog/{self.row.pk}/').data['data']['expert']['work_phone'])
+        self.assertIn(self.client.get(f'/panel/workflows/properties/{self.row.pk}/contact/').status_code,(401,403))
+        self.login(self.buyer)
+        response=self.client.get(f'/panel/workflows/properties/{self.row.pk}/contact/')
+        self.assertEqual(response.status_code,200,response.data);self.assertEqual(response.data['data']['phone'],self.expert.phone)
+        self.assertIn('no-store',response['Cache-Control'])
     def test_chat_context_and_archive_are_scoped(self):
         self.row.publication_state='published';self.row.assigned_expert=self.expert;self.row.save()
         first=self.post(f'workflows/properties/{self.row.pk}/chat/',{},self.buyer);self.assertEqual(first.status_code,200,first.data)
@@ -120,7 +147,7 @@ class WorkflowTests(TestCase):
             pdf=SimpleUploadedFile('receipt.pdf',b'%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF',content_type='application/pdf')
             r=self.client.post(f'/panel/workflows/finance/{second}/receipt/',{'receipt':pdf},format='multipart');self.assertEqual(r.status_code,200,r.data)
             self.login(self.owner);self.assertEqual(self.client.get(f'/panel/workflows/finance/{second}/receipt/').status_code,404)
-            self.login(self.agency);r=self.client.get(f'/panel/workflows/finance/{second}/receipt/');self.assertEqual(r.status_code,200);self.assertIn('no-store',r['Cache-Control']);r.close()
+            self.login(self.agency);r=self.client.get(f'/panel/workflows/finance/{second}/receipt/');self.assertEqual(r.status_code,200);self.assertIn('no-store',r['Cache-Control']);self.assertTrue(b''.join(r.streaming_content).startswith(b'%PDF'))
     def test_saved_filter_owner_scope_and_activity_links(self):
         payload={'name':'قم','report':'operations','filters':{'city':'قم'}}
         one=self.post('workflows/saved-filters/',payload,self.agency);self.assertEqual(one.status_code,201)

@@ -1,0 +1,57 @@
+{
+  "assets": {
+    "frontend/src/Images/user.png": {
+      "original": 1869,
+      "webp": 1486
+    },
+    "frontend/src/Images/melkino.png": {
+      "original": 2895674,
+      "webp": 113810
+    },
+    "frontend/src/Images/file/1.jpg": {
+      "original": 117345,
+      "webp": 114696
+    },
+    "frontend/src/Images/file/2.jpg": {
+      "original": 83059,
+      "webp": 78234
+    },
+    "frontend/src/Images/file/3.jpg": {
+      "original": 38732,
+      "webp": 33856
+    },
+    "frontend/src/images/arrow-down.png": {
+      "original": 213,
+      "webp": 136
+    },
+    "frontend/src/images/arrow-down-selected.png": {
+      "original": 195,
+      "webp": 180
+    },
+    "frontend/src/images/arrow-up-selected.png": {
+      "original": 172,
+      "webp": 154
+    },
+    "frontend/src/Images/emptyTableDark.png": {
+      "original": 19554,
+      "webp": 13108
+    },
+    "landing/public/images/properties/apartment.png": {
+      "original": 3325673,
+      "webp": 447768
+    },
+    "landing/public/images/properties/hero.png": {
+      "original": 2675715,
+      "webp": 265618
+    },
+    "landing/public/images/melkino.png": {
+      "original": 2895674,
+      "webp": 113810
+    },
+    "landing/public/images/profile.png": {
+      "original": 1869,
+      "webp": 1486
+    }
+  },
+  "references": 20
+}

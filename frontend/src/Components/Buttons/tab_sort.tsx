@@ -1,7 +1,7 @@
 import React from 'react'
-import arrowDownIcon from '../../images/arrow-down.png'
-import arrowDownSelectedIcon from '../../images/arrow-down-selected.png'
-import arrowUpSelectedIcon from '../../images/arrow-up-selected.png'
+import arrowDownIcon from '../../images/arrow-down.webp'
+import arrowDownSelectedIcon from '../../images/arrow-down-selected.webp'
+import arrowUpSelectedIcon from '../../images/arrow-up-selected.webp'
 import {Button, Typography} from '@mui/material'
 
 function TableSort(props) {

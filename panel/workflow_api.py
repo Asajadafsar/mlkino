@@ -31,7 +31,7 @@ def can_manage(user,row):
     if not(is_superadmin(user) or row.assigned_expert_id==user.pk or row.created_by_id==user.pk and user.role in ('expert','agency') or user.role=='agency' and row.office_id==user.pk):raise PermissionDenied('مدیریت این پرونده مجاز نیست.')
 def view_property(user,pk):
     row=get_object_or_404(PropertyRecord.objects.select_related('assigned_expert','created_by','office'),pk=pk)
-    if row.publication_state!='published' and not scope(user).filter(pk=pk).exists():raise PermissionDenied('این ملک قابل مشاهده نیست.')
+    if (row.publication_state!='published' or row.archived_at) and not scope(user).filter(pk=pk).exists():raise PermissionDenied('این ملک قابل مشاهده نیست.')
     return row
 
 def contact_scope(user):
@@ -60,14 +60,14 @@ class ContactsView(APIView):
         if request.user.role not in ('agency','expert') and not is_superadmin(request.user):raise PermissionDenied('مدیریت CRM برای این نقش مجاز نیست.')
         d=request.data;allowed={'name','full_name','phone','roles','kind','email','notes','province','city','district','neighborhood','budget_min','budget_max','expert_id','user_id','workspace_id'}
         if set(d)-allowed:raise ValidationError('فیلد CRM معتبر نیست.')
-        row=get_object_or_404(contact_scope(request.user).select_for_update(),pk=pk) if pk else None
+        row=get_object_or_404(contact_scope(request.user).select_for_update(of=('self',)),pk=pk) if pk else None
         name=d.get('name',d.get('full_name',row.name if row else ''));phone=normalize(d.get('phone',row.phone if row else '')).replace(' ','').replace('-','')
         if not isinstance(name,str) or not 2<=len(name.strip())<=200 or not re.fullmatch(r'\+?\d{8,15}',phone):raise ValidationError('نام و شماره تماس معتبر وارد کنید.')
         roles=d.get('roles')
         if roles is None:roles=[{'lessor':'landlord'}.get(d['kind'],d['kind'])] if d.get('kind') else row.roles if row else ['owner']
         if not isinstance(roles,list) or not roles or not set(roles)<={'owner','buyer','landlord','tenant'}:raise ValidationError('نوع مخاطب معتبر نیست.')
         ws=ident(d.get('workspace_id') or (row.workspace_id if row else workspace(request.user)))
-        get_object_or_404(User.objects.select_for_update(),pk=ws)
+        get_object_or_404(User.objects.select_for_update(of=('self',)),pk=ws)
         if ws not in workspaces(request.user) and not is_superadmin(request.user):raise PermissionDenied('دفتر متعلق به شما نیست.')
         expert_id=ident(d['expert_id']) if d.get('expert_id') else row.expert_id if row else request.user.pk if request.user.role=='expert' else None
         if expert_id and expert_id!=ws and not AgencyExpertLink.objects.filter(agency_id=ws,expert_id=expert_id).exists():raise ValidationError('کارشناس متعلق به دفتر نیست.')
@@ -118,8 +118,8 @@ class AssignmentReferView(APIView):
         feature('assignments')
         if not is_superadmin(request.user):raise PermissionDenied('ارجاع دستی فقط برای سوپرادمین مجاز است.')
         ref=get_object_or_404(PropertyReferral,pk=pk)
-        PropertyRecord.objects.select_for_update().get(pk=ref.property_id)
-        ref=PropertyReferral.objects.select_for_update().get(pk=pk)
+        PropertyRecord.objects.select_for_update(of=('self',)).get(pk=ref.property_id)
+        ref=PropertyReferral.objects.select_for_update(of=('self',)).get(pk=pk)
         if ref.status=='accepted':raise ValidationError('ارجاع پذیرفته‌شده بدون بررسی پرونده قابل انتقال نیست.')
         if ref.status in ('pending','market'):ref.status='rejected';ref.save(update_fields=['status','updated_at'])
         expert=get_object_or_404(User,pk=ident(request.data.get('expert_id')),role='expert',is_active=True)
@@ -128,7 +128,7 @@ class OwnerSubmissionView(APIView):
     permission_classes=[IsAuthenticated]
     @transaction.atomic
     def post(self,request):
-        feature('requests');d=validate_payload(request,'file');d['requesterType']='owner'
+        feature('files');d=validate_payload(request,'file');d['requesterType']='owner'
         draft=d.get('publicationStatus')=='draft'
         row=PropertyRecord.objects.create(kind='file',created_by=request.user,data=d,publication_state='draft' if draft else 'pending')
         audit(request.user,'property.owner.submitted','property',row.pk,property=row)
@@ -138,7 +138,7 @@ class PropertyPublishView(APIView):
     permission_classes=[IsAuthenticated]
     @transaction.atomic
     def post(self,request,pk):
-        feature('files');row=get_object_or_404(PropertyRecord.objects.select_for_update(),pk=pk);can_manage(request.user,row)
+        feature('files');row=get_object_or_404(PropertyRecord.objects.select_for_update(of=('self',)),pk=pk);can_manage(request.user,row)
         publish=request.data.get('publish')
         if not isinstance(publish,bool):raise ValidationError('وضعیت انتشار معتبر نیست.')
         if row.archived_at:raise ValidationError('ابتدا پرونده را از بایگانی بازیابی کنید.')
@@ -170,14 +170,15 @@ class VisitSlotsView(APIView):
         return envelope(results(qs,slot_json))
     @transaction.atomic
     def post(self,request):
-        feature('visits');row=get_object_or_404(PropertyRecord.objects.select_for_update(),pk=ident(request.data.get('property_id')));can_manage(request.user,row)
-        start=parse_datetime(str(request.data.get('starts_at','')));end=parse_datetime(str(request.data.get('ends_at','')))
+        feature('visits');row=get_object_or_404(PropertyRecord.objects.select_for_update(of=('self',)),pk=ident(request.data.get('property_id')));can_manage(request.user,row)
+        try:start=parse_datetime(str(request.data.get('starts_at','')));end=parse_datetime(str(request.data.get('ends_at','')))
+        except (ValueError,TypeError):raise ValidationError('زمان بازدید معتبر وارد کنید.')
         if not start or not end or timezone.is_naive(start) or timezone.is_naive(end) or start<=timezone.now() or end<=start or end-start>timedelta(hours=12):raise ValidationError('زمان بازدید باید آینده، دارای منطقه زمانی و پایان بعد از شروع باشد.')
         capacity=ident(request.data.get('capacity',1))
         if capacity>50:raise ValidationError('ظرفیت حداکثر ۵۰ نفر است.')
         expert=row.assigned_expert or request.user
         # Serializes slots across an expert as well as a property.
-        User.objects.select_for_update().get(pk=expert.pk)
+        User.objects.select_for_update(of=('self',)).get(pk=expert.pk)
         if VisitSlot.objects.filter(active=True,expert=expert,starts_at__lt=end,ends_at__gt=start).exists():raise ValidationError('این زمان با برنامه بازدید کارشناس تداخل دارد.')
         slot=VisitSlot.objects.create(property=row,expert=expert,starts_at=start,ends_at=end,capacity=capacity);audit(request.user,'visit.slot.created','visit_slot',slot.pk,property=row)
         return envelope(slot_json(slot),code=201)
@@ -192,8 +193,8 @@ class VisitsView(APIView):
     def get(self,request):feature('visits');return envelope(results(visit_scope(request.user),visit_json))
     @transaction.atomic
     def post(self,request):
-        feature('visits');User.objects.select_for_update().get(pk=request.user.pk)
-        slot=get_object_or_404(VisitSlot.objects.select_for_update().select_related('property'),pk=ident(request.data.get('slot_id')),active=True)
+        feature('visits');User.objects.select_for_update(of=('self',)).get(pk=request.user.pk)
+        slot=get_object_or_404(VisitSlot.objects.select_for_update(of=('self',)).select_related('property'),pk=ident(request.data.get('slot_id')),active=True)
         view_property(request.user,slot.property_id)
         if slot.starts_at<=timezone.now():raise ValidationError('زمان انتخاب‌شده گذشته است.')
         old=slot.bookings.filter(visitor=request.user,status__in=['pending','confirmed']).first()
@@ -205,7 +206,7 @@ class VisitsView(APIView):
         return envelope(visit_json(row),code=201)
     @transaction.atomic
     def patch(self,request,pk):
-        feature('visits');row=get_object_or_404(visit_scope(request.user).select_for_update(),pk=pk)
+        feature('visits');row=get_object_or_404(visit_scope(request.user).select_for_update(of=('self',)),pk=pk)
         status=request.data.get('status')
         if status not in ('confirmed','rejected','cancelled'):raise ValidationError('وضعیت بازدید معتبر نیست.')
         if row.visitor_id==request.user.pk and row.slot.expert_id!=request.user.pk and not is_superadmin(request.user) and status!='cancelled':raise PermissionDenied('فقط کارشناس می‌تواند بازدید را تأیید یا رد کند.')
@@ -262,14 +263,14 @@ class ArchiveView(APIView):
         feature('archives');kind=request.data.get('entity_type');pk=ident(request.data.get('id'));archived=request.data.get('archived')
         if not isinstance(archived,bool):raise ValidationError('وضعیت بایگانی معتبر نیست.')
         if kind=='property':
-            row=get_object_or_404(scope(request.user).select_for_update(),pk=pk)
+            row=get_object_or_404(scope(request.user).select_for_update(of=('self',)),pk=pk)
             if row.created_by_id!=request.user.pk:can_manage(request.user,row)
             row.archived_at=timezone.now() if archived else None
             if archived:row.publication_state='draft'
             row.save(update_fields=['archived_at','publication_state','updated_at'])
         elif kind=='activity':
             from .estate_activity_api import visible,can_write
-            can_write(request.user);row=get_object_or_404(visible(request.user).select_for_update(),pk=pk)
+            can_write(request.user);row=get_object_or_404(visible(request.user).select_for_update(of=('self',)),pk=pk)
             if row.created_by_id!=request.user.pk and not is_superadmin(request.user):raise PermissionDenied()
             row.data={**row.data,'archive':archived};row.save(update_fields=['data','updated_at'])
         elif kind=='conversation':
@@ -299,7 +300,7 @@ class RoutingSettingsView(APIView):
         if not isinstance(result['geographic_priority'],list) or set(result['geographic_priority'])!={'neighborhood','district','city','province','other'} or len(result['geographic_priority'])!=5:raise ValidationError('اولویت جغرافیایی باید شامل هر پنج مرحله بدون تکرار باشد.')
         if not isinstance(result['expert_order'],list) or len(result['expert_order'])>1000 or any(not isinstance(x,int) for x in result['expert_order']):raise ValidationError('ترتیب کارشناسان معتبر نیست.')
         if result.get('market_office_id'):get_object_or_404(User,pk=ident(result['market_office_id']),role='agency',is_active=True)
-        obj,_=PanelSettings.objects.select_for_update().get_or_create(pk=1);cfg=dict(obj.data or {});wf=dict(cfg.get('workflow',{}));wf['routing']=result;cfg['workflow']=wf;obj.data=cfg;obj.save();cache.delete('mlkino:system-settings');audit(request.user,'routing.settings.changed','settings',1)
+        obj,_=PanelSettings.objects.select_for_update(of=('self',)).get_or_create(pk=1);cfg=dict(obj.data or {});wf=dict(cfg.get('workflow',{}));wf['routing']=result;cfg['workflow']=wf;obj.data=cfg;obj.save();cache.delete('mlkino:system-settings');audit(request.user,'routing.settings.changed','settings',1)
         return envelope(result)
 
 class BusinessRolesView(APIView):
@@ -337,7 +338,7 @@ class ActivityAttachmentView(APIView):
     @transaction.atomic
     def post(self,request,pk):
         from .estate_activity_api import visible,can_write
-        can_write(request.user);row=get_object_or_404(visible(request.user).select_for_update(),pk=pk)
+        can_write(request.user);row=get_object_or_404(visible(request.user).select_for_update(of=('self',)),pk=pk)
         if row.created_by_id!=request.user.pk and row.assigned_expert_id!=request.user.pk and not is_superadmin(request.user) and row.office_id!=request.user.pk:raise PermissionDenied()
         upload=request.FILES.get('attachment')
         if not upload:raise ValidationError('پیوست را انتخاب کنید.')

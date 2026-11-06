@@ -2,10 +2,10 @@
 from decimal import Decimal,InvalidOperation,ROUND_HALF_UP
 from datetime import date
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q,Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_date as django_parse_date,parse_datetime as django_parse_datetime
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied,ValidationError
@@ -14,6 +14,9 @@ from .settings_api import envelope,is_superadmin
 from .workflow_services import workspaces,workspace,audit,feature
 
 CENT=Decimal('.01')
+def parse_date(value):
+    try:return django_parse_date(value)
+    except (ValueError,TypeError):raise ValidationError('تاریخ معتبر وارد کنید.')
 def positive_id(value):
     if isinstance(value,(bool,float)) or not str(value).isdigit() or int(value)<1:raise ValidationError('شناسه معتبر انتخاب کنید.')
     return int(value)
@@ -103,7 +106,7 @@ class FinancialSettingsView(APIView):
 class CommissionCalculateView(APIView):
     permission_classes=[IsAuthenticated]
     def post(self,request):
-        can_finance(request.user);rate=get_object_or_404(FinancialRateVersion,pk=request.data.get('rate_version_id'))
+        can_finance(request.user);rate=get_object_or_404(FinancialRateVersion,pk=positive_id(request.data.get('rate_version_id')))
         can_finance(request.user,rate.workspace_id)
         when=parse_date(str(request.data.get('date',timezone.localdate())))
         if not when or not(rate.valid_from<=when and (not rate.valid_to or when<=rate.valid_to)):raise ValidationError('نرخ در تاریخ معامله معتبر نیست.')
@@ -119,8 +122,9 @@ class FinancialDocumentView(APIView):
         if pk:return envelope(serialize(get_object_or_404(qs,pk=pk)))
         if request.query_params.get('status'):qs=qs.filter(status=request.query_params['status'])
         if request.query_params.get('kind'):qs=qs.filter(kind=request.query_params['kind'])
-        docs=list(qs[:500]);posted=[r for r in docs if r.status in ('posted','reversed')]
-        debit=sum((r.amount for r in posted if r.direction=='debit'),Decimal(0));credit=sum((r.amount for r in posted if r.direction=='credit'),Decimal(0))
+        docs=list(qs[:500])
+        totals=qs.filter(status__in=('posted','reversed')).aggregate(debit=Sum('amount',filter=Q(direction='debit')),credit=Sum('amount',filter=Q(direction='credit')))
+        debit=totals['debit'] or Decimal(0);credit=totals['credit'] or Decimal(0)
         return envelope({'results':[serialize(r) for r in docs],'total_results':qs.count(),'summary':{'debit':str(debit),'credit':str(credit),'balance':str(debit-credit)}})
     @transaction.atomic
     def post(self,request):
@@ -135,7 +139,7 @@ class FinancialDocumentView(APIView):
         if kind not in ('invoice','payment','settlement','reversal') or direction not in ('debit','credit'):raise ValidationError('نوع سند معتبر نیست.')
         ws=positive_id(d.get('workspace_id') or workspace(request.user));can_finance(request.user,ws)
         from accounts.models import User
-        get_object_or_404(User.objects.select_for_update(),pk=ws)
+        get_object_or_404(User.objects.select_for_update(of=('self',)),pk=ws)
         key=d.get('idempotency_key')
         if kind in ('payment','settlement','reversal') and not key:raise ValidationError('شناسه تکرارناپذیری برای عملیات مالی لازم است.')
         if key:
@@ -159,20 +163,20 @@ class FinancialDocumentView(APIView):
             if not rate.valid_from<=when or rate.valid_to and rate.valid_to<when:raise ValidationError('نرخ در این تاریخ معتبر نیست.')
             calculation=calc(money(d.get('transaction_amount'),True),rate,activity.assigned_expert if activity and activity.assigned_expert_id else None,when)
         if kind=='reversal':
-            reverses=get_object_or_404(FinancialDocument.objects.select_for_update(),pk=positive_id(d.get('reverses_id')),workspace_id=ws,status='posted')
+            reverses=get_object_or_404(FinancialDocument.objects.select_for_update(of=('self',)),pk=positive_id(d.get('reverses_id')),workspace_id=ws,status='posted')
             if hasattr(reverses,'reversal'):raise ValidationError('این سند قبلاً برگشت خورده است.')
             amount=reverses.amount;direction='credit' if reverses.direction=='debit' else 'debit';entries=[{'account':e['account'],'debit':e['credit'],'credit':e['debit']} for e in reverses.entries]
         else:entries=clean_entries(d.get('entries'),amount,kind)
         description=d.get('description','')
         if not isinstance(description,str) or len(description)>2000:raise ValidationError('شرح معتبر وارد کنید.')
-        metadata={k:d.get(k,'') for k in ('payment_method','tracking_number','source_account','destination_account','receipt','paid_at')}
+        metadata={k:('' if d.get(k) is None else d.get(k,'')) for k in ('payment_method','tracking_number','source_account','destination_account','receipt','paid_at')}
         if metadata.get('paid_at'):
-            from django.utils.dateparse import parse_datetime
-            parsed=parse_datetime(metadata['paid_at'])
+            try:parsed=django_parse_datetime(metadata['paid_at'])
+            except (ValueError,TypeError):raise ValidationError('زمان پرداخت معتبر وارد کنید.')
             if not parsed or timezone.is_naive(parsed):raise ValidationError('زمان پرداخت باید دارای منطقه زمانی باشد.')
         if d.get('invoice_id'):
 
-            original=get_object_or_404(FinancialDocument.objects.select_for_update(),pk=positive_id(d['invoice_id']),workspace_id=ws,kind='invoice',status='posted')
+            original=get_object_or_404(FinancialDocument.objects.select_for_update(of=('self',)),pk=positive_id(d['invoice_id']),workspace_id=ws,kind='invoice',status='posted')
             metadata['invoice_id']=original.pk
 
         if any(not isinstance(v,str) or len(v)>500 for k,v in metadata.items() if k!='invoice_id'):raise ValidationError('اطلاعات پرداخت معتبر نیست.')
@@ -184,17 +188,17 @@ class FinancialPostView(APIView):
     permission_classes=[IsAuthenticated]
     @transaction.atomic
     def post(self,request,pk):
-        feature('finance');row=get_object_or_404(finance_scope(request.user).select_for_update(),pk=pk);can_finance(request.user,row.workspace_id)
+        feature('finance');row=get_object_or_404(finance_scope(request.user).select_for_update(of=('self',)),pk=pk);can_finance(request.user,row.workspace_id)
         if row.status=='posted':return envelope(serialize(row))
         if row.status!='draft':raise ValidationError('این سند قابل ثبت نهایی نیست.')
         if row.kind=='payment' and row.data.get('invoice_id'):
-            invoice=FinancialDocument.objects.select_for_update().get(pk=row.data['invoice_id'],workspace_id=row.workspace_id,kind='invoice')
+            invoice=FinancialDocument.objects.select_for_update(of=('self',)).get(pk=row.data['invoice_id'],workspace_id=row.workspace_id,kind='invoice')
             if invoice.status!='posted':raise ValidationError('فاکتور قابل پرداخت نیست.')
             paid=sum((r.amount for r in FinancialDocument.objects.filter(workspace=row.workspace,kind='payment',status='posted',data__invoice_id=invoice.pk)),Decimal(0))
             if paid+row.amount>invoice.amount:raise ValidationError('مبلغ پرداخت از مانده فاکتور بیشتر است.')
         if row.kind!='reversal':clean_entries(row.entries,row.amount,row.kind)
         if row.reverses_id:
-            original=FinancialDocument.objects.select_for_update().get(pk=row.reverses_id)
+            original=FinancialDocument.objects.select_for_update(of=('self',)).get(pk=row.reverses_id)
             if original.status!='posted':raise ValidationError('سند اصلی قابل برگشت نیست.')
             original.status='reversed';original.save(update_fields=['status'])
         row.status='posted';row.approved_by=request.user;row.posted_at=timezone.now();row.save(update_fields=['status','approved_by','posted_at'])
@@ -227,7 +231,7 @@ class FinancialReceiptView(APIView):
         return response
     @transaction.atomic
     def post(self,request,pk):
-        feature('finance');row=get_object_or_404(finance_scope(request.user).select_for_update(),pk=pk);can_finance(request.user,row.workspace_id)
+        feature('finance');row=get_object_or_404(finance_scope(request.user).select_for_update(of=('self',)),pk=pk);can_finance(request.user,row.workspace_id)
         if row.status!='draft':raise ValidationError('رسید سند ثبت‌شده قابل جایگزینی نیست؛ سند اصلاحی ایجاد کنید.')
         upload=request.FILES.get('receipt')
         if not upload:raise ValidationError('فایل رسید را انتخاب کنید.')

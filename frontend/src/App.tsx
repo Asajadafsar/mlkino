@@ -12,13 +12,13 @@ import {LoadingBackdrop} from './Components/Backdrop/Backdrop'
 import {CustomizedSnackbars} from './Components/Snackbar/Snackbar'
 import {lazy,Suspense} from 'react'
 import {CircularProgress,Stack,Typography} from '@mui/material'
-const Home=lazy(()=>import('./Pages/Home/Home').then(module=>({default:module.Home})))
 import {store} from './redux/store'
 import {RTL} from './RTL'
 import {AppTheme} from './Theme'
 import LoginPage from './Pages/Auth/Login/LoginPage'
 import SignupPage from './Pages/Auth/Signup/SignupPage'
 import ChangePasswordPage from './Pages/Auth/ChangePassword/ChangePasswordPage'
+const Home=lazy(()=>import('./Pages/Home/Home').then(module=>({default:module.Home})))
 function App() {
     return (
         <RTL>

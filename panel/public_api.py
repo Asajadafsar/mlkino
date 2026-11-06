@@ -23,7 +23,7 @@ def public_serialize(row):
     result['expert']={'id':expert.pk,'name':expert.full_name,'work_phone':None} if expert else None
     office=row.office
     result['office']={'id':office.pk,'name':getattr(getattr(office,'agency_profile',None),'agency_name',office.full_name)} if office else None
-    links=row.data.get('external_links','image_variants','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','floorPreferences') or row.data.get('virtualTourLink') or {}
+    links=row.data.get('external_links') or row.data.get('virtualTourLink') or {}
     result['external_links']=links if isinstance(links,dict) else {'virtual_tour':links} if isinstance(links,str) and links.startswith(('https://','http://')) else {}
     return result
 
@@ -82,9 +82,14 @@ class PublicCatalogView(APIView):
             row=get_object_or_404(public_rows(),pk=pk);feature('files' if row.kind=='file' else 'requests');return envelope(public_serialize(row))
         qs=public_rows().filter(kind=kind)
         if request.query_params.get('featured') in ('true','1'):qs=qs.filter(featured=True)
-        rows=filter_catalog(list(qs),request.query_params)
         try:page=max(1,int(request.query_params.get('page',1)));size=min(60,max(1,int(request.query_params.get('page_size',24))))
         except ValueError:raise ValidationError('صفحه معتبر نیست.')
+        filters={k:v for k,v in request.query_params.items() if k not in ('kind','featured','page','page_size') and v}
+        # The home page must not deserialize the entire catalog to render 24 cards.
+        if not filters:
+            count=qs.count();rows=qs[(page-1)*size:page*size]
+            return envelope({'results':[public_serialize(r) for r in rows],'total_results':count,'page':page,'page_size':size,'has_more':page*size<count})
+        rows=filter_catalog(list(qs),request.query_params)
         return envelope({'results':[public_serialize(r) for r in rows[(page-1)*size:page*size]],'total_results':len(rows),'page':page,'page_size':size,'has_more':page*size<len(rows)})
 
 class PublicConfigView(APIView):

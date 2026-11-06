@@ -11,7 +11,7 @@ import {createQueryParam} from '../../../Core/QueryParams'
 import {setUtil} from '../../../redux/UtilSlice'
 import {useDispatch} from 'react-redux'
 import {PartnersType} from '../Partners'
-import LogoImage from '../../../Images/melkino.png'
+import LogoImage from '../../../Images/melkino.webp'
 const RESOURCE = 'announcements'
 
 const tableHeadCells = [

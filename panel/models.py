@@ -260,6 +260,7 @@ class PropertyRecord(models.Model):
 
     class Meta:
         ordering = ['-created_at', '-id']
+        indexes = [models.Index(fields=['kind','publication_state','-created_at','-id'],condition=models.Q(archived_at__isnull=True),name='property_public_catalog_idx')]
 
 
 class EstateActivity(models.Model):

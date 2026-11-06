@@ -10,7 +10,7 @@ import {
     useState,
 } from 'react'
 
-import userImage from '../../Images/user.png'
+import userImage from '../../Images/user.webp'
 
 interface ProfileUploaderProps {
     avatar: string | File | null

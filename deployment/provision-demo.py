@@ -49,4 +49,41 @@ python='/var/www/mlkino/venv/bin/python'
 manage_env={**os.environ,**env,'PATH':'/opt/mlkino-node/bin:/usr/bin:/bin'}
 for command in (['migrate','--noinput'],['check'],['seed_demo','--profile=full','--dry-run'],['seed_demo','--profile=full']):
  run(['/usr/sbin/runuser','-u','mlkino-demo','--',python,str(root/'backend/manage.py'),*command],cwd=root/'backend',env=manage_env)
-print('Demo database, restricted role and guarded seed created. Install reviewed loopback units before opening the SSH tunnel.')
+shutil.copy2(pathlib.Path(__file__).with_name('demo-static-server.py'),root/'panel-server.py')
+landing_cache=root/'landing/.next/cache';landing_cache.mkdir(exist_ok=True,parents=True)
+for folder in [landing_cache,*landing_cache.rglob('*')]:os.chown(folder,user.pw_uid,user.pw_gid)
+common='''[Unit]
+Description=MLKINO isolated Demo {name}
+After=network.target postgresql.service
+[Service]
+Type=simple
+User=mlkino-demo
+Group=mlkino-demo
+EnvironmentFile=/etc/mlkino/demo.env
+Environment=HOME=/var/cache/mlkino-demo
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=4201
+Environment=NEXT_TELEMETRY_DISABLED=1
+WorkingDirectory={cwd}
+ExecStart={command}
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/mlkino-demo/media /var/www/mlkino-demo/landing/.next/cache /var/cache/mlkino-demo
+InaccessiblePaths=/var/www/mlkino/media /var/www/mlkino/accounts /var/www/mlkino/panel /var/www/mlkino/mlkino /etc/mlkino/release.env /var/backups
+UMask=0027
+[Install]
+WantedBy=multi-user.target
+'''
+services={'api':(root/'backend',python+' -m uvicorn mlkino.asgi:application --host 127.0.0.1 --port 8102 --workers 1'),
+          'panel':(root,python+' '+str(root/'panel-server.py')+' '+str(root/'panel')),
+          'landing':(root/'landing','/opt/mlkino-node/bin/node '+str(root/'landing/server.js'))}
+for name,(cwd,command) in services.items():
+ pathlib.Path('/etc/systemd/system/mlkino-demo-'+name+'.service').write_text(common.format(name=name,cwd=cwd,command=command))
+run(['systemctl','daemon-reload'])
+run(['systemctl','enable','--now',*['mlkino-demo-'+name+'.service' for name in services]])
+print('Isolated Demo created. API 8102, panel 4200, landing 4201 bind loopback only; SSH tunnel required.')

@@ -4,9 +4,9 @@ import {GridProducer} from '../../Components/Table/GridProducer'
 import {CustomSelectField} from '../../Components/Input/CustomSelectField'
 import {toSelectOptions} from '../../Components/PropertyRecordForm/utils'
 import {PropertyCard} from '../Files/PropertyCard/PropertyCard'
-import img1 from '../../Images/file/1.jpg'
-import img2 from '../../Images/file/2.jpg'
-import img3 from '../../Images/file/3.jpg'
+import img1 from '../../Images/file/1.webp'
+import img2 from '../../Images/file/2.webp'
+import img3 from '../../Images/file/3.webp'
 import ProfileUploader from '../User/ProfileUploader'
 export type OwnersType = {
     id: number

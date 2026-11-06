@@ -35,8 +35,8 @@ export const propertyItem: PropertyType = {
   ownerPhone2: "09121112244",
   ownerJob: "پزشک",
   images: [
-    "/images/properties/apartment.png",
-    "/images/properties/hero.png",
+    "/images/properties/apartment.webp",
+    "/images/properties/hero.webp",
   ],
   description:
     "آپارتمان سوپرلوکس ۱۶۵ متری تک‌واحدی، نورگیری عالی از جنوب و شمال.",
@@ -126,8 +126,8 @@ export const SAMPLE_PROPERTY = {
   ownerJob: "مهندس",
   description: "واحد نوساز، نور عالی، نزدیک مترو و مراکز خرید.",
   images: [
-    "/images/properties/hero.png",
-    "/images/properties/apartment.png",
+    "/images/properties/hero.webp",
+    "/images/properties/apartment.webp",
   ],
 };
 

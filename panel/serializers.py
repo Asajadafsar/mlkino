@@ -808,6 +808,9 @@ def validate_ticket_upload(attrs):
         ext = Path(attachment.name).suffix.lower()
         if ext not in {".jpg", ".jpeg", ".png", ".webp", ".pdf", ".docx", ".xlsx", ".zip", ".txt", ".mp3", ".ogg", ".wav", ".m4a", ".webm"}:
             raise serializers.ValidationError({"attachment": "پسوند فایل مجاز نیست."})
+        if ext in {'.jpg','.jpeg','.png','.webp'}:
+            from accounts.media_processing import sanitized_document
+            attrs['attachment']=sanitized_document(attachment,images_only=True)
     return attrs
 
 

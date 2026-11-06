@@ -1,5 +1,5 @@
 import {Stack, Typography} from '@mui/material'
-import blankImage from '../../Images/emptyTableDark.png'
+import blankImage from '../../Images/emptyTableDark.webp'
 
 export function BlankList(props) {
     return (

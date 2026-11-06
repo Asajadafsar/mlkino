@@ -1,0 +1,18 @@
+[Unit]
+Description=Advance expired MLKINO property referrals
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+User=mlkino-asgi
+Group=mlkino-asgi
+WorkingDirectory=/var/www/mlkino
+EnvironmentFile=/etc/mlkino/release.env
+Environment=DJANGO_SETTINGS_MODULE=mlkino.production_release
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/var/www/mlkino/venv/bin/python manage.py process_referrals --limit 200
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0027

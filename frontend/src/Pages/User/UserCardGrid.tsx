@@ -19,7 +19,7 @@ import {useDispatch} from 'react-redux'
 import {useNavigate} from 'react-router-dom'
 import {DataProvider} from '../../Core/DataProvider'
 import {setUtil} from '../../redux/UtilSlice'
-import profileImage from '../../Images/user.png'
+import profileImage from '../../Images/user.webp'
 import { BaseModal } from '../../Components/Modal/BaseModal'
 
 export type BaseUserCardData = {

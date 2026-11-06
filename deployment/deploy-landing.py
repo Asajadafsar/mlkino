@@ -5,7 +5,7 @@ Does not change Nginx/certificates or activate the symlink. Activation follows
 successful loopback checks and TLS setup; retain the previous target for rollback.
 """
 import argparse,os,pathlib,subprocess,tarfile,pwd,shutil
-p=argparse.ArgumentParser();p.add_argument('release');p.add_argument('archive');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('release');p.add_argument('archive');p.add_argument('--demo',action='store_true');a=p.parse_args()
 if os.geteuid()!=0 or os.environ.get('MLKINO_APPROVED')!='YES':raise SystemExit('Root and owner-approved deployment required')
 if not a.release.replace('-','').isalnum():raise SystemExit('Invalid release id')
 def run(args,**kw):subprocess.run(args,check=True,**kw)
@@ -22,6 +22,7 @@ with tarfile.open(a.archive) as tar:
  tar.extractall(release,filter='data')
 for path in [release,*release.rglob('*')]:os.chown(path,user.pw_uid,user.pw_gid)
 env={'LANG':'C.UTF-8','PATH':'/opt/mlkino-node/bin:/usr/bin:/bin','HOME':str(cache),'NEXT_TELEMETRY_DISABLED':'1','NEXT_PUBLIC_PANEL_URL':'https://panel.mlkino.com','NEXT_PUBLIC_API_URL':'https://api.mlkino.com'}
+if a.demo:env.update(NEXT_PUBLIC_PANEL_URL='http://demo.localhost:4200',NEXT_PUBLIC_API_URL='http://demo.localhost:8102')
 for cmd in [['npm','ci','--include=dev','--no-audit','--no-fund'],['npm','run','build']]:
  run(['/usr/sbin/runuser','-u','mlkino-landing','--',*cmd],cwd=release,env=env)
 standalone=release/'.next/standalone'

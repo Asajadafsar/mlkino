@@ -55,6 +55,8 @@ class CookieJWTAuthentication(SessionJWTAuthentication):
             if reason:
                 raise PermissionDenied('CSRF نامعتبر است: ' + str(reason))
         request._request.impersonation_session = session
+        # Request-local model instance: preserve the real actor in workflow audits.
+        session.target._mlkino_impersonation_session = session
         return session.target, validated
 
     def authenticate_header(self, request):

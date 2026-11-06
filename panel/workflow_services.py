@@ -24,7 +24,8 @@ def workspace(user):
 def audit(actor,event,entity,pk,property=None,**metadata):
     clean={k:v for k,v in metadata.items() if k in ('status','attempt','decision','reference','previous_status')}
     WorkflowEvent.objects.create(property=property,actor=actor,event=event,metadata={'entity_type':entity,'entity_id':pk,**clean})
-    ActivityLog.objects.create(actor=actor,real_actor=actor,event=event,category='workflow',metadata={'target_type':entity,'target_id':str(pk),**clean},request_id=uuid.uuid4())
+    session=getattr(actor,'_mlkino_impersonation_session',None)
+    ActivityLog.objects.create(actor=actor,real_actor=session.actor if session else actor,impersonation_session=session,event=event,category='workflow',metadata={'target_type':entity,'target_id':str(pk),**clean},request_id=uuid.uuid4())
 
 def touch_contact(row,expert):
     phone=row.data.get('ownerPhone') or row.created_by.phone
@@ -39,8 +40,11 @@ def candidates(row,config):
     previous=set(row.referrals.exclude(expert=None).values_list('expert_id',flat=True))
     users=list(User.objects.filter(role='expert',is_active=True,account_status='active').exclude(pk__in=previous).annotate(referral_load=Count('property_referrals',filter=Q(property_referrals__status='pending'))))
     order=config.get('expert_order',[])
+    agencies={}
+    for link in AgencyExpertLink.objects.filter(expert_id__in=[u.pk for u in users]).select_related('agency__agency_profile').order_by('id'):
+        agencies.setdefault(link.expert_id,link)
     def priority(user):
-        agency=AgencyExpertLink.objects.filter(expert=user).select_related('agency__agency_profile').first()
+        agency=agencies.get(user.pk)
         profile=getattr(agency.agency,'agency_profile',None) if agency else None
         match={'neighborhood':getattr(profile,'office_neighborhood',''),'district':getattr(profile,'office_district',''),'city':user.city,'province':user.province}
         rank=len(config['geographic_priority'])
@@ -52,7 +56,7 @@ def candidates(row,config):
 
 @transaction.atomic
 def dispatch(property_id,actor=None,explicit_expert=None):
-    row=PropertyRecord.objects.select_for_update().get(pk=property_id)
+    row=PropertyRecord.objects.select_for_update(of=('self',)).get(pk=property_id)
     if row.archived_at:return None
     existing=row.referrals.filter(status__in=['pending','accepted','market']).first()
     if existing:return existing
@@ -76,8 +80,8 @@ def dispatch(property_id,actor=None,explicit_expert=None):
 @transaction.atomic
 def respond(referral_id,user,decision,publish=False):
     ref=PropertyReferral.objects.select_related('property').get(pk=referral_id)
-    row=PropertyRecord.objects.select_for_update().get(pk=ref.property_id)
-    ref=PropertyReferral.objects.select_for_update().get(pk=referral_id)
+    row=PropertyRecord.objects.select_for_update(of=('self',)).get(pk=ref.property_id)
+    ref=PropertyReferral.objects.select_for_update(of=('self',)).get(pk=referral_id)
     if ref.expert_id!=user.pk and not is_superadmin(user):raise PermissionDenied('این ارجاع متعلق به شما نیست.')
     target='accepted' if decision=='accept' else 'rejected'
     if ref.status==target:return ref
@@ -98,8 +102,8 @@ def expire_due(limit=200):
     for pk in ids:
         with transaction.atomic():
             candidate=PropertyReferral.objects.get(pk=pk)
-            PropertyRecord.objects.select_for_update().get(pk=candidate.property_id)
-            ref=PropertyReferral.objects.select_for_update().get(pk=pk)
+            PropertyRecord.objects.select_for_update(of=('self',)).get(pk=candidate.property_id)
+            ref=PropertyReferral.objects.select_for_update(of=('self',)).get(pk=pk)
             if ref.status!='pending' or ref.expires_at>timezone.now():continue
             ref.status='expired';ref.save(update_fields=['status','updated_at']);audit(None,'routing.expired','referral',ref.pk,property=ref.property,status='expired');dispatch(ref.property_id);count+=1
     return count

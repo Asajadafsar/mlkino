@@ -3,7 +3,7 @@ import TableCell from '@mui/material/TableCell'
 import type {ReactNode} from 'react'
 import {createCardField} from '../../Components/Card/CustomCard'
 import type {CommonUserType} from './UserTypes'
-import profileImage from '../../Images/user.png'
+import profileImage from '../../Images/user.webp'
 
 export type UserListField<T> = {
     name: keyof T & string
