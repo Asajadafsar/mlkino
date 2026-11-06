@@ -3,7 +3,9 @@ import React from "react";
 import TitleHeader from "../Components/PropertyDetail/TitleHeader";
 import VipList from "./VipList";
 
-export default function page() {
+export default async function page({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}) {
+  const params=await searchParams;const query=new URLSearchParams();for(const [key,value] of Object.entries(params))if(typeof value==='string')query.set(key,value);
+
   return (
     <Container
       maxWidth={false}

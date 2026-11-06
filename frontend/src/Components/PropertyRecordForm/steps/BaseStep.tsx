@@ -1,11 +1,9 @@
+import {OfficeMap} from '../../Location/OfficeMap'
 import {PropertyLocationFields} from '../../Location/PropertyLocationFields'
-import {InputAdornment} from '@mui/material'
+import {Box,InputAdornment} from '@mui/material'
 
 import {
-    CITY_OPTIONS,
-    CUSTOMER_OPTIONS,
     DOCUMENT_TYPE_OPTIONS,
-    EXPERT_OPTIONS,
     PROPERTY_TYPE_OPTIONS,
     STATUS_OPTIONS,
 } from '../constants'
@@ -187,13 +185,16 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                           />,
                       ]),
                 ...(mode === 'file'
-                    ? [
+                    ? [<Box key="propertyMap" sx={{gridColumn:'1 / -1',width:'100%'}}><OfficeMap placeLabel="ملک" value={{...property,office_address:property.address}} onChange={next=>setProperty(previous=>({...previous,latitude:next.latitude,longitude:next.longitude}))}/></Box>,
+                          <CustomTextField key="workPhone" name="workPhone" setData={setProperty} resource={resource} label="شماره تماس کاری کارشناس" defaultValue={property.workPhone||''} />,
+                          <CustomTextField key="virtualTourUrl" name="virtualTourUrl" setData={setProperty} resource={resource} label="لینک تور مجازی" defaultValue={property.virtualTourUrl||''} />,
+                          <CustomTextField key="otherLink" name="otherLink" setData={setProperty} resource={resource} label="لینک تکمیلی مجاز" defaultValue={property.otherLink||''} />,
                           <CustomTextField
                               key="virtualTourLink"
                               name="virtualTourLink"
                               setData={setProperty}
                               resource={resource}
-                              label="لینک تور مجازی ایتا"
+                              label="لینک ایتا"
                               defaultValue={property.virtualTourLink?.eitaa ?? ''}
                               change={e=>setProperty(prev=>({...prev,virtualTourLink:{...prev.virtualTourLink,eitaa:e.target.value}}))}
                           />,
@@ -202,7 +203,7 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                               name="virtualTourLink"
                               setData={setProperty}
                               resource={resource}
-                              label="لینک تور مجازی تلگرام"
+                              label="لینک تلگرام"
                               defaultValue={property.virtualTourLink?.telegram ?? ''}
                               change={e=>setProperty(prev=>({...prev,virtualTourLink:{...prev.virtualTourLink,telegram:e.target.value}}))}
                           />,
@@ -211,7 +212,7 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                               name="virtualTourLink"
                               setData={setProperty}
                               resource={resource}
-                              label="لینک تور مجازی اینستاگرام"
+                              label="لینک اینستاگرام"
                               defaultValue={property.virtualTourLink?.instagram ?? ''}
                               change={e=>setProperty(prev=>({...prev,virtualTourLink:{...prev.virtualTourLink,instagram:e.target.value}}))}
                           />,
@@ -222,7 +223,7 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                               resource={resource}
                               label="وضعیت"
                               defaultValue={property.publicationStatus}
-                              options={toSelectOptions(['منتشر شده', 'پیش‌نویس شده'])}
+                              options={[{label:'منتشرشده',value:'published'},{label:'پیش‌نویس',value:'draft'},{label:'در انتظار بررسی',value:'pending'}]}
                           />,
                       ]
                     : []),

@@ -86,3 +86,77 @@ class TrustedBrowserOriginMiddleware:
             response['Cache-Control'] = 'no-store'
             return response
         return self.get_response(request)
+
+class FeatureAccessMiddleware:
+    """Enforce persisted feature flags on API routes, independently of navigation.
+
+    Authentication, recovery, settings/appearance, and geography reads remain
+    reachable. Object/role permissions still belong to each view. Only literal
+    JSON false disables a feature; missing flags preserve existing behavior.
+    """
+    LEGACY = {
+        'dashboard':'dashboard','announcements':'announcements','users':'users',
+        'files':'files','requests':'requests','reminders':'reminders',
+        'follow-ups':'follow-ups','contracts':'contracts','tasks':'tasks',
+        'chats':'chats','activity-logs':'logs','tickets':'tickets',
+        'advertisements':'advertisements','archives':'archives',
+    }
+    WORKFLOWS = {
+        'reports':'reports','saved-filters':'reports','activities':'contracts','contacts':'crm','assignments':'assignments','owner-submissions':'files',
+        'favorites':'favorites','visit-slots':'visit-slots','visits':'visits',
+        'offers':'offers','archive':'archives','settings':'routing-settings',
+        'roles':'workspace-roles','financial-settings':'financial-settings',
+        'commission':'finance','finance':'finance','ledger':'finance',
+    }
+
+    def __init__(self,get_response):self.get_response=get_response
+
+    @classmethod
+    def required_features(cls,request):
+        parts=request.path_info.strip('/').split('/')
+        if not parts or parts[0]!='panel' or len(parts)<2:
+            # GET profile is the panel's identity/bootstrap request; never make
+            # disabling the profile editor log a user out of every other module.
+            if parts[:2]==['accounts','profile'] and request.method not in ('GET','HEAD','OPTIONS'):
+                return ['profile']
+            return []
+        resource=parts[1]
+        if resource in ('settings','appearance','impersonation','locations','public'):
+            return []
+        keys=[]
+        if resource=='workflows':
+            keys.append('workflows')
+            if len(parts)>2:
+                key=cls.WORKFLOWS.get(parts[2])
+                if key:keys.append(key)
+                if parts[2] in ('financial-settings','finance','commission','ledger'):
+                    keys.append('finance')
+                if parts[2]=='properties' and len(parts)>4:
+                    keys.append('chats' if parts[4]=='chat' else 'files')
+                if parts[2]=='contacts':
+                    kind=request.GET.get('kind')
+                    if kind in ('owner','buyer','landlord','lessor','tenant'):
+                        keys.append({'owner':'owners','buyer':'customers','landlord':'landlordTenant','lessor':'landlordTenant','tenant':'landlordTenant'}[kind])
+        else:
+            key=cls.LEGACY.get(resource)
+            if key:keys.append(key)
+            if resource=='dashboard' and len(parts)>2 and parts[2]=='tasks':keys.append('tasks')
+            if resource=='users' and request.GET.get('role')=='expert':keys.append('users/expert')
+            if resource=='requests':
+                audience=request.GET.get('requesterType')
+                if audience in ('owner','customer'):keys.append('owners-requests' if audience=='owner' else 'customers-requests')
+        return list(dict.fromkeys(keys))
+
+    def __call__(self,request):
+        if request.method=='OPTIONS':return self.get_response(request)
+        keys=self.required_features(request)
+        if not keys:return self.get_response(request)
+        from panel.settings_runtime import system_settings
+        stored=system_settings();features=stored.get('features',{}) if isinstance(stored,dict) else {}
+        if not isinstance(features,dict):features={}
+        disabled=next((key for key in keys if features.get(key) is False),None)
+        if disabled:
+            response=JsonResponse({'statusCode':'403','status':403,'message':'این قابلیت توسط مدیر سامانه غیرفعال شده است. اطلاعات قبلی شما حذف نشده‌اند.','error_code':'feature_disabled','feature':disabled},status=403)
+            response['Cache-Control']='no-store'
+            return response
+        return self.get_response(request)

@@ -16,6 +16,7 @@ export interface PanelSettingsState {
         logo: string
         mobileLogo: string
         favicon: string
+        heroImage: string
     }
     theme: {
         mode: ThemeMode
@@ -40,6 +41,7 @@ export interface PanelSettingsState {
         email: string
         address: string
         instagram: string
+        eitaa: string
         telegram: string
         linkedin: string
         whatsapp: string

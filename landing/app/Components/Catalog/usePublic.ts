@@ -1,0 +1,4 @@
+"use client";
+import {useCallback,useEffect,useState} from 'react';
+import {publicGet} from '../../Core/catalog';
+export function usePublic<T>(path:string,enabled=true){const [attempt,setAttempt]=useState(0),key=path+'#'+attempt+'#'+enabled;const [state,setState]=useState<{key:string;data:T|null;error:string}>({key:'',data:null,error:''});useEffect(()=>{if(!enabled)return;const c=new AbortController();publicGet<T>(path,c.signal).then(value=>{if(!c.signal.aborted)setState({key,data:value,error:''})}).catch(e=>{if(!c.signal.aborted)setState({key,data:null,error:e.message||'خطا در دریافت اطلاعات'})});return()=>c.abort()},[path,key,enabled]);const retry=useCallback(()=>setAttempt(x=>x+1),[]);return {data:enabled&&state.key===key?state.data:null,error:enabled&&state.key===key?state.error:'',loading:enabled&&state.key!==key,retry}}

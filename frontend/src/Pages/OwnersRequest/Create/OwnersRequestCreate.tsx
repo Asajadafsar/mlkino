@@ -1,26 +1,9 @@
-import React from 'react'
-import {CreatePage} from '../../../Components/Table/CreatePage'
-import { PropertyRecordForm } from '../../../Components/PropertyRecordForm'
-
-const resource = 'owners-requests'
-
-export function OwnersRequestCreate({
-    data,
-    setData,
-}: {
-    data: any
-    setData: React.Dispatch<React.SetStateAction<any>>
-}) {
-    return (
-        <CreatePage
-            title={'درخواست جدید'}
-            resource={resource + '/'}
-            isFormData={true}
-            redirect={resource}
-            formDetails={data}
-            buttonText={'ذخیره'}
-        >
-            <PropertyRecordForm mode='request' property={data} setProperty={setData} resource={resource} />
-        </CreatePage>
-    )
-}
+import {Dispatch,SetStateAction,useState} from 'react'
+import {useNavigate} from 'react-router-dom'
+import {Alert,Box,Button,Paper,Stack} from '@mui/material'
+import {PropertyRecordForm} from '../../../Components/PropertyRecordForm'
+import {recordPayload} from '../../../Components/PropertyRecordForm/payload'
+import {EstateHero} from '../../../Components/Estate/EstateWorkspace'
+import api from '../../../Core/Request'
+import {workflowError} from '../../Workflows/workflowClient'
+export function OwnersRequestCreate({data,setData}:{data:any;setData:Dispatch<SetStateAction<any>>}){const navigate=useNavigate(),[busy,setBusy]=useState(false),[error,setError]=useState(''),[savedId,setSavedId]=useState<number|null>(null),[notice,setNotice]=useState('');const save=async(draft:boolean)=>{if(busy)return;if(!data.contractType||!data.propertyType){setError('نوع معامله و نوع ملک را مشخص کنید.');return}setBusy(true);setError('');try{const payload=recordPayload({...data,requesterType:'owner',publicationStatus:draft?'draft':'pending'});const response=savedId?await api.patch(`files/${savedId}/`,payload):await api.post('workflows/owner-submissions/',payload);const row=response.data.data;setSavedId(row.id);setNotice(draft?'پیش‌نویس روی حساب شما ذخیره شد.':'ملک برای بررسی و ارجاع به کارشناس ثبت شد.');if(!draft)navigate('/assignments')}catch(e){setError(workflowError(e))}finally{setBusy(false)}};return <Box className="estate-page"><EstateHero title="ثبت ملک توسط مالک" description="اطلاعات ملک خود را ثبت کنید؛ پس از بررسی و پذیرش کارشناس، وضعیت انتشار مشخص می‌شود."/>{error&&<Alert severity="error" sx={{mb:2}}>{error}</Alert>}{notice&&<Alert severity="success" sx={{mb:2}}>{notice}</Alert>}<Paper sx={{p:{xs:2,md:3},borderRadius:3}}><Alert severity="info" sx={{mb:2}}>اطلاعات خصوصی مالک برای بازدیدکنندگان عمومی نمایش داده نمی‌شود. پیش‌نویس را می‌توانید پیش از ارسال نهایی ذخیره کنید.</Alert><Stack direction="row" gap={1} justifyContent="flex-end" sx={{mb:3}}><Button disabled={busy} onClick={()=>save(true)}>ذخیره پیش‌نویس</Button><Button disabled={busy} variant="contained" onClick={()=>save(false)}>ارسال برای بررسی و ارجاع</Button></Stack><PropertyRecordForm property={data} setProperty={setData} mode="file" resource="files"/></Paper></Box>}

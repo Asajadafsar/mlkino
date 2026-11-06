@@ -1,6 +1,7 @@
-import {Alert, Box, Stack} from '@mui/material'
+import {Alert, Box, Button, Stack} from '@mui/material'
 import {useContext, useState} from 'react'
 import {usePanelSettings} from '../Core/PanelSettingsContext'
+import {useFavorites} from '../Core/FavoritesContext'
 import {CurrentUserContext} from '../Core/CurrentUser'
 import Appbar from './Appbar/Appbar'
 import {AppDrawer, drawerWidth} from './Drawer/AppDrawer'
@@ -12,6 +13,7 @@ const MainLayout = ({children}: {children: React.ReactNode}) => {
     const toggleCollapsed = () => setCollapsed(value => {localStorage.setItem('mlkino:sidebar-collapsed', String(!value)); return !value})
     const {settings}=usePanelSettings()
     const {user} = useContext(CurrentUserContext)
+    const favorites=useFavorites()
 
     return (
         <Stack direction="row" bgcolor="background.default" minHeight="100vh" position={'relative'}>
@@ -41,7 +43,7 @@ const MainLayout = ({children}: {children: React.ReactNode}) => {
                     setDrawerOpen={setDrawerOpen}
                     user={user}
                 />
-                <Box sx={{pt: 1.5, minWidth: 0}}>{settings.general.maintenanceMode&&<Alert severity="warning" sx={{mx:3,mb:2}}>سامانه در حالت نگهداری است. عملیات کاربران موقتاً محدود شده؛ پشتیبانی در دسترس است.</Alert>}{children}</Box>
+                <Box sx={{pt: 1.5, minWidth: 0}}>{settings.general.maintenanceMode&&<Alert severity="warning" sx={{mx:3,mb:2}}>سامانه در حالت نگهداری است. عملیات کاربران موقتاً محدود شده؛ پشتیبانی در دسترس است.</Alert>}{favorites.error&&settings.features.favorites!==false&&<Alert severity="warning" sx={{mx:3,mb:2}} action={<Button onClick={favorites.reload}>تلاش مجدد</Button>}>{favorites.error}</Alert>}{children}</Box>
             </Box>
         </Stack>
     )

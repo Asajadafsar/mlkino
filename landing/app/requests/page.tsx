@@ -3,7 +3,9 @@ import React from 'react'
 import TitleHeader from '../Components/PropertyDetail/TitleHeader'
 import RequestsList from './RequestsList'
 
-export default function page() {
+export default async function page({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}) {
+  const params=await searchParams;const query=new URLSearchParams();for(const [key,value] of Object.entries(params))if(typeof value==='string')query.set(key,value);
+
   return (
     <Container
       maxWidth={false}
@@ -22,7 +24,7 @@ export default function page() {
       }}
     >
         <TitleHeader title='لیست درخواست های ملکی' />
-       <RequestsList/>
+       <RequestsList query={query.toString()}/>
     </Container>
   )
 }

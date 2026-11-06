@@ -1,18 +1,18 @@
 import { Button } from "@mui/material"
 import React from "react"
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { withTranslation } from 'react-i18next';
+
 import {makeStyles} from '@mui/styles'
 
 function BackButton(props) {
     const classes = useStyles()
-    const t = props.t
+    const {t, i18n, tReady, ...buttonProps} = props
     return (
         <Button
-            {...props}
+            {...buttonProps}
             className={classes.backButton}
             startIcon={<ArrowBackIcon style={{ fontSize: "26px" }} />}>
-            {t('button.back')}
+            بازگشت
         </Button>
     )
 }
@@ -28,4 +28,4 @@ const useStyles = makeStyles(theme => ({
         fontWeight: 700
     },
 }))
-export default withTranslation()(BackButton)
+export default BackButton

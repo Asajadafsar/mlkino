@@ -11,19 +11,40 @@ out = ROOT/'deployment/artifacts'/args.release
 out.mkdir(parents=True, exist_ok=False)
 sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
 base = json.loads((ROOT/args.baseline).read_text())['files']
-files = [f'accounts/{name}.py' for name in ['authentication','client_ip','cookies','models','serializers','urls','validators','views','middleware','lookup_policy','notices','profile_api','sessions']]
-files += [f'panel/{name}.py' for name in ['models','serializers','urls','views','settings_api','settings_models','settings_runtime','ws_auth','ws_consumers','call_config','property_api','geography_api','estate_activity_api','analytics_api','dashboard_estate_api','role_api','geography_admin','ws_events','ws_routing']]
+files = [f'accounts/{name}.py' for name in ['authentication','client_ip','cookies','models','serializers','urls','validators','views','middleware','lookup_policy','media_processing','private_media','workflow_signals','apps','notices','profile_api','sessions']]
+files += [f'panel/{name}.py' for name in ['models','serializers','urls','views','settings_api','settings_models','settings_runtime','ws_auth','ws_consumers','call_config','property_api','geography_api','estate_activity_api','analytics_api','dashboard_estate_api','role_api','geography_admin','ws_events','ws_routing','workflow_models','workflow_services','workflow_api','public_api','finance_api','reporting_api']]
 files += ['panel/settings_defaults.json','mlkino/asgi.py','mlkino/production_release.py','accounts/migrations/0011_user_profile_updated_at_accountnotification_and_more.py','accounts/migrations/0012_user_national_code_image.py','accounts/migrations/0013_agency_office_area.py','accounts/migrations/0014_user_address_source.py']
 sources = {name:ROOT/name for name in files}
+# Include reviewed additive account migrations and management commands, not test fixtures.
+for path in (ROOT/'accounts/migrations').glob('*.py'):
+    if path.name[:4].isdigit() and int(path.name[:4])>=15:sources[str(path.relative_to(ROOT))]=path
+for app in ('accounts','panel'):
+    for path in (ROOT/app/'management').rglob('*.py'):
+        if '__pycache__' not in path.parts:sources[str(path.relative_to(ROOT))]=path
+
 for path in (ROOT/'panel/data/iran').rglob('*'):
     if path.is_file():sources[str(path.relative_to(ROOT))]=path
 # Retain the exact already-applied production history. Never ship local 0003/0004.
 for path in (ROOT/'deployment/server-reference/panel/migrations').glob('*.py'):
     sources[str(path.relative_to(ROOT/'deployment/server-reference'))] = path
 sources['accounts/migrations/0010_agencyprofile_expertprofile.py'] = ROOT/'deployment/server-reference/accounts/migrations/0010_agencyprofile_expertprofile.py'
+# Workflow migrations follow the preserved production graph (server 0008).
+# Keep local numbering separate; write translated reviewed source into artifacts only.
+import re
+mapping={'0006_estate_activity':'0008_estate_activity'}
+new_paths=sorted(p for p in (ROOT/'panel/migrations').glob('*.py') if p.name[:4].isdigit() and int(p.name[:4])>=7)
+for path in new_paths:mapping[path.stem]=f'{int(path.name[:4])+2:04d}'+path.stem[4:]
+translated=out/'migration-overlay';translated.mkdir()
+for path in new_paths:
+    body=path.read_text()
+    for before,after in sorted(mapping.items(),key=lambda x:-len(x[0])):
+        body=body.replace("('panel', '"+before+"')","('panel', '"+after+"')")
+    target=translated/(mapping[path.stem]+'.py');target.write_text(body)
+    sources['panel/migrations/'+target.name]=target
+
 with tarfile.open(out/'backend.tar.gz','w:gz') as archive:
     for name, path in sorted(sources.items()): archive.add(path, arcname=name, recursive=False)
-manifest = {'release':args.release,'created_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'backend_base_revision':'a9db304','baseline':base,'files':{name:sha(path) for name,path in sorted(sources.items())},'new_migrations':['accounts.0012_user_national_code_image','accounts.0013_agency_office_area','accounts.0014_user_address_source','panel.0007_property_records','panel.0008_estate_activity'],'protected':['mlkino/settings.py','mlkino/urls.py','accounts/services/','accounts/utils.py','accounts/permissions.py','media/','venv/','.env*','staticfiles/']}
+manifest = {'release':args.release,'created_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'backend_base_revision':'a9db304','baseline':base,'files':{name:sha(path) for name,path in sorted(sources.items())},'new_migrations':['accounts.0012_user_national_code_image','accounts.0013_agency_office_area','accounts.0014_user_address_source','panel.0007_property_records','panel.0008_estate_activity']+[f'panel.{mapping[p.stem]}' for p in new_paths]+[f'accounts.{p.stem}' for p in (ROOT/'accounts/migrations').glob('*.py') if p.name[:4].isdigit() and int(p.name[:4])>=15],'protected':['mlkino/settings.py','mlkino/urls.py','accounts/services/','accounts/utils.py','accounts/permissions.py','media/','venv/','.env*','staticfiles/']}
 for name,repo in [('backend',ROOT),('frontend',ROOT/'frontend')]:
     manifest[name+'_revision'] = subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip()
     (out/(name+'-worktree-status.txt')).write_text(subprocess.check_output(['git','-C',str(repo),'status','--short'],text=True))

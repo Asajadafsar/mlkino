@@ -21,6 +21,7 @@ export interface AgencyType extends CommonUserType {
     lease_end_date: string | null
     logo: UploadValue
     has_business_license: boolean
+    license_expires_at?: string | null
     license_number: string | null
     license_image: UploadValue
     landline: string | null
@@ -106,6 +107,7 @@ export function Agency({agency, setAgency, resource, editMode = false}: {
                 } />,
                 ...(agency.has_business_license ? [
                     text('license_number', 'شماره پروانه کسب'),
+                    <DatePickerFilter key="license_expires_at" mode="controlled" item={{label:'تاریخ پایان اعتبار پروانه'}} value={agency.license_expires_at||null} onChange={value=>setAgency(previous=>({...previous,license_expires_at:value}))}/>,
                     <UploadField key="license_image" name="license_image" label="تصویر پروانه کسب" value={agency.license_image} onChange={(value) => setAgency((prev) => ({...prev, license_image: value}))} />,
                 ] : []),
                 text('landline', 'تلفن ثابت دفتر'),

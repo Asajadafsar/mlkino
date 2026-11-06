@@ -67,7 +67,7 @@ export function ImpersonationBanner() {
     if (!session?.active && role !== UserRole.SUPERADMIN) return null
     return (
         <Box sx={{mb: 3, position: 'relative', overflow: 'hidden', borderRadius: '18px', border: '1px solid', borderColor: session?.active ? '#ffe3b0' : 'divider', background: session?.active ? 'linear-gradient(115deg,#fff7e9,#ffedce)' : 'background.paper', p: {xs: 2.5, md: 3.5}, minHeight: session?.active ? 150 : 0}}>
-            {session?.active && <Box component="img" src="/assets/users-3d.png" alt="" sx={{position: 'absolute', right: 30, bottom: -10, width: 220, height: 160, objectFit: 'contain', filter: 'hue-rotate(150deg)', opacity: {xs: .12, md: .8}}} />}
+            {session?.active && <Box component="img" src="/assets/users-3d.webp" alt="" sx={{position: 'absolute', right: 30, bottom: -10, width: 220, height: 160, objectFit: 'contain', filter: 'hue-rotate(150deg)', opacity: {xs: .12, md: .8}}} />}
             <Stack spacing={1.2} sx={{position: 'relative', maxWidth: {xs: '100%', md: '75%'}}}>
                 {session?.active && <>
                     <Typography fontWeight={900} fontSize={17}>ورود مدیریتی فعال است — حساب #{session.target_id} ({role ? labels[role] : ''})</Typography>

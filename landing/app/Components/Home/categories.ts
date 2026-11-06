@@ -16,7 +16,7 @@ export const CATEGORIES = [
   { label: "زمین و کلنگی", Icon: LandscapeOutlined },
   { label: "تجاری", Icon: StorefrontOutlined },
   { label: "اداری", Icon: WorkOutlineRounded },
-  { label: "مستغلات", Icon: AccountBalanceOutlined },
+  { label: "ساختمان یکجا", Icon: AccountBalanceOutlined },
   { label: "کشاورزی", Icon: SpaOutlined },
   { label: "پیش‌فروش", Icon: ConstructionOutlined },
   { label: "صنعتی", Icon: PrecisionManufacturingOutlined },

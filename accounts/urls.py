@@ -1,3 +1,4 @@
+from .private_media import PrivateDocumentView
 from django.urls import path
 from .profile_api import PreferencesView, SessionsView, NotificationsView, OwnActivityView
 
@@ -6,6 +7,7 @@ from accounts import views
 app_name = "accounts"
 
 urlpatterns = [
+    path("documents/<int:user_id>/<str:kind>/",PrivateDocumentView.as_view(),name="private-document"),
     path("session/", views.LandingSessionView.as_view(), name="landing-session"),
     path("identity/retry/", views.IdentityRetryView.as_view(),name="identity-retry"),
     # احراز هویت

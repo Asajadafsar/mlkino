@@ -9,6 +9,7 @@ import {commonUserDefaults, type CommonUserType, type UploadValue} from '../User
 import {UploadField} from '../User/UploadField'
 
 export interface ExpertType extends CommonUserType {
+    commission_share_rate?: string | number | null
     expert_code: string
     agency_id: number
     job_title: string
@@ -63,6 +64,7 @@ export function Expert({expert, setExpert, resource, editMode = true}: {
                     onChange={(_, values) => setExpert((prev) => ({...prev, specialties: Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))}))}
                     renderInput={(params) => <TextField {...params} label="تخصص‌ها" helperText="برای افزودن هر تخصص، Enter بزنید" />}
                 />,
+                <CustomTextField key="commission_share_rate" name="commission_share_rate" label="درصد توافق سهم کارشناس (۰ تا ۱۰۰)" value={expert.commission_share_rate??''} type="number" inputProps={{min:0,max:100,step:'0.01'}} onChange={event=>setExpert(previous=>({...previous,commission_share_rate:event.target.value===''?null:event.target.value}))}/>,
                 <UploadField key="professional_document" name="professional_document" label="مدارک حرفه‌ای" accept="image/*,application/pdf" value={expert.professional_document} onChange={(value) => setExpert((prev) => ({...prev, professional_document: value}))} />,
             ]} />
         </Stack>

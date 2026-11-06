@@ -252,6 +252,12 @@ class PropertyRecord(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    publication_state = models.CharField(max_length=16,default='draft',db_index=True)
+    assigned_expert = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,null=True,blank=True,related_name='assigned_properties')
+    office = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,null=True,blank=True,related_name='office_properties')
+    featured = models.BooleanField(default=False,db_index=True)
+    archived_at = models.DateTimeField(null=True,blank=True)
+
     class Meta:
         ordering = ['-created_at', '-id']
 
@@ -267,5 +273,13 @@ class EstateActivity(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    property = models.ForeignKey('panel.PropertyRecord',on_delete=models.PROTECT,null=True,blank=True,related_name='activities')
+    parties = models.ManyToManyField('panel.CRMContact',blank=True,related_name='estate_activities')
+    assigned_expert = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,null=True,blank=True,related_name='assigned_activities')
+    office = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,null=True,blank=True,related_name='office_activities')
+    attachment = models.FileField(upload_to='private_activities/attachments/%Y/%m/',null=True,blank=True)
+
     class Meta:
         ordering = ['-created_at', '-id']
+
+from .workflow_models import (CRMContact,PropertyReferral,WorkflowEvent,PropertyFavorite,VisitSlot,PropertyVisit,PropertyOffer,FinancialRateVersion,FinancialDocument,UserBusinessRole,PropertyChat,SavedReportFilter,ConversationArchive,ExpertShareAgreement)

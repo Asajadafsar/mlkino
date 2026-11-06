@@ -17,6 +17,7 @@ export const SETTINGS_DEFAULTS: PanelSettingsState = {
         logo: '',
         mobileLogo: '',
         favicon: '',
+        heroImage: '',
     },
 
     theme: {
@@ -42,6 +43,7 @@ export const SETTINGS_DEFAULTS: PanelSettingsState = {
         email: '',
         address: '',
         instagram: '',
+        eitaa: '',
         telegram: '',
         linkedin: '',
         whatsapp: '',

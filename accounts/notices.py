@@ -17,9 +17,13 @@ def notify(user, kind, title, body='', link=''):
     if not values['in_app'] or not values.get(f'{kind}_updates', True): return None
     notice = AccountNotification.objects.create(user=user, kind=kind, title=title, body=body, link=link)
     def publish():
-        layer = get_channel_layer()
-        if layer:
-            async_to_sync(layer.group_send)(f'inbox_{user.pk}', {'type':'chat.event','event':'account.notification','data':{
-                'id':notice.pk,'title':notice.title,'body':notice.body,'link':notice.link,'created_at':notice.created_at.isoformat()}})
+        try:
+            layer = get_channel_layer()
+            if layer:
+                async_to_sync(layer.group_send)(f'inbox_{user.pk}', {'type':'chat.event','event':'account.notification','data':{
+                    'id':notice.pk,'title':notice.title,'body':notice.body,'link':notice.link,'created_at':notice.created_at.isoformat()}})
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning('Notification persisted; realtime delivery unavailable',exc_info=False)
     transaction.on_commit(publish)
     return notice

@@ -11,7 +11,7 @@ import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import DoneAllRoundedIcon from '@mui/icons-material/DoneAllRounded'
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
-import {useSearchParams} from 'react-router-dom'
+import {useSearchParams,Link} from 'react-router-dom'
 import {DataProvider} from '../../Core/DataProvider'
 import APP_URL from '../../Core/APP_URL'
 import {CurrentUserContext} from '../../Core/CurrentUser'
@@ -27,6 +27,8 @@ export default function ChatPage() {
     const {connected, conversations, lastEvent, reload, send, startCall, error: inboxError} = useRealtime()
     const [params, setParams] = useSearchParams()
     const selectedId = Number(params.get('conversation')) || null
+    const propertyIntent=params.get('property')
+    useEffect(()=>{if(!propertyIntent||params.get('conversation'))return;let active=true;DataProvider.post<any>(`workflows/properties/${propertyIntent}/chat/`,{data:{}}).then(response=>{if(active)setParams({conversation:String(response.data.chat_id),property:propertyIntent},{replace:true})}).catch(e=>{if(active)setError(e.message||'گفتگوی این ملک برقرار نشد.')});return()=>{active=false}},[propertyIntent,params.get('conversation')])
     const [selected, setSelected] = useState<Conversation | null>(null)
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [loading, setLoading] = useState(false)
@@ -146,6 +148,7 @@ export default function ChatPage() {
                         <Avatar src={selected.peer.avatar || undefined}>{selected.peer.full_name?.[0] || 'م'}</Avatar><Box sx={{flex: 1}}><Typography fontWeight={700}>{selected.peer.full_name || `کاربر #${selected.peer.id}`}</Typography><Typography variant="caption" color={typing ? 'primary' : 'text.secondary'}>{typing ? 'در حال نوشتن…' : roleNames[selected.peer.role] || 'مخاطب'}</Typography></Box>
                         <Tooltip title="تماس صوتی"><span><IconButton aria-label="تماس صوتی" disabled={!connected} onClick={() => startCall(selected)}><CallOutlinedIcon /></IconButton></span></Tooltip><Tooltip title="تماس تصویری"><span><IconButton aria-label="تماس تصویری" disabled={!connected} onClick={() => startCall(selected, true)}><VideocamOutlinedIcon /></IconButton></span></Tooltip>
                     </Stack>
+                    {!!selected.properties?.length&&<Stack direction="row" flexWrap="wrap" gap={1} sx={{px:2,py:1,bgcolor:'background.paper'}}><Typography variant="caption">گفتگو درباره:</Typography>{selected.properties.map(property=><Chip key={property.id} size="small" component={Link} clickable to={`/${property.kind==='request'?'requests':'files'}/${property.id}`} label={property.title}/>)}</Stack>}
                     <Stack spacing={1.5} sx={{flex: 1, overflowY: 'auto', p: {xs: 2, md: 3}, bgcolor: 'background.default', backgroundImage: 'radial-gradient(#b9c8e326 .8px,transparent .8px)', backgroundSize: '18px 18px'}}>
                         {hasMore && <Button onClick={older}>نمایش پیام‌های قبلی</Button>}
                         {!messages.length && <Typography textAlign="center" color="text.secondary" sx={{my: 'auto'}}>اولین پیام را شما بنویسید.</Typography>}

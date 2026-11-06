@@ -1,18 +1,18 @@
 import { Button } from "@mui/material"
 import React from "react"
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { withTranslation } from 'react-i18next';
+
 import {makeStyles} from '@mui/styles'
 
 function NextButton(props) {
     const classes = useStyles()
-    const t = props.t
+    const {t, i18n, tReady, ...buttonProps} = props
     return (
         <Button
-            {...props}
+            {...buttonProps}
             className={classes.nextButton}
             endIcon={<ArrowForwardIcon style={{ fontSize: "26px" }} />}>
-            {t('button.next')}
+            مرحله بعد
         </Button>
     )
 }
@@ -32,4 +32,4 @@ const useStyles = makeStyles(theme => ({
         }
     },
 }))
-export default withTranslation()(NextButton)
+export default NextButton

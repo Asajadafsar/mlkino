@@ -6,6 +6,7 @@ import {selectIsSuperAdmin} from '../redux/RoleSlice'
 import type {PanelSettingsState} from '../Pages/Settings/types'
 import {SETTINGS_DEFAULTS} from '../Pages/Settings/defaults'
 import {AppTheme} from '../Theme'
+import {normalizePanelSettings} from './normalizePanelSettings'
 
 const Context = createContext({settings: SETTINGS_DEFAULTS, loading: false, error: '', save: async (_settings: PanelSettingsState) => {}})
 export const usePanelSettings = () => useContext(Context)
@@ -18,11 +19,12 @@ export function PanelSettingsProvider({children}: {children: React.ReactNode}) {
     const dark = useMediaQuery('(prefers-color-scheme: dark)')
     useEffect(() => {
         let active = true
-        api.get(isAdmin?'settings/':'appearance/').then(response => {if (active) setSettings({...SETTINGS_DEFAULTS,...response.data.data,fields:{...SETTINGS_DEFAULTS.fields,...response.data.data.fields},features:{...SETTINGS_DEFAULTS.features,...response.data.data.features},general:{...SETTINGS_DEFAULTS.general,...response.data.data.general,dateFormat:'YYYY/MM/DD'}})}).catch(error => {if (active) setError(error.message || 'دریافت تنظیمات انجام نشد')}).finally(() => {if (active) setLoading(false)})
+        api.get(isAdmin?'settings/':'appearance/').then(response => {if (active) setSettings(normalizePanelSettings(response.data.data))}).catch(error => {if (active) setError(error.message || 'دریافت تنظیمات انجام نشد')}).finally(() => {if (active) setLoading(false)})
         return () => {active = false}
     }, [isAdmin])
     useEffect(() => {
-        document.documentElement.lang = settings.general.language || 'fa'
+        document.documentElement.lang = 'fa-IR'
+        document.documentElement.dir = 'rtl'
         document.title = settings.seo.title || settings.general.panelName
         const meta = (name: string, content: string) => {
             let element = document.querySelector(`meta[name="${name}"]`)
@@ -35,7 +37,7 @@ export function PanelSettingsProvider({children}: {children: React.ReactNode}) {
         let og = document.querySelector('meta[property="og:image"]')
         if (!og) {og=document.createElement('meta');og.setAttribute('property','og:image');document.head.appendChild(og)}
         og.setAttribute('content',settings.seo.ogImage)
-        window.localStorage.setItem('mlkino:date-settings',JSON.stringify({timezone:settings.general.timezone,dateFormat:settings.general.dateFormat}))
+        try {window.localStorage.setItem('mlkino:date-settings',JSON.stringify({timezone:settings.general.timezone,dateFormat:settings.general.dateFormat}))} catch { /* A blocked storage must not interrupt Persian rendering. */ }
         if (settings.branding.favicon) {
             let icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
             if (!icon) {icon = document.createElement('link'); icon.rel = 'icon'; document.head.appendChild(icon)}
@@ -51,7 +53,7 @@ export function PanelSettingsProvider({children}: {children: React.ReactNode}) {
     }, [settings.theme, dark])
     const save = async (value: PanelSettingsState) => {
         const response = await api.patch('settings/', value)
-        setSettings(response.data.data)
+        setSettings(normalizePanelSettings(response.data.data))
         setError('')
     }
     return <Context.Provider value={{settings, loading, error, save}}><ThemeProvider theme={theme}>{children}</ThemeProvider></Context.Provider>

@@ -42,8 +42,8 @@
   .bottomLink,.submitBottom {min-width:0;min-height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:4px 2px;border:0;border-radius:18px;background:transparent;color:#65708d;font:inherit;font-size:11px;font-weight:650;line-height:1.5;text-align:center;cursor:pointer;}
   .bottomIcon {display:grid;place-items:center;width:44px;height:34px;border-radius:14px;}
   .bottomIcon svg {font-size:26px;}
-  .bottomLink[aria-current=page] {color:#075bff;font-weight:800;background:#eff1ff;}
-  .bottomLink[aria-current=page] .bottomIcon svg {filter:drop-shadow(0 3px 4px #075bff20);}
+  .bottomLink[aria-current=page] {color:var(--melkino-primary,#075bff);font-weight:800;background:#eff1ff;}
+  .bottomLink[aria-current=page] .bottomIcon svg {filter:drop-shadow(0 3px 4px var(--melkino-primary,#075bff)20);}
   .submitBottom {color:#121d46;font-weight:800;}
   .submitIcon {display:grid;place-items:center;width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,#ffce00,#ffa900);color:#fff;box-shadow:0 5px 12px #ffb00038;margin-top:-18px;}
   .submitIcon svg {font-size:31px;transition:transform 180ms ease;}
@@ -57,3 +57,4 @@
 .account span {min-width:0;max-width:180px;}
 .account strong {overflow:hidden;text-overflow:ellipsis;}
 .bottomLink > span:last-child {max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.quickMobile{display:none}.shell{gap:20px}.desktopLinks{gap:22px}.submitDesktop{white-space:nowrap}@media(max-width:1099px){.shell{display:flex;justify-content:space-between}.actions{margin-inline-start:auto}.quickMobile{display:flex;gap:9px;padding:0 18px 15px;overflow-x:auto;scrollbar-width:none}.quickMobile a{flex-shrink:0;border:1px solid #e3e9f7;border-radius:11px;background:#ffffffd9;padding:9px 12px;font-size:11px;color:#425a88}.quickMobile a[aria-current=page]{background:var(--melkino-primary,#075bff);color:#fff;border-color:var(--melkino-primary,#075bff)}.searchHeader .actions{display:flex}}@media(min-width:1100px) and (max-width:1400px){.desktopLinks{gap:14px}.desktopLinks a{font-size:12px}.shell{gap:14px;padding-inline:24px}.submitDesktop{font-size:11px}}

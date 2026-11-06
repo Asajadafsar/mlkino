@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 const categories = [
   { title: "ساختمان", subtitle: "فراتر از یک واحد", description: "ساختمان‌های مسکونی و چندواحدی برای نیازهای بزرگ‌تر.", Icon: BusinessRounded, color: "#254c89", tint: "#edf3ff", tag: "برای توسعه" },
   { title: "پیش‌فروش", subtitle: "خانه فردا را امروز انتخاب کنید", description: "پروژه‌های در حال ساخت و فرصت‌های پیش‌خرید ملک.", Icon: ConstructionOutlined, color: "#d58a15", tint: "#fff5df", tag: "برای آینده" },
-  { title: "مستغلات", subtitle: "یک مجموعه، فرصت‌های بسیار", description: "املاک یکپارچه و مجموعه‌های مستقل مسکونی و تجاری.", Icon: AccountBalanceOutlined, color: "#486caa", tint: "#edf2fc", tag: "برای سرمایه‌گذاری" },
+  { title: "ساختمان یکجا", subtitle: "یک مجموعه، فرصت‌های بسیار", description: "املاک یکپارچه و مجموعه‌های مستقل مسکونی و تجاری.", Icon: AccountBalanceOutlined, color: "#486caa", tint: "#edf2fc", tag: "برای سرمایه‌گذاری" },
   { title: "کشاورزی", subtitle: "نزدیک‌تر به زمین و زندگی", description: "باغ، زمین کشاورزی و فضاهای مناسب کشت و پرورش.", Icon: SpaOutlined, color: "#36934c", tint: "#eaf8ed", tag: "برای رویش" },
   { title: "صنعتی", subtitle: "فضایی برای تولید", description: "کارگاه، کارخانه و فضاهای صنعتی برای گسترش کسب‌وکار.", Icon: PrecisionManufacturingOutlined, color: "#65658a", tint: "#f0f0f8", tag: "برای تولید" },
   { title: "آپارتمان", subtitle: "یک شروع تازه، یک خانه تازه", description: "فضایی برای زندگی روزمره؛ از خانه‌های جمع‌وجور تا آپارتمان‌های بزرگ و خانوادگی.", Icon: ApartmentRounded, color: "#1667ff", tint: "#eaf2ff", tag: "برای زندگی" },

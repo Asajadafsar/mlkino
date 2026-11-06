@@ -1,0 +1,109 @@
+{
+  "assets": [
+    {
+      "original": "frontend/public/assets/melkino-logo-hd.png",
+      "optimized": "frontend/public/assets/melkino-logo-hd.webp",
+      "original_bytes": 1779882,
+      "optimized_bytes": 139052,
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "original": "frontend/public/assets/auth-villa.png",
+      "optimized": "frontend/public/assets/auth-villa.webp",
+      "original_bytes": 2348101,
+      "optimized_bytes": 244036,
+      "width": 1086,
+      "height": 1448
+    },
+    {
+      "original": "frontend/public/assets/tasks-3d.png",
+      "optimized": "frontend/public/assets/tasks-3d.webp",
+      "original_bytes": 1153060,
+      "optimized_bytes": 98504,
+      "width": 1312,
+      "height": 1199
+    },
+    {
+      "original": "frontend/public/assets/announcement-3d.png",
+      "optimized": "frontend/public/assets/announcement-3d.webp",
+      "original_bytes": 862776,
+      "optimized_bytes": 101014,
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "original": "frontend/public/assets/logs-3d.png",
+      "optimized": "frontend/public/assets/logs-3d.webp",
+      "original_bytes": 1290826,
+      "optimized_bytes": 96196,
+      "width": 1312,
+      "height": 1199
+    },
+    {
+      "original": "frontend/public/assets/settings-3d.png",
+      "optimized": "frontend/public/assets/settings-3d.webp",
+      "original_bytes": 1679673,
+      "optimized_bytes": 121544,
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "original": "frontend/public/assets/users-3d.png",
+      "optimized": "frontend/public/assets/users-3d.webp",
+      "original_bytes": 1465455,
+      "optimized_bytes": 67582,
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "original": "frontend/public/assets/reminders-3d.png",
+      "optimized": "frontend/public/assets/reminders-3d.webp",
+      "original_bytes": 1412655,
+      "optimized_bytes": 76788,
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "original": "frontend/public/assets/support-3d.png",
+      "optimized": "frontend/public/assets/support-3d.webp",
+      "original_bytes": 1393301,
+      "optimized_bytes": 97084,
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "original": "frontend/public/assets/estate-hero-v1.png",
+      "optimized": "frontend/public/assets/estate-hero-v1.webp",
+      "original_bytes": 2192666,
+      "optimized_bytes": 147618,
+      "width": 1920,
+      "height": 640
+    }
+  ],
+  "references_updated": [
+    "frontend/src/Core/RealtimeContext.tsx",
+    "frontend/src/Pages/Settings/PanelSettings.tsx",
+    "frontend/src/Pages/User/UserPage.tsx",
+    "frontend/src/Pages/User/UserDirectory.tsx",
+    "frontend/src/Pages/Dashboard/DashboardLayout.tsx",
+    "frontend/src/Pages/Announcement/List/AnnouncementList.tsx",
+    "frontend/src/Pages/Logs/Edit/LogsEdit.tsx",
+    "frontend/src/Pages/Logs/List/LogsList.tsx",
+    "frontend/src/Pages/Reminder/Edit/ReminderEdit.tsx",
+    "frontend/src/Pages/Reminder/List/ReminderList.tsx",
+    "frontend/src/Pages/Reminder/Create/ReminderCreate.tsx",
+    "frontend/src/Pages/Auth/Shared/AuthShell.tsx",
+    "frontend/src/Pages/Tasks/Edit/TasksEdit.tsx",
+    "frontend/src/Pages/Tasks/List/TasksList.tsx",
+    "frontend/src/Pages/Tasks/Create/TasksCreate.tsx",
+    "frontend/src/Pages/Tickets/List/TicketsList.tsx",
+    "frontend/src/Components/Drawer/AppDrawer.tsx",
+    "frontend/src/Components/Estate/EstateWorkspace.tsx",
+    "frontend/src/Components/Workspace/PageHero.tsx",
+    "frontend/src/Components/Impersonation/ImpersonationBanner.tsx"
+  ],
+  "total_original_bytes": 15578395,
+  "total_optimized_bytes": 1189418,
+  "measurement": "file bytes; original PNG files retained; not a Lighthouse benchmark"
+}

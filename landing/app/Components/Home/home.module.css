@@ -1,5 +1,5 @@
 .page { max-width:var(--page-max-width); width:100%; margin-inline:auto; padding:0 32px 36px; color:#0b1641; }
-.hero { position:relative; min-height:352px; display:flex; flex-direction:column; justify-content:space-between; padding:26px 42px 46px; isolation:isolate; border-radius:34px; background:linear-gradient(270deg,#233c70b5 0%,#49537e35 45%,transparent 65%),url('/images/properties/hero.png') 35% 56% / cover; overflow:hidden; }
+.hero { position:relative; min-height:352px; display:flex; flex-direction:column; justify-content:space-between; padding:26px 42px 46px; isolation:isolate; border-radius:34px; background:linear-gradient(270deg,#233c70b5 0%,#49537e35 45%,transparent 65%); overflow:hidden; }
 .hero::after { content:''; position:absolute; z-index:-1; inset:0; background:linear-gradient(0deg,#e7d3c5ac,transparent 40%); }
 .heroCopy { text-align:start; padding-inline-start:30%; }
 .heroCopy h1 { color:#fff; font-size:clamp(26px,2.5vw,40px); font-weight:850; line-height:1.7; }

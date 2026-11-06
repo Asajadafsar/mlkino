@@ -19,6 +19,7 @@ import type {ModeStepProps} from '../types'
 import {toSelectOptions} from '../utils'
 
 export function TechnicalStep({property, setProperty, resource, mode}: ModeStepProps) {
+    const isLand=['زمین','زمین و کلنگی','کشاورزی'].includes(property.propertyType)
     const fieldScope=useContext(FieldScope)
     const {settings}=usePanelSettings()
     return (
@@ -61,7 +62,7 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                           ]),
 
                     // سال ساخت فقط برای «آگهی» لازم است
-                    ...(mode === 'ad'
+                    ...((mode === 'ad'||mode==='file')&&!isLand
                         ? [
                               <CustomSelectField
                                   key="buildYear"
@@ -143,7 +144,7 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                     ),
 
                   
-                ]}
+                ].filter(element=>!isLand||!['roomCount','occupancyStatus','bathroom','heating','cooling','flooring','facade','totalFloor','floor','floorPreferences'].includes(String(element.key)))}
             />
 
             {fieldVisible(settings.fields,fieldScope,'amenities') && <AmenitiesGrid

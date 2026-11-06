@@ -14,7 +14,7 @@ export function useEstateActivities(kind:'follow-ups'|'contracts') {
   const {id,created_at,updated_at,...data}=row as any
   const response=id?await DataProvider.patch<ActivityRow>(`${kind}/${id}/`,{data}):await DataProvider.post<ActivityRow>(`${kind}/`,{data})
   version.current++;setLoading(false)
-  const saved=response.data;setRows(prev=>prev.some(r=>r.id===saved.id)?prev.map(r=>r.id===saved.id?saved:r):[saved,...prev]);setError('')
+  const saved=response.data;setRows(prev=>prev.some(r=>r.id===saved.id)?prev.map(r=>r.id===saved.id?saved:r):[saved,...prev]);setError('');return saved
  }
  return {rows,loading,error,reload,save,canWrite}
 }

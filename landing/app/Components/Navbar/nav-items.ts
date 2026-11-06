@@ -18,7 +18,7 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  { key: 'home', label: 'خانه', href: '/', icon: HomeIcon, activeIcon: HomeIcon, group: 'main' },
+  { key: 'home', label: 'صفحه اصلی', href: '/', icon: HomeIcon, activeIcon: HomeIcon, group: 'main' },
   { key: 'saved', label: 'علاقه‌مندی‌ها', href: '/saved', icon: FavoriteBorderRoundedIcon, activeIcon: FavoriteRoundedIcon, group: 'account' },
 
   { key: 'submit', label: 'ثبت', href: '/vip', icon: AddIcon, activeIcon: AddIcon, group: 'main' },

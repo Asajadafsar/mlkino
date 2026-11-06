@@ -1,3 +1,4 @@
+from accounts.private_media import PrivateDocumentField
 import ipaddress
 import logging
 import uuid
@@ -585,6 +586,12 @@ class PanelUserGroupsView(APIView):
 
 
 class PanelUserCreateSerializer(serializers.ModelSerializer):
+    national_code_image = PrivateDocumentField("national-card",images_only=True,required=False,allow_null=True)
+
+    def validate_avatar(self,value):
+        from accounts.media_processing import optimized_avatar
+        return optimized_avatar(value)
+
     password = serializers.CharField(write_only=True, min_length=8, trim_whitespace=False)
     agency_id = serializers.IntegerField(required=False, min_value=1, write_only=True)
 
@@ -995,13 +1002,10 @@ class PanelUserDetailView(APIView):
                 setattr(user, flag, value)
             user.save(update_fields=list(flag_data))
         if "avatar" in payload:
-            avatar = serializers.ImageField(allow_null=True).run_validation(payload["avatar"])
+            from accounts.media_processing import optimized_avatar
+            avatar = optimized_avatar(serializers.ImageField(allow_null=True).run_validation(payload["avatar"]))
             user.avatar = avatar
             user.save(update_fields=["avatar"])
-        if "national_code_image" in payload:
-            image = serializers.ImageField(allow_null=True).run_validation(payload["national_code_image"])
-            user.national_code_image = image
-            user.save(update_fields=["national_code_image"])
         if profile_serializer:
             if user.role == User.Role.AGENCY:
                 profile_serializer.save(manager=user)
@@ -2082,7 +2086,7 @@ class ChatContactsView(APIView):
 class ChatConversationListView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
-        qs = _chat_qs(request.user)[:100]
+        qs = _chat_qs(request.user).exclude(user_archives__user=request.user)[:100]
         return success_response("گفتگوها", data=ChatConversationSerializer(qs, many=True, context={"request": request}).data)
     def post(self, request):
         try:

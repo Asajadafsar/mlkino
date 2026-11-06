@@ -19,6 +19,11 @@ export type PropertyType = {
     monthlyChargeFrom?: number
     monthlyChargeTo?: number
     city: string
+    latitude?: number|null
+    longitude?: number|null
+    workPhone?: string
+    virtualTourUrl?: string
+    otherLink?: string
     virtualTourLink: {
         eitaa: string
         telegram: string

@@ -70,7 +70,7 @@ export default function PanelSettings() {
         {id:'features',title:'بخش‌های پنل',description:'نمایش امکانات در منو',icon:<TuneRoundedIcon/>},
     ]
     return <Stack spacing={2.5}>
-        <PageHero title="تنظیمات سامانه" description="هویت، ظاهر و تنظیمات ملکینو را از یک جای مشخص مدیریت کنید." illustration="/assets/settings-3d.png" />
+        <PageHero title="تنظیمات سامانه" description="هویت، ظاهر و تنظیمات ملکینو را از یک جای مشخص مدیریت کنید." illustration="/assets/settings-3d.webp" />
         {loading && <LinearProgress/>}
         {(error || saveError) && <Alert severity="error">{saveError || error}</Alert>}
         {message && <Alert severity="success" onClose={()=>setMessage('')}>{message}</Alert>}

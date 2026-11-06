@@ -11,7 +11,8 @@
   "branding": {
     "logo": "",
     "mobileLogo": "",
-    "favicon": ""
+    "favicon": "",
+    "heroImage": ""
   },
   "theme": {
     "mode": "light",
@@ -37,7 +38,8 @@
     "instagram": "",
     "telegram": "",
     "linkedin": "",
-    "whatsapp": ""
+    "whatsapp": "",
+    "eitaa": ""
   },
   "features": {
     "dashboard": true,
@@ -46,7 +48,7 @@
     "users/expert": true,
     "customers": true,
     "owners": true,
-    "landlordTenant": false,
+    "landlordTenant": true,
     "files": true,
     "requests": true,
     "customers-requests": true,
@@ -61,7 +63,19 @@
     "advertisements": false,
     "profile": true,
     "logs": true,
-    "tickets": true
+    "tickets": true,
+    "workflows": true,
+    "crm": true,
+    "assignments": true,
+    "favorites": true,
+    "visits": true,
+    "visit-slots": true,
+    "finance": true,
+    "offers": true,
+    "routing-settings": true,
+    "financial-settings": true,
+    "workspace-roles": true,
+    "reports": true
   },
   "fields": {
     "file.monthlyCharge": true,

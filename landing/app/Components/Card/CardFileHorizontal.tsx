@@ -1,5 +1,5 @@
 "use client";
-import {PANEL_LINKS} from "../../Core/panel";
+import {PANEL_LINKS,PANEL_ORIGIN} from "../../Core/panel";
 
 import type {Theme} from "@mui/material/styles";
 import * as React from "react";
@@ -194,7 +194,7 @@ export default function CardFileHorizontal({
     data.virtualTourUrl?.telegram || data.virtualTourUrl?.instagram || data.virtualTourUrl?.eitaa;
 
   const handleBookmarkClick = (e: React.MouseEvent) => {
-    e.stopPropagation();window.location.assign(PANEL_LINKS.files)
+    e.stopPropagation();window.location.assign(PANEL_ORIGIN+'/favorites?property='+data.id)
   };
 
   const handleDetails = () => {
@@ -210,7 +210,7 @@ export default function CardFileHorizontal({
     }
   };
 
-  const handleVisitRequest = () => {window.location.assign(PANEL_LINKS.createRequest)};
+  const handleVisitRequest = () => {window.location.assign(PANEL_ORIGIN+'/visits?property='+data.id)};
 
   /* --------------------------- بج‌ها (قابل استفاده مجدد) -------------------------- */
   const badges = (
@@ -764,8 +764,8 @@ export default function CardFileHorizontal({
         open={visitModalOpen}
         onClose={() => setVisitModalOpen(false)}
         property={data}
-        onSubmit={async (payload) => {
-          console.log("Visit request:", { ...payload, propertyId: data.id });
+        onSubmit={async () => {
+          window.location.assign(PANEL_ORIGIN+'/visits?property='+data.id);
         }}
       />
     </>

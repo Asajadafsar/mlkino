@@ -12,10 +12,12 @@ import {usePanelSettings} from '../../Core/PanelSettingsContext'
 import {exitImpersonation, reloadIdentity} from '../../Core/Impersonation'
 import api from '../../Core/Request'
 import {ACCOUNTS_URL} from '../../Core/APP_URL'
+import {LANDING_URL} from '../../Pages/Auth/Shared/LandingEntry'
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
 import {setUtil} from '../../redux/UtilSlice'
 
 export const drawerWidth = 258
-export function AppDrawer({setSelectedTitle, drawerOpen, setDrawerOpen, collapsed = false, onToggleCollapse}: {collapsed?: boolean; onToggleCollapse?: () => void; user?: any; setSelectedTitle: (title: string) => void; drawerOpen: boolean; setDrawerOpen: (open: boolean) => void}) {
+export function AppDrawer({user,setSelectedTitle, drawerOpen, setDrawerOpen, collapsed = false, onToggleCollapse}: {collapsed?: boolean; onToggleCollapse?: () => void; user?: any; setSelectedTitle: (title: string) => void; drawerOpen: boolean; setDrawerOpen: (open: boolean) => void}) {
     const role = useSelector(selectRole)
     const {session} = useSelector(selectImpersonation)
     const {settings} = usePanelSettings()
@@ -26,7 +28,7 @@ export function AppDrawer({setSelectedTitle, drawerOpen, setDrawerOpen, collapse
     const navigate = useNavigate()
     const dispatch = useDispatch()
     const featureForLink = Object.fromEntries(featureOptions.map(x=>[x.link,x.key]))
-    const visible = drawerItems.filter(item => canAccessDrawerItem(item, role) && (item.link==='settings' || settings.features[featureForLink[item.link]]!==false))
+    const visible = drawerItems.filter(item => (canAccessDrawerItem(item, role)||(['finance','reports'].includes(item.link)&&user?.permissions?.can_finance===true)) && (item.link==='settings' || item.link==='advertisements' || settings.features[featureForLink[item.link]]!==false))
     const selected = visible.filter(item => location.pathname === `/${item.link}` || location.pathname.startsWith(`/${item.link}/`)).sort((a,b) => b.link.length - a.link.length)[0]
     useEffect(() => {setSelectedTitle(selected?.title ?? '')}, [selected?.title, setSelectedTitle])
     const logout = async () => {
@@ -41,7 +43,7 @@ export function AppDrawer({setSelectedTitle, drawerOpen, setDrawerOpen, collapse
         <Stack sx={{height: '100%', minHeight: 0}}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{height: 84, px: rail ? 1 : 3, flexShrink: 0, borderBottom: '1px solid', borderColor: 'divider'}}>
                 <Stack direction="row" alignItems="center" gap={1} onClick={() => navigate('/dashboard')} sx={{cursor: 'pointer'}}>
-                    <Box component="img" src={(rail || mobile ? settings.branding.mobileLogo : '') || settings.branding.logo || '/assets/melkino-logo-hd.png'} alt={settings.general.panelName} sx={{width: rail ? 42 : 68, height: rail ? 42 : 68, objectFit: 'contain', borderRadius: '15px'}} />
+                    <Box component="img" src={(rail || mobile ? settings.branding.mobileLogo : '') || settings.branding.logo || '/assets/melkino-logo-hd.webp'} alt={settings.general.panelName} sx={{width: rail ? 42 : 68, height: rail ? 42 : 68, objectFit: 'contain', borderRadius: '15px'}} />
                 </Stack>
                 {!rail && <IconButton aria-label={mobile ? 'بستن منو' : 'جمع کردن سایدبار'} onClick={() => mobile ? setDrawerOpen(false) : onToggleCollapse?.()}><KeyboardDoubleArrowRightRoundedIcon fontSize="small" /></IconButton>}
             </Stack>
@@ -55,6 +57,7 @@ export function AppDrawer({setSelectedTitle, drawerOpen, setDrawerOpen, collapse
                 })}
             </List>
             <Box sx={{px: rail ? .7 : 2.2, py: 1.7, borderTop: '1px solid', borderColor: 'divider'}}>
+                <Button fullWidth component="a" href={LANDING_URL} startIcon={<HomeOutlinedIcon/>} sx={{mb:1}}>{!rail&&'بازگشت به ملکینو'}</Button>
                 {rail && <IconButton aria-label="باز کردن سایدبار" onClick={onToggleCollapse} sx={{mb: 1}}><KeyboardDoubleArrowRightRoundedIcon sx={{transform: 'rotate(180deg)'}} /></IconButton>}
                 <Button fullWidth aria-label={session?.active ? 'بازگشت به حساب مدیر' : 'خروج از حساب'} color="error" onClick={logout} startIcon={<LogoutRoundedIcon />} sx={{bgcolor: '#fff1f3', border: '1px solid #ffe0e5'}}>{!rail && (session?.active ? 'بازگشت به حساب مدیر' : 'خروج از حساب')}</Button>
             </Box>

@@ -14,7 +14,7 @@ class LandingSessionTests(TestCase):
         self.client.force_authenticate(self.user)
         response=self.client.get('/accounts/session/')
         self.assertEqual(response.status_code,200)
-        self.assertEqual(set(response.data['data']),{'id','full_name','avatar','role_display'})
+        self.assertEqual(set(response.data['data']),{'id','full_name','avatar','role_display','role'})
         self.assertEqual(response.data['data']['full_name'],'سارا آزمایشی')
         self.assertIn('no-store',response['Cache-Control'])
 

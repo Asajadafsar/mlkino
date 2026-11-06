@@ -1,2 +1,2 @@
-import {EstateActivityEdit} from '../../../Components/Estate/EstateActivityEdit'
-export function ContractsEdit(){return <EstateActivityEdit kind="contracts"/>}
+import {ActivityDetail} from '../../../Components/Estate/ActivityDetail'
+export function ContractsEdit(){return <ActivityDetail kind="contracts"/>}

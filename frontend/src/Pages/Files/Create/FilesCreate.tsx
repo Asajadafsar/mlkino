@@ -1,5 +1,7 @@
 import {recordPayload} from '../../../Components/PropertyRecordForm/payload'
-import React from 'react'
+import React,{useContext} from 'react'
+import {CurrentUserContext} from '../../../Core/CurrentUser'
+import {OwnersRequestCreate} from '../../OwnersRequest/Create/OwnersRequestCreate'
 import {CreatePage} from '../../../Components/Table/CreatePage'
 import { PropertyRecordForm } from '../../../Components/PropertyRecordForm'
 
@@ -12,6 +14,8 @@ export function FilesCreate({
     data: any
     setData: React.Dispatch<React.SetStateAction<any>>
 }) {
+    const {user}=useContext(CurrentUserContext)
+    if(user.role==='user')return <OwnersRequestCreate data={data} setData={setData}/>
     return (
         <CreatePage
             title={'افزودن فایل'}

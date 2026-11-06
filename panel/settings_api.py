@@ -23,7 +23,7 @@ from .settings_models import PanelSettings
 
 DEFAULTS = json.loads((Path(__file__).parent / "settings_defaults.json").read_text(encoding="utf-8"))
 MAX_IMAGE = 5 * 1024 * 1024
-IMAGE_KEYS = {("branding", "logo"), ("branding", "mobileLogo"), ("branding", "favicon"), ("seo", "ogImage")}
+IMAGE_KEYS = {("branding", "logo"), ("branding", "mobileLogo"), ("branding", "favicon"), ("branding", "heroImage"), ("seo", "ogImage")}
 LENGTHS = {
     "general": {"panelName": 100, "shortName": 50, "description": 2000, "language": 35, "timezone": 64, "dateFormat": 32},
     "seo": {"title": 200, "description": 2000, "keywords": 1000},
@@ -62,6 +62,7 @@ def http_url(value):
         return False
 
 def validate_value(group, key, value):
+    if (group,key)==("general","language") and value not in ("fa","fa-IR"):return "زبان پنل باید فارسی باشد."
     if isinstance(value, bool):
         return None if (group, key) == ("general", "maintenanceMode") or group in ("features", "fields") else "مقدار این فیلد معتبر نیست."
     if (group, key) == ("general", "maintenanceMode") or group in ("features", "fields"):
@@ -132,6 +133,20 @@ def convert_image(value, group, key, public_base=""):
         raise
     except Exception:
         raise ValueError("تصویر انتخاب‌شده معتبر نیست.")
+    # Favicon ICO stays in its native container; appropriate raster assets are
+    # re-encoded from pixel data, removing EXIF/GPS and shrinking large uploads.
+    if ext != "ico":
+        from accounts.media_processing import decode_raster, encode_image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from rest_framework.exceptions import ValidationError as MediaValidationError
+        try:
+            decoded = decode_raster(SimpleUploadedFile("branding." + ext, binary, content_type="image/" + ("jpeg" if ext == "jpg" else ext)))
+            optimized = encode_image(decoded, max_width=1920 if (group,key)==("seo","ogImage") else 1024)
+            binary = optimized.content
+            ext = optimized.extension
+        except MediaValidationError as exc:
+            detail = exc.detail[0] if isinstance(exc.detail,list) else exc.detail
+            raise ValueError(str(detail)) from exc
     name = f"panel-settings/{group}/{key}/{uuid.uuid4().hex}.{ext}"
     saved = default_storage.save(name, ContentFile(binary))
     try:
@@ -196,7 +211,9 @@ class PanelSettingsView(APIView):
             for group, values in obj.data.items():
                 if group in updated and isinstance(values, dict):
                     updated[group].update({key: value for key, value in values.items() if key in updated[group]})
-        if isinstance(obj.data,dict) and "geography" in obj.data:updated["geography"]=obj.data["geography"]
+        if isinstance(obj.data,dict):
+            for retained in ('geography','workflow'):
+                if retained in obj.data:updated[retained]=obj.data[retained]
         inherit_fields(updated, obj.data if obj else {})
         created_files = []
         try:

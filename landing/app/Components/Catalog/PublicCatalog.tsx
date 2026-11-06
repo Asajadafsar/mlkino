@@ -1,0 +1,19 @@
+"use client";
+import {useEffect,useState} from 'react';
+import dynamic from 'next/dynamic';
+import {catalogQuery,faNumber,type CatalogPage,type PublicConfig} from '../../Core/catalog';
+import PublicPropertyCard from './PublicPropertyCard';
+import CatalogFilters from './CatalogFilters';
+import {usePublic} from './usePublic';
+import styles from './catalog.module.css';
+const PublicMap=dynamic(()=>import('./PublicMap'),{ssr:false,loading:()=> <p role="status">در حال آماده‌سازی نقشه…</p>});
+function valuesOf(query:string){const values=Object.fromEntries(new URLSearchParams(query));if(values.deal){values.contractType=({buy:'فروش',rent:'رهن و اجاره',presale:'پیش‌فروش',partnership:'مشارکت'} as Record<string,string>)[values.deal]||'';delete values.deal}delete values.advanced;return values}
+export default function PublicCatalog({kind='file',featured=false,query='',embedded=false,showFilters=true,showMap=true}:{kind?:'file'|'request';featured?:boolean;query?:string;embedded?:boolean;showFilters?:boolean;showMap?:boolean}){
+ const [values,setValues]=useState(()=>valuesOf(query));const [filterVersion,setFilterVersion]=useState(0);
+ useEffect(()=>{if(embedded)return;const back=()=>{setValues(valuesOf(location.search));setFilterVersion(x=>x+1)};window.addEventListener('popstate',back);return()=>window.removeEventListener('popstate',back)},[embedded]);
+ const {data:config,loading:configLoading}=usePublic<PublicConfig>('config/');const allowed=config?.features?.[kind==='request'?'requests':'files']!==false;
+ const params=catalogQuery({...values,kind,...(embedded?{page_size:'4'}:{}),...(featured?{featured:'true'}:{})});const {data,error,loading,retry}=usePublic<CatalogPage>('catalog/?'+params.toString(),!configLoading&&allowed);const rows=Array.isArray(data?.results)?data.results:[];const total=data?.total_results||0,page=Number(values.page||1),size=data?.page_size||12;
+ const apply=(next:Record<string,string>)=>{const clean={...next};if(!clean.page)delete clean.page;setValues(clean);if(!embedded){const p=catalogQuery(clean);window.history.replaceState(null,'',location.pathname+(p.size?'?'+p:''))}};
+ if(!allowed)return <div className={styles.empty}>این بخش به انتخاب مدیر سامانه غیرفعال است.</div>;
+ return <section className={styles.catalog} aria-label={kind==='request'?'درخواست‌های ملکینو':featured?'فایل‌های ویژه ملکینو':'فایل‌های ملکینو'}>{showFilters&&<CatalogFilters key={filterVersion} initial={values} onApply={v=>apply({...v,page:'1'})}/>}<div className={styles.resultsHeading}><strong>{loading||configLoading?'در حال دریافت اطلاعات…':faNumber(total)+(kind==='request'?' درخواست':' فایل ملکی')}</strong>{values.bbox&&<button type="button" onClick={()=>{const v={...values};delete v.bbox;apply(v)}}>حذف محدوده نقشه</button>}</div>{error&&<div className={styles.error} role="alert"><p>{error}</p><button type="button" onClick={retry}>تلاش دوباره</button></div>}<div className={styles.workspace} data-map={showMap}><div>{loading||configLoading?<div className={styles.grid} aria-label="در حال دریافت فایل‌ها">{[0,1,2].map(x=><div key={x} className={styles.skeleton}/>)}</div>:!error&&rows.length?<div className={styles.grid}>{rows.map(row=><PublicPropertyCard key={row.id} row={row}/>)}</div>:!error?<div className={styles.empty}>مورد منتشرشده‌ای با این مشخصات پیدا نشد. فیلترها را تغییر دهید.</div>:null}{!loading&&!error&&total>size&&<nav className={styles.pagination} aria-label="صفحه‌بندی نتایج"><button disabled={page<=1} onClick={()=>apply({...values,page:String(page-1)})}>قبلی</button><span>صفحه {faNumber(page)} از {faNumber(Math.ceil(total/size))}</span><button disabled={page*size>=total} onClick={()=>apply({...values,page:String(page+1)})}>بعدی</button></nav>}</div><>{showMap&&<PublicMap key={params.toString()} rows={rows} onBounds={bbox=>apply({...values,bbox,page:'1'})}/>}</></div></section>
+}

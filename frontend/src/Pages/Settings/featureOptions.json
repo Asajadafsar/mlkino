@@ -130,5 +130,77 @@
     "link": "tickets",
     "label": "تیکت‌ها",
     "default": true
+  },
+  {
+    "key": "workflows",
+    "link": "workflows",
+    "label": "مرکز عملیات",
+    "default": true
+  },
+  {
+    "key": "crm",
+    "link": "crm",
+    "label": "مدیریت ارتباط با مشتریان",
+    "default": true
+  },
+  {
+    "key": "assignments",
+    "link": "assignments",
+    "label": "کارتابل ارجاع‌ها",
+    "default": true
+  },
+  {
+    "key": "favorites",
+    "link": "favorites",
+    "label": "علاقه‌مندی‌ها",
+    "default": true
+  },
+  {
+    "key": "visits",
+    "link": "visits",
+    "label": "رزرو و مدیریت بازدید",
+    "default": true
+  },
+  {
+    "key": "visit-slots",
+    "link": "visit-slots",
+    "label": "زمان‌های بازدید",
+    "default": true
+  },
+  {
+    "key": "finance",
+    "link": "finance",
+    "label": "مالی و حسابداری",
+    "default": true
+  },
+  {
+    "key": "financial-settings",
+    "link": "financial-settings",
+    "label": "تنظیمات مالی",
+    "default": true
+  },
+  {
+    "key": "offers",
+    "link": "offers",
+    "label": "پیشنهادهای ملکی",
+    "default": true
+  },
+  {
+    "key": "routing-settings",
+    "link": "routing-settings",
+    "label": "تنظیمات توزیع",
+    "default": true
+  },
+  {
+    "key": "workspace-roles",
+    "link": "workspace-roles",
+    "label": "نقش‌های تکمیلی دفاتر",
+    "default": true
+  },
+  {
+    "key": "reports",
+    "link": "reports",
+    "label": "گزارش‌های مدیریتی",
+    "default": true
   }
 ]

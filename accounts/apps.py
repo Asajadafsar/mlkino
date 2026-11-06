@@ -7,3 +7,4 @@ class AccountsConfig(AppConfig):
 
     def ready(self):
         import accounts.schema  # noqa: F401
+        import accounts.workflow_signals  # noqa: F401

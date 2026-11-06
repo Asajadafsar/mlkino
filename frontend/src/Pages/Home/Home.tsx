@@ -1,7 +1,9 @@
+import {FavoritesProvider} from '../../Core/FavoritesContext'
+import {lazy,Suspense} from 'react'
 import {authEntry} from '../../Core/AuthDestination'
 import api from '../../Core/Request'
 import {canAccessUserRoute} from '../../Core/AccessControl'
-import {PanelSettingsProvider} from '../../Core/PanelSettingsContext'
+import {PanelSettingsProvider,usePanelSettings} from '../../Core/PanelSettingsContext'
 import {RealtimeProvider} from '../../Core/RealtimeContext'
 import ChatPage from '../Chats/ChatPage'
 import {CurrentUserContext} from '../../Core/CurrentUser'
@@ -25,6 +27,8 @@ import {AnnouncementList} from '../Announcement/List/AnnouncementList'
 import {AnnouncementEdit} from '../Announcement/Edit/AnnouncementEdit'
 import PanelSettings from '../Settings/PanelSettings'
 import {FilesCreate} from '../Files/Create/FilesCreate'
+import {RecordList} from '../Files/RecordList'
+import {RecordEdit} from '../Files/RecordEdit'
 import {FilesList} from '../Files/List/FilesList'
 import {FilesEdit} from '../Files/Edit/FilesEdit'
 import {RequestCreate} from '../Request/Create/RequestCreate'
@@ -83,6 +87,22 @@ import {clearRole, setRole, UserRole} from '../../redux/RoleSlice'
 import {useDispatch, useStore} from 'react-redux'
 import axios from 'axios'
 import { LogsEdit } from '../Logs/Edit/LogsEdit'
+
+const Reports=lazy(()=>import('../Workflows/Reports').then(m=>({default:m.Reports})))
+const WorkflowPage=lazy(()=>import('../Workflows/WorkflowPage').then(m=>({default:m.WorkflowPage})))
+const WorkflowOverview=lazy(()=>import('../Workflows/WorkflowOverview').then(m=>({default:m.WorkflowOverview})))
+const RoutingSettings=lazy(()=>import('../Workflows/RoutingSettings').then(m=>({default:m.RoutingSettings})))
+const FinancialSettings=lazy(()=>import('../Workflows/FinancialSettings').then(m=>({default:m.FinancialSettings})))
+const WorkspaceRoles=lazy(()=>import('../Workflows/WorkspaceRoles').then(m=>({default:m.WorkspaceRoles})))
+function FeatureRouteGuard({children}:{children:React.ReactNode}){
+ const {settings,loading}=usePanelSettings(),location=useLocation();const key=location.pathname.split('/')[1];
+ if(loading)return <Stack alignItems="center" p={5}><CircularProgress aria-label="دریافت تنظیمات دسترسی"/></Stack>
+ if(key==='advertisements')return <ComingSoon/>
+ const feature=({views:'visits','landlord-tenant':'landlordTenant'} as Record<string,string>)[key]||key
+ if(key!=='settings'&&settings.features[feature]===false)return <Alert severity="info">این قابلیت توسط مدیر سامانه غیرفعال شده است. اطلاعات قبلی محفوظ است.</Alert>
+ return <>{children}</>
+}
+function ComingSoon(){return <Alert severity="info">دیوارکوب — به‌زودی. این بخش هنوز برای استفاده عمومی فعال نشده است.</Alert>}
 
 export function Home(props) {
     const reduxStore = useStore<RootState>()
@@ -192,13 +212,13 @@ export function Home(props) {
         return null
     }
 
-    if (!canAccessUserRoute(user.role, location.pathname)) {
+    if (!canAccessUserRoute(user.role, location.pathname,user.permissions)) {
         return <Alert severity="warning" action={<Button onClick={() => navigate('/dashboard')}>پیشخوان</Button>}>دسترسی به این بخش ندارید.</Alert>
     }
 
     return (
         <CurrentUserContext.Provider value={{user, setUser}}>
-        <PanelSettingsProvider><RealtimeProvider><MainLayout>
+        <PanelSettingsProvider><FavoritesProvider><RealtimeProvider><MainLayout><FeatureRouteGuard>
             <Box
                 flexGrow={1}
                 mt="5.25rem"
@@ -208,7 +228,20 @@ export function Home(props) {
                 <Box
                     sx={{minWidth: 0}}
                 >
-                    <Routes>
+                    <Suspense fallback={<Stack alignItems="center" p={5}><CircularProgress aria-label="بارگذاری صفحه"/></Stack>}><Routes>
+                        <Route path="reports" element={<Reports/>}/>
+                        <Route path="workflows" element={<WorkflowOverview/>}/>
+                        <Route path="crm" element={<WorkflowPage section="contacts"/>}/>
+                        <Route path="assignments" element={<WorkflowPage section="assignments"/>}/>
+                        <Route path="favorites" element={<WorkflowPage section="favorites"/>}/>
+                        <Route path="visits" element={<WorkflowPage section="visits"/>}/>
+                        <Route path="visit-slots" element={<WorkflowPage section="visit-slots"/>}/>
+                        <Route path="finance" element={<WorkflowPage section="finance"/>}/>
+                        <Route path="financial-settings" element={<FinancialSettings/>}/>
+                        <Route path="offers" element={<WorkflowPage section="offers"/>}/>
+                        <Route path="routing-settings" element={<RoutingSettings/>}/>
+                        <Route path="workspace-roles" element={<WorkspaceRoles/>}/>
+
                         <Route path="chats" element={<ChatPage />} />
                         <Route path="dashboard" element={<DashboardLayout />} />
                         <Route path="/profile" element={<Profile />} />
@@ -293,31 +326,31 @@ export function Home(props) {
                         <Route path="reminders/:id" element={<ReminderEdit />} />
                         {/* ...........Customers.......... */}
 
-                        <Route path="customers" element={<CustomersList />} />
-                        <Route path="customers/:id" element={<CustomersEdit />} />
+                        <Route path="customers" element={<WorkflowPage section="contacts" contactRole="buyer" title="مدیریت خریداران"/>} />
+                        <Route path="customers/:id" element={<WorkflowPage section="contacts"/>} />
                         {/* ...........Owners.......... */}
 
-                        <Route path="owners" element={<OwnersList />} />
-                        <Route path="owners/:id" element={<OwnersEdit />} />
+                        <Route path="owners" element={<WorkflowPage section="contacts" contactRole="owner" title="مدیریت مالکان"/>} />
+                        <Route path="owners/:id" element={<WorkflowPage section="contacts"/>} />
                         {/* ...........advertisements.......... */}
                         <Route
                             path="advertisements/create"
-                            element={<AdvertisementsCreate data={data} setData={setData} />}
+                            element={<ComingSoon/>}
                         />
-                        <Route path="advertisements" element={<AdvertisementsList />} />
-                        <Route path="advertisements/:id" element={<AdvertisementsEdit />} />
+                        <Route path="advertisements" element={<ComingSoon/>} />
+                        <Route path="advertisements/:id" element={<ComingSoon/>} />
                         {/* ...........Partners.......... */}
 
                         <Route path="partners" element={<PartnersList />} />
                         <Route path="partners/:id" element={<PartnersEdit />} />
                         {/* ...........lessors.......... */}
 
-                        <Route path="landlord-tenant/lessors" element={<LessorsList />} />
-                        <Route path="landlord-tenant/lessors/:id" element={<LessorsEdit />} />
+                        <Route path="landlord-tenant/lessors" element={<WorkflowPage section="contacts" contactRole="landlord" title="مدیریت موجران"/>} />
+                        <Route path="landlord-tenant/lessors/:id" element={<WorkflowPage section="contacts"/>} />
                         {/* ...........tenants.......... */}
 
-                        <Route path="landlord-tenant/tenants" element={<TenantsList />} />
-                        <Route path="landlord-tenant/tenants/:id" element={<TenantsEdit />} />
+                        <Route path="landlord-tenant/tenants" element={<WorkflowPage section="contacts" contactRole="tenant" title="مدیریت مستأجران"/>} />
+                        <Route path="landlord-tenant/tenants/:id" element={<WorkflowPage section="contacts"/>} />
                         <Route path="landlord-tenant" element={<RoleSelectPage />} />
 
                         {/* ...........tickets.......... */}
@@ -333,17 +366,17 @@ export function Home(props) {
                             path="owners-requests/create"
                             element={<OwnersRequestCreate data={data} setData={setData} />}
                         />
-                        <Route path="owners-requests" element={<OwnersRequestList />} />
-                        <Route path="owners-requests/:id" element={<OwnersRequestEdit />} />
+                        <Route path="owners-requests" element={<RecordList mode="request" requesterType="owner"/>} />
+                        <Route path="owners-requests/:id" element={<RecordEdit mode="request"/>} />
                         {/* ...........customers-requests.......... */}
 
-                        <Route path="customers-requests" element={<CustomersRequestList />} />
-                        <Route path="customers-requests/:id" element={<CustomersRequestEdit />} />
+                        <Route path="customers-requests" element={<RecordList mode="request" requesterType="customer"/>} />
+                        <Route path="customers-requests/:id" element={<RecordEdit mode="request"/>} />
 
                         {/* ...........Views.......... */}
 
-                        <Route path="views" element={<ViewsList />} />
-                        <Route path="views/:id" element={<ViewsEdit />} />
+                        <Route path="views" element={<WorkflowPage section="visits"/>} />
+                        <Route path="views/:id" element={<WorkflowPage section="visits"/>} />
                         {/* ...........follow-ups.......... */}
 
                         <Route path="follow-ups" element={<FollowUpsList />} />
@@ -354,8 +387,8 @@ export function Home(props) {
                         <Route path="contracts/:id" element={<ContractsEdit />} />
                         {/* ...........archives.......... */}
 
-                        <Route path="archives" element={<ArchivesList />} />
-                        <Route path="archives/:id" element={<ArchivesEdit />} />
+                        <Route path="archives" element={<WorkflowPage section="archive"/>} />
+                        <Route path="archives/:id" element={<WorkflowPage section="archive"/>} />
                         {/* ...........Tasks.......... */}
                         <Route
                             path="tasks/create"
@@ -363,10 +396,10 @@ export function Home(props) {
                         />
                         <Route path="tasks" element={<TasksList />} />
                         <Route path="tasks/:id" element={<TasksEdit />} />
-                    </Routes>
+                    <Route path="*" element={<Alert severity="info" action={<Button onClick={()=>navigate('/dashboard')}>پیشخوان</Button>}>صفحه موردنظر پیدا نشد. مسیر را بررسی کنید.</Alert>}/></Routes></Suspense>
                 </Box>
             </Box>
-        </MainLayout></RealtimeProvider></PanelSettingsProvider>
+        </FeatureRouteGuard></MainLayout></RealtimeProvider></FavoritesProvider></PanelSettingsProvider>
         </CurrentUserContext.Provider>
     )
 }

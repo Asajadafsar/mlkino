@@ -41,10 +41,14 @@ try:
         if 'proxy_http_version' not in block:block=block.replace('{','{\n        proxy_http_version 1.1;',1)
         if 'proxy_buffering' not in block:block=block.replace('{','{\n        proxy_buffering off;',1)
         text=text[:match.start()]+block+text[match.end():]
-        if 'location ^~ /media/private_chat/' not in text:
+        # Block both new private stores and legacy document paths. Downloads
+        # go through authenticated views, never the public /media/ alias.
+        private_paths=['private_chat/','private_tickets/','private_finance/','private_activities/','identity/','agencies/licenses/','experts/documents/']
+        missing=[path for path in private_paths if f'location ^~ /media/{path}' not in text]
+        if missing:
             location=re.search(r'location\s+/media/\s*\{',text)
             if not location:raise SystemExit('Existing media block changed')
-            rules='location ^~ /media/private_chat/ { return 404; }\n    location ^~ /media/private_tickets/ { return 404; }\n    '
+            rules=''.join('location ^~ /media/'+path+' { return 404; }\n    ' for path in missing)
             text=text[:location.start()]+rules+text[location.start():]
         api.write_text(text);panel.write_text(http+'\n'+(HERE/'nginx/panel.mlkino.com.https.conf').read_text())
     run(['nginx','-t']);run(['systemctl','reload','nginx'])

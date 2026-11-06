@@ -1,3 +1,4 @@
+from accounts.private_media import PrivateDocumentField
 
 from rest_framework import serializers
 
@@ -270,6 +271,7 @@ class PanelUserListSerializer(serializers.ModelSerializer):
 
 
 class PanelUserDetailSerializer(serializers.ModelSerializer):
+    national_code_image = PrivateDocumentField("national-card",images_only=True,read_only=True)
     full_name = serializers.SerializerMethodField()
     role_display = serializers.SerializerMethodField()
     user_type_display = serializers.SerializerMethodField()
@@ -342,6 +344,7 @@ class PanelUserDetailSerializer(serializers.ModelSerializer):
 
 
 class PanelUserUpdateSerializer(serializers.ModelSerializer):
+    national_code_image = PrivateDocumentField("national-card",images_only=True,required=False,allow_null=True)
     class Meta:
         model = User
         fields = [
@@ -642,11 +645,17 @@ class ActivityLogSerializer(serializers.ModelSerializer):
 from accounts.models import AgencyProfile, ExpertProfile, AgencyExpert
 
 class AgencyProfileSerializer(serializers.ModelSerializer):
+    license_image = PrivateDocumentField("agency-license",images_only=True,required=False,allow_null=True)
+
+    def validate_logo(self,value):
+        from accounts.media_processing import optimized_avatar
+        return optimized_avatar(value)
+
     manager_id = serializers.IntegerField(read_only=True)
     manager_name = serializers.CharField(source="manager.full_name", read_only=True)
     class Meta:
         model = AgencyProfile
-        fields = ["manager_id", "manager_name", "agency_name", "occupancy_type", "lease_end_date", "logo", "has_business_license", "license_number", "license_image", "marital_status", "landline", "office_address", "office_district", "office_neighborhood", "office_verification_status", "latitude", "longitude", "description"]
+        fields = ["manager_id", "manager_name", "agency_name", "occupancy_type", "lease_end_date", "logo", "has_business_license", "license_number", "license_expires_at", "license_image", "marital_status", "landline", "office_address", "office_district", "office_neighborhood", "office_verification_status", "latitude", "longitude", "description"]
         read_only_fields = ["manager_id", "manager_name", "office_verification_status"]
 
     def get_fields(self):
@@ -670,12 +679,15 @@ class AgencyProfileSerializer(serializers.ModelSerializer):
         if not has_license:
             if number or license_image:
                 raise serializers.ValidationError({"has_business_license": "برای ثبت پروانه ابتدا داشتن پروانه را فعال کنید."})
+            attrs["license_expires_at"] = None
             attrs["license_number"] = ""
             attrs["license_image"] = None
         return attrs
 
 
 class ExpertProfileSerializer(serializers.ModelSerializer):
+    commission_share_rate = serializers.DecimalField(max_digits=7,decimal_places=4,min_value=0,max_value=100,required=False,allow_null=True)
+    professional_document = PrivateDocumentField("expert-document",required=False,allow_null=True)
     def validate_expert_code(self, value):
         return value.strip() or None if value is not None else None
 
@@ -683,7 +695,7 @@ class ExpertProfileSerializer(serializers.ModelSerializer):
     agency_name = serializers.SerializerMethodField()
     class Meta:
         model = ExpertProfile
-        fields = ["expert_code", "job_title", "specialties", "experience_years", "professional_document", "job_details", "agency_id", "agency_name"]
+        fields = ["expert_code", "job_title", "specialties", "experience_years", "commission_share_rate", "professional_document", "job_details", "agency_id", "agency_name"]
         read_only_fields = ["agency_id", "agency_name"]
 
     def get_agency_id(self, obj):
@@ -856,12 +868,15 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "conversation", "sender", "sender_name", "created_at", "read_at", "deleted_at"]
 
 class ChatConversationSerializer(serializers.ModelSerializer):
+    properties = serializers.SerializerMethodField()
+    def get_properties(self,obj):
+        return [{"id":c.property_id,"kind":c.property.kind,"title":c.property.data.get("title") or c.property.data.get("propertyType", "ملک")} for c in obj.property_contexts.select_related("property").all()[:20]]
     peer = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
     class Meta:
         model = DirectConversation
-        fields = ["id", "peer", "last_message", "unread_count", "created_at", "updated_at"]
+        fields = ["id", "peer", "last_message", "unread_count", "created_at", "updated_at", "properties"]
     def get_peer(self, obj):
         user = self.context["request"].user
         peer = obj.user2 if obj.user1_id == user.id else obj.user1

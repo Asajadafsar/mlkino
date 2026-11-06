@@ -1090,6 +1090,8 @@ class ProfileView(APIView):
             "admin_level": user.admin_level,
             "has_profile": user.has_profile,
             "registration_required": user.registration_required,
+            "workspace_roles": list(user.business_roles.values('workspace_id','role')),
+            "permissions": {"can_finance": user.is_superuser or user.role in ('superadmin','agency') or user.business_roles.filter(role='finance').exists()},
             "last_login": user.last_login,
             "date_joined": user.date_joined,
             "profile_updated_at": user.profile_updated_at,
@@ -1278,7 +1280,7 @@ class LandingSessionView(APIView):
         avatar = request.build_absolute_uri(user.avatar.url) if user.avatar else None
         response = success_response(data={
             'id': user.pk, 'full_name': user.full_name,
-            'avatar': avatar, 'role_display': user.get_role_display(),
+            'avatar': avatar, 'role_display': user.get_role_display(), 'role': user.role,
         }, message='وضعیت ورود دریافت شد.')
         response['Cache-Control'] = 'private, no-store'
         response['Vary'] = 'Cookie, Origin'

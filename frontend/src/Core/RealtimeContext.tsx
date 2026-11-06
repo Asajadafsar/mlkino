@@ -150,7 +150,7 @@ export function RealtimeProvider({children}: {children: React.ReactNode}) {
                             if(!response.data.data.notifications.browser)return
                             const data=parsed.data
                             if(parsed.event==='chat.message'&&data.message?.sender===user.id)return
-                            const notification=new Notification(data.title||'پیام جدید در ملکینو',{body:data.body||data.message?.body||'یک پیام جدید دریافت کردید.',icon:'/assets/melkino-logo-hd.png',tag:parsed.event+':'+(data.id||data.conversation||'new')})
+                            const notification=new Notification(data.title||'پیام جدید در ملکینو',{body:data.body||data.message?.body||'یک پیام جدید دریافت کردید.',icon:'/assets/melkino-logo-hd.webp',tag:parsed.event+':'+(data.id||data.conversation||'new')})
                             notification.onclick=()=>{window.focus();notification.close()}
                         }).catch(()=>{})
                     }

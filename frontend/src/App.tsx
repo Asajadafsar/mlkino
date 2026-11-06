@@ -10,7 +10,9 @@ import {ReactRouter6Adapter} from 'use-query-params/adapters/react-router-6'
 import './App.css'
 import {LoadingBackdrop} from './Components/Backdrop/Backdrop'
 import {CustomizedSnackbars} from './Components/Snackbar/Snackbar'
-import {Home} from './Pages/Home/Home'
+import {lazy,Suspense} from 'react'
+import {CircularProgress,Stack,Typography} from '@mui/material'
+const Home=lazy(()=>import('./Pages/Home/Home').then(module=>({default:module.Home})))
 import {store} from './redux/store'
 import {RTL} from './RTL'
 import {AppTheme} from './Theme'
@@ -34,13 +36,13 @@ function App() {
                             <CustomizedSnackbars />
                             <LoadingBackdrop />
                             <QueryParamProvider adapter={ReactRouter6Adapter}>
-                                <Routes>
+                                <Suspense fallback={<Stack alignItems="center" gap={2} sx={{p:6}}><CircularProgress aria-label="بارگذاری پنل"/><Typography>در حال آماده‌سازی پنل…</Typography></Stack>}><Routes>
                                     <Route path="/" element={<LandingEntry/>} />
                                     <Route path="/*" element={<Home />} />
                                     <Route path="login" element={<LoginPage />} />
                                     <Route path="signup" element={<SignupPage />} />
                                     <Route path="change-password" element={<ChangePasswordPage />} />
-                                </Routes>
+                                </Routes></Suspense>
                             </QueryParamProvider>
                         </Provider>
                     </ThemeProvider>

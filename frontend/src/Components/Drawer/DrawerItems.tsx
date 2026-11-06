@@ -118,6 +118,13 @@ export const drawerGroups: DrawerGroupType[] = [
 ]
 
 export const drawerItems: DrawerItemType[] = [
+    {title:'مرکز عملیات',link:'workflows',role:'all',icon:<AssignmentTurnedInIcon sx={iconStyle}/>},
+    {title:'کارتابل ارجاع‌ها',link:'assignments',role:'all',icon:<TrackChangesIcon sx={iconStyle}/>},
+    {title:'علاقه‌مندی‌ها',link:'favorites',role:'all',icon:<HomeIcon sx={iconStyle}/>},
+    {title:'گزارش‌های مدیریتی',link:'reports',role:[UserRole.SUPERADMIN,UserRole.AGENCY],icon:<TrendingUpIcon sx={iconStyle}/>},
+    {title:'مالی و حسابداری',link:'finance',role:[UserRole.SUPERADMIN,UserRole.AGENCY],icon:<CreditCardIcon sx={iconStyle}/>},
+    {title:'تنظیمات مالی',link:'financial-settings',role:[UserRole.SUPERADMIN,UserRole.AGENCY],icon:<PaymentIcon sx={iconStyle}/>},
+    {title:'نقش‌های دفاتر',link:'workspace-roles',role:UserRole.SUPERADMIN,icon:<GroupIcon sx={iconStyle}/>},
     {
         title: 'پیشخوان',
         link: 'dashboard',
@@ -140,19 +147,19 @@ export const drawerItems: DrawerItemType[] = [
     {
         title: 'خریداران',
         link: 'customers',
-        role: 'all',
+        role: [UserRole.SUPERADMIN, UserRole.AGENCY, UserRole.EXPERT],
         icon: <HandshakeIcon sx={iconStyle} />,
     },
     {
         title: 'مالکین',
         link: 'owners',
-        role: 'all',
+        role: [UserRole.SUPERADMIN, UserRole.AGENCY, UserRole.EXPERT],
         icon: <HomeWorkOutlinedIcon sx={iconStyle} />,
     },
     {
         title: 'موجر و مستاجر',
         link: 'landlord-tenant',
-        role: 'all',
+        role: [UserRole.SUPERADMIN, UserRole.AGENCY, UserRole.EXPERT],
         icon: <VpnKeyIcon sx={iconStyle} />,
     },
     {
@@ -187,7 +194,7 @@ export const drawerItems: DrawerItemType[] = [
     },
     {
         title: 'بازدید ها',
-        link: 'views',
+        link: 'visits',
         role: 'all',
         icon: <VisibilityIcon sx={iconStyle} />,
     },
@@ -222,7 +229,8 @@ export const drawerItems: DrawerItemType[] = [
         icon: <ForumOutlinedIcon sx={iconStyle} />,
     },
     {
-        title: 'دیوارکوب',
+        title: 'دیوارکوب — به‌زودی',
+        disabled: true,
         link: 'advertisements',
         role: 'all',
         icon: <LocalOfferIcon sx={iconStyle} />,

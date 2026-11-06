@@ -13,10 +13,10 @@ export function buildUserRequestData(
     const specific = {
         user: ['user_type'],
         agency: ['national_code_image', 'agency_name', 'marital_status', 'ownership_type', 'lease_end_date', 'logo',
-            'has_business_license', 'license_number', 'license_image', 'landline',
+            'has_business_license', 'license_number', 'license_expires_at', 'license_image', 'landline',
             'office_address', 'office_district', 'office_neighborhood', 'latitude', 'longitude', 'description',
             ...(canVerifyOffice ? ['office_verification_status'] : [])],
-        expert: ['expert_code', 'agency_id', 'job_title', 'job_details', 'specialties', 'experience_years', 'professional_document', 'bio'],
+        expert: ['expert_code', 'agency_id', 'job_title', 'job_details', 'specialties', 'experience_years', 'commission_share_rate', 'professional_document', 'bio'],
         superadmin: ['admin_level', 'is_staff', 'is_superuser'],
     }
     const allowed = role ? new Set([...common, ...specific[role]]) : null

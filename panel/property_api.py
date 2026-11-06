@@ -13,8 +13,8 @@ from .models import PropertyRecord, AgencyExpertLink
 from .settings_api import envelope, is_superadmin, http_url
 
 FLOORS = {'طبقه اول', 'طبقه آخر', 'پیلوت', 'فرقی نمی‌کند', 'سایر طبقات'}
-NUMBERS = {'area','totalPrice','pricePerMeter','rent','mortgagePrice','monthlyRent','roomCount','totalFloor','floor','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','monthlyCharge','monthlyChargeFrom','monthlyChargeTo'}
-FIELDS = NUMBERS | {'contractType','propertyType','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','description','internalNote','images','virtualTourLink','floorPreferences','requesterType'}
+NUMBERS = {'area','totalPrice','pricePerMeter','rent','mortgagePrice','monthlyRent','latitude','longitude','buildYear','roomCount','totalFloor','floor','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','monthlyCharge','monthlyChargeFrom','monthlyChargeTo'}
+FIELDS = NUMBERS | {'contractType','propertyType','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','description','internalNote','images','virtualTourLink','floorPreferences','requesterType','title','work_phone','workPhone','virtualTourUrl','otherLink','external_links'}
 
 def normalize(value):
     return str('' if value is None else value).translate(str.maketrans('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩يك','01234567890123456789یک')).replace('\u200c',' ').strip().lower()
@@ -24,7 +24,7 @@ def scope(user):
     if is_superadmin(user): return qs
     ids = {user.pk}
     if user.role == 'agency': ids.update(AgencyExpertLink.objects.filter(agency=user).values_list('expert_id',flat=True))
-    return qs.filter(created_by_id__in=ids)
+    return qs.filter(Q(created_by_id__in=ids)|Q(assigned_expert=user)|Q(office=user,office__role='agency'))
 
 def validate_payload(request, kind, previous=None):
     if 'payload' in request.data:
@@ -33,14 +33,25 @@ def validate_payload(request, kind, previous=None):
     else: incoming=request.data
     if not isinstance(incoming,dict): raise ValidationError('اطلاعات فرم معتبر نیست.')
     data={**(previous or {}), **{key:value for key,value in incoming.items() if key in FIELDS}}
-    for key in ('contractType','propertyType','city'):
+    for key in (('contractType','propertyType') if incoming.get('publicationStatus')=='draft' else ('contractType','propertyType','city')):
         if not isinstance(data.get(key),str) or not data[key].strip(): raise ValidationError({key:'این فیلد الزامی است.'})
     if data['contractType'] not in ('فروش','رهن و اجاره'): raise ValidationError({'contractType':'نوع معامله معتبر نیست.'})
-    for key in (FIELDS-NUMBERS-{'district','neighborhood','amenities','images','virtualTourLink','floorPreferences'}) & data.keys():
+    for key in (FIELDS-NUMBERS-{'district','neighborhood','amenities','images','virtualTourLink','external_links','floorPreferences'}) & data.keys():
         if data[key] is None: data[key]=''
         if not isinstance(data[key],str) or len(data[key])>10000: raise ValidationError({key:'متن معتبر وارد کنید.'})
     links=data.get('virtualTourLink',{})
     if links and (not isinstance(links,dict) or any(k not in ('eitaa','telegram','instagram') or not isinstance(v,str) or v and not http_url(v) for k,v in links.items())): raise ValidationError({'virtualTourLink':'لینک تور مجازی باید یک نشانی وب معتبر باشد.'})
+    if data.get('workPhone'):data['work_phone']=data['workPhone']
+    external=dict(data.get('external_links') or {})
+    for src,target in [('virtualTourUrl','virtual_tour'),('otherLink','other')]:
+        if data.get(src):external[target]=data[src]
+    if external:data['external_links']=external
+    external=data.get('external_links',{})
+    if external and (not isinstance(external,dict) or len(external)>8 or any(k not in ('eitaa','telegram','instagram','virtual_tour','other') or not isinstance(v,str) or len(v)>2000 or not http_url(v) for k,v in external.items())):raise ValidationError({'external_links':'لینک خارجی معتبر نیست.'})
+    if data.get('work_phone'):
+        from accounts.validators import validate_iranian_mobile
+        try:data['work_phone']=validate_iranian_mobile(data['work_phone'])
+        except Exception:raise ValidationError({'work_phone':'شماره تماس کاری معتبر نیست.'})
     images=data.get('images',[])
     if not isinstance(images,list) or len(images)>15 or any(not isinstance(v,str) or not http_url(v) for v in images): raise ValidationError({'images':'تصاویر معتبر نیستند.'})
     if data['contractType'] != 'رهن و اجاره':
@@ -64,7 +75,7 @@ def validate_payload(request, kind, previous=None):
         for key in ('address','occupancyStatus','bathroom','totalFloorFrom','totalFloorTo','totalFloor'): data.pop(key,None)
         if not set(data['floorPreferences'])<=FLOORS: raise ValidationError({'floorPreferences':'طبقه انتخاب‌شده معتبر نیست.'})
         if 'فرقی نمی‌کند' in data['floorPreferences']: data['floorPreferences']=['فرقی نمی‌کند']
-    if data.get('province'):
+    if data.get('province') and data.get('city'):
         from .geography_api import catalog, choose, municipal_zones, local_neighborhoods
         province=choose(catalog('provinces'),data['province'])
         if not province: raise ValidationError({'province':'استان معتبر انتخاب کنید.'})
@@ -91,18 +102,25 @@ def validate_payload(request, kind, previous=None):
         if upload.size>5*1024*1024: raise ValidationError({'images':'حجم تصویر باید کمتر از ۵ مگابایت باشد.'})
         serializers.ImageField().run_validation(upload)
     if uploads:
+        from accounts.media_processing import store_property_image
         images=list(data.get('images',[]))
+        if len(images)+len(uploads)>15:raise ValidationError({'images':'مجموع تصاویر حداکثر ۱۵ مورد است.'})
+        variants=dict((previous or {}).get('image_variants',{}))
         for upload in uploads:
-            saved=default_storage.save(f'properties/{uuid.uuid4().hex}/{upload.name}',upload)
-            images.append(request.build_absolute_uri(default_storage.url(saved)))
-        data['images']=images
+            stored=store_property_image(upload,request)
+            images.append(stored['url']);variants[stored['url']]=stored['variants']
+        data['images']=images;data['image_variants']=variants
+    for key,minimum,maximum in [('latitude',24,40),('longitude',44,64)]:
+        if key in data and not minimum<=data[key]<=maximum:raise ValidationError({key:'موقعیت باید داخل محدوده ایران باشد.'})
     return data
 
-def serialize(row): return {**row.data,**({'requesterName':row.created_by.full_name,'requesterPhone':row.created_by.phone} if row.kind=='request' else {}),'id':row.pk,'created_at':row.created_at.isoformat(),'updated_at':row.updated_at.isoformat()}
+def serialize(row): return {**row.data,**({'requesterName':row.created_by.full_name,'requesterPhone':row.created_by.phone} if row.kind=='request' else {}),'id':row.pk,'created_at':row.created_at.isoformat(),'updated_at':row.updated_at.isoformat(),'publication_state':row.publication_state,'assigned_expert_id':row.assigned_expert_id,'office_id':row.office_id,'featured':row.featured,'archived':bool(row.archived_at)}
 
 class PropertyListView(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request,kind):
+        from .workflow_services import feature
+        feature('files' if kind=='file' else 'requests')
         rows=list(scope(request.user).filter(kind=kind).select_related('created_by'))
         stats={'total':len(rows),'active':sum(r.data.get('requestStatus',r.data.get('status','')) in ('فعال','تایید شده','تأیید شده','تایید شده توسط کارشناس') for r in rows),'customer':sum(r.data.get('requesterType','customer')=='customer' for r in rows),'owner':sum(r.data.get('requesterType')=='owner' for r in rows)}
         params=request.query_params
@@ -138,8 +156,12 @@ class PropertyListView(APIView):
         total=len(rows);return envelope({'results':[serialize(r) for r in rows[(page-1)*size:page*size]],'total_results':total,'has_more':page*size<total,'stats':stats})
     def post(self,request,kind):
         if kind=='file' and request.user.role not in ('superadmin','agency','expert') and not is_superadmin(request.user): raise PermissionDenied('ثبت فایل برای این نقش مجاز نیست.')
+        from .workflow_services import dispatch,feature,audit,workspace
+        feature('files' if kind=='file' else 'requests')
         data=validate_payload(request,kind)
-        row=PropertyRecord.objects.create(kind=kind,created_by=request.user,data=data)
+        row=PropertyRecord.objects.create(kind=kind,created_by=request.user,data=data,office_id=workspace(request.user) if request.user.role in ('agency','expert') else None,assigned_expert=request.user if request.user.role=='expert' else None)
+        audit(request.user,'property.created','property',row.pk,property=row)
+        if kind=='request' and data.get('publicationStatus')!='draft':dispatch(row.pk,request.user)
         return envelope(serialize(row),message='اطلاعات ثبت شد.',code=201)
 
 class PropertyDetailView(APIView):
@@ -147,5 +169,9 @@ class PropertyDetailView(APIView):
     def get(self,request,kind,pk): return envelope(serialize(get_object_or_404(scope(request.user),kind=kind,pk=pk)))
     def patch(self,request,kind,pk):
         row=get_object_or_404(scope(request.user),kind=kind,pk=pk)
-        if row.created_by_id!=request.user.pk and not is_superadmin(request.user): raise PermissionDenied('ویرایش این پرونده مجاز نیست.')
-        row.data=validate_payload(request,kind,row.data);row.save(update_fields=['data','updated_at']);return envelope(serialize(row),message='تغییرات ذخیره شد.')
+        if row.created_by_id!=request.user.pk and row.assigned_expert_id!=request.user.pk and not (request.user.role=='agency' and row.office_id==request.user.pk) and not is_superadmin(request.user): raise PermissionDenied('ویرایش این پرونده مجاز نیست.')
+        row.data=validate_payload(request,kind,row.data);row.save(update_fields=['data','updated_at'])
+        if row.data.get('publicationStatus')=='pending':
+            from .workflow_services import dispatch
+            dispatch(row.pk,request.user)
+        return envelope(serialize(row),message='تغییرات ذخیره شد.')

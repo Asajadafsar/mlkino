@@ -1,4 +1,4 @@
-import {Box,IconButton,Menu,MenuItem,Stack,Typography} from '@mui/material'
+import {Alert,Box,Button,IconButton,Menu,MenuItem,Stack,Typography} from '@mui/material'
 import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded'
 import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
@@ -8,6 +8,7 @@ import BedOutlinedIcon from '@mui/icons-material/BedOutlined'
 import SquareFootRoundedIcon from '@mui/icons-material/SquareFootRounded'
 import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded'
 import {useState} from 'react'
+import {useFavorites} from '../../Core/FavoritesContext'
 import type {PropertyType} from '../PropertyRecordForm'
 import {PropertyDetailDialog} from '../../Pages/Files/PropertyCard/PropertyDetailDialog'
 import {useDerivedPropertyInfo} from '../../Pages/Files/PropertyCard/propertyCardUtils'
@@ -15,7 +16,7 @@ import {estateDate} from './estateFormat'
 import {useNavigate} from 'react-router-dom'
 export function EstateProperty({item,mode,layout}:{item:Partial<PropertyType>;mode:'file'|'request';layout:'card'|'list'}) {
  const navigate=useNavigate();const [detail,setDetail]=useState(false),[anchor,setAnchor]=useState<HTMLElement|null>(null)
- const key=`mlkino:favorite:${mode}:${item.id}`;const [favorite,setFavorite]=useState(()=>localStorage.getItem(key)==='true')
+ const {ids,toggle,loading:favoriteLoading}=useFavorites(),favorite=ids.has(Number(item.id));const [favoriteBusy,setFavoriteBusy]=useState(false),[favoriteError,setFavoriteError]=useState('');const favoriteClick=async()=>{if(!item.id||favoriteBusy)return;setFavoriteBusy(true);setFavoriteError('');try{await toggle(Number(item.id))}catch(error:any){setFavoriteError(error.response?.data?.message||error.message||'ذخیره علاقه‌مندی انجام نشد.')}finally{setFavoriteBusy(false)}}
  const {location,priceMain,priceSecondary,areaText}=useDerivedPropertyInfo(item)
  const image=typeof item.images?.[0]==='string'?item.images[0]:null
  const status=mode==='request'?item.requestStatus||'در انتظار بررسی':item.status||'فعال'
@@ -25,14 +26,14 @@ export function EstateProperty({item,mode,layout}:{item:Partial<PropertyType>;mo
  const heading=mode==='request'?`درخواست ${item.contractType==='رهن و اجاره'?'رهن و اجاره':'خرید'} ${item.propertyType||'ملک'}${location?' در '+(Array.isArray(item.neighborhood)?item.neighborhood.join('، '):item.neighborhood||location):''}`:item.propertyType||'ملک'
  return <><Box className={layout==='list'?`estate-row estate-${tone}`:'estate-card'}>
  {layout==='list'?<>
- <Box onClick={()=>setDetail(true)} sx={{cursor:'pointer',flexShrink:0}}>{image?<img className="estate-row-thumb" src={image} alt={item.propertyType}/>:<Box className="estate-row-thumb" sx={{display:'grid',placeItems:'center',color:'primary.main'}}><ApartmentRoundedIcon/></Box>}</Box>
+ <Box onClick={()=>setDetail(true)} sx={{cursor:'pointer',flexShrink:0}}>{image?<img className="estate-row-thumb" src={image} alt={item.propertyType||'تصویر ملک'} loading="lazy" decoding="async"/>:<Box className="estate-row-thumb" sx={{display:'grid',placeItems:'center',color:'primary.main'}}><ApartmentRoundedIcon/></Box>}</Box>
  <Box className="estate-row-title" onClick={()=>setDetail(true)} sx={{cursor:'pointer'}}><Typography className="estate-title" sx={{fontSize:'14px!important'}}>{heading}</Typography><Typography className="estate-subtitle"><PersonOutlineRoundedIcon sx={{fontSize:14,verticalAlign:'middle'}}/> {item.requesterName||item.ownerName||location||`پرونده ${item.id}`}</Typography></Box>
  <Box className="estate-row-fact"><ApartmentRoundedIcon fontSize="small"/>{item.contractType}</Box><Box className="estate-row-fact"><BedOutlinedIcon fontSize="small"/>{item.roomCount!=null?`${Number(item.roomCount).toLocaleString('fa-IR')} خواب`:'تعداد اتاق مشخص نشده'}</Box><Box className="estate-row-fact"><SquareFootRoundedIcon fontSize="small"/>{areaText||'متراژ مشخص نشده'}</Box>
  <Box className="estate-row-status">{statusChip}<div className="estate-row-date">{estateDate((item as any).created_at)}</div></Box>{menu}
  </>:<>
- <Box className="estate-card-cover"><Box onClick={()=>setDetail(true)} sx={{position:'absolute',inset:0,overflow:'hidden',cursor:'pointer',display:'grid',placeItems:'center',color:'#a3b6df','& img':{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}}>{image?<img src={image} alt={item.propertyType}/>:<ApartmentRoundedIcon sx={{fontSize:52}}/>}</Box><Stack direction="row-reverse" justifyContent="space-between" sx={{position:'absolute',top:10,left:12,right:12,pointerEvents:'none','> *':{pointerEvents:'auto'}}}>{menu}<IconButton className="estate-round-action" aria-label={favorite?'حذف از علاقه‌مندی‌ها':'افزودن به علاقه‌مندی‌ها'} onClick={()=>{localStorage.setItem(key,String(!favorite));setFavorite(!favorite)}}>{favorite?<FavoriteRoundedIcon color="primary" fontSize="small"/>:<FavoriteBorderRoundedIcon fontSize="small"/>}</IconButton></Stack>{statusChip}</Box>
+ <Box className="estate-card-cover"><Box onClick={()=>setDetail(true)} sx={{position:'absolute',inset:0,overflow:'hidden',cursor:'pointer',display:'grid',placeItems:'center',color:'#a3b6df','& img':{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}}>{image?<img src={image} alt={item.propertyType||'تصویر ملک'} loading="lazy" decoding="async"/>:<ApartmentRoundedIcon sx={{fontSize:52}}/>}</Box><Stack direction="row-reverse" justifyContent="space-between" sx={{position:'absolute',top:10,left:12,right:12,pointerEvents:'none','> *':{pointerEvents:'auto'}}}>{menu}<IconButton className="estate-round-action" aria-label={favorite?'حذف از علاقه‌مندی‌ها':'افزودن به علاقه‌مندی‌ها'} disabled={favoriteLoading||favoriteBusy} onClick={favoriteClick}>{favorite?<FavoriteRoundedIcon color="primary" fontSize="small"/>:<FavoriteBorderRoundedIcon fontSize="small"/>}</IconButton></Stack>{statusChip}</Box>
  <Stack direction="row" gap={1.3} className="estate-card-body" alignItems="center" onClick={()=>setDetail(true)} sx={{cursor:'pointer'}}><Box className="estate-icon-box"><ApartmentRoundedIcon/></Box><Box minWidth={0}><Typography className="estate-title">{heading}</Typography><Typography className="estate-subtitle" noWrap><PlaceRoundedIcon sx={{fontSize:13,verticalAlign:'middle'}}/> {location||'موقعیت ثبت نشده'}</Typography></Box></Stack>
  <Box className="estate-card-footer"><span className="estate-meta"><SquareFootRoundedIcon/>{areaText||'—'}</span><Box textAlign="left"><div className="estate-price">{priceMain||'توافقی'} {priceMain&&<small style={{fontSize:10,color:'#627197'}}>تومان</small>}</div>{priceSecondary&&<Typography fontSize={10} color="text.secondary">{priceSecondary}</Typography>}</Box></Box>
  </>}
- </Box><PropertyDetailDialog open={detail} onClose={()=>setDetail(false)} item={item} mode={mode}/></>
+ </Box>{favoriteError&&<Alert severity="error">{favoriteError}</Alert>}<PropertyDetailDialog open={detail} onClose={()=>setDetail(false)} item={item} mode={mode}/></>
 }

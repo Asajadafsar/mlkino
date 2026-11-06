@@ -1,3 +1,4 @@
+jest.mock('../../Core/Request',()=>({__esModule:true,default:{get:jest.fn().mockResolvedValue({data:{data:{results:[]}}}),post:jest.fn()}}))
 import {fireEvent,render,screen,within,waitFor} from '@testing-library/react'
 import {EstateActivityList} from './EstateActivityList'
 const rows=[{id:1,file_name:'آپارتمان سالاریه',full_name:'علی',phone_number:'09120000001',date:'2026-08-15T12:00:00',description:'بازدید',status:'در حال پیگیری'},{id:2,file_name:'ویلای چمران',full_name:'مریم',date:'2026-08-15T12:00:00',description:'تماس',status:'انجام شده'}]

@@ -35,7 +35,7 @@ export default function UserPage() {
         {error && <Alert severity="error" sx={{mb: 2}}>{error}</Alert>}
         <Grid container spacing={2.5}>{categories.map(category => <Grid key={category.role} item xs={12} md={6}>
             <Paper variant="outlined" sx={{position: 'relative', minHeight: 245, p: {xs: 2.5, md: 3.5}, borderRadius: '20px', borderColor: `${category.color}20`, background: `linear-gradient(130deg,#ffffff,${category.color}05)`, overflow: 'hidden', transition: 'transform .2s, box-shadow .2s', '&:hover': {transform: 'translateY(-3px)', boxShadow: `0 12px 28px ${category.color}10`}}}>
-                <Box component="img" src="/assets/users-3d.png" alt="" sx={{position: 'absolute', right: 4, bottom: 15, width: {xs: 150, lg: 215}, height: 185, objectFit: 'contain', filter: `hue-rotate(${category.hue})`, opacity: .9}} />
+                <Box component="img" src="/assets/users-3d.webp" alt="" sx={{position: 'absolute', right: 4, bottom: 15, width: {xs: 150, lg: 215}, height: 185, objectFit: 'contain', filter: `hue-rotate(${category.hue})`, opacity: .9}} />
                 <Stack alignItems="flex-start" sx={{position: 'relative', minHeight: 190, width: {xs: '70%', lg: '65%'}, zIndex: 1}}>
                     <Box sx={{display: 'flex', p: 1.5, bgcolor: `${category.color}10`, color: category.color, borderRadius: '16px', mb: 1.5}}>{category.icon}</Box>
                     <Typography fontSize={23} fontWeight={900}>{category.title}</Typography><Typography variant="body2" color="text.secondary" sx={{mt: .5, mb: 1}}>{category.description}</Typography>

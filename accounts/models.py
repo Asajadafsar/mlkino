@@ -20,9 +20,9 @@ from accounts.validators import (
 # ============================================================
 
 def user_avatar_path(instance, filename):
-    ext = os.path.splitext(filename)[1].lower() or ".jpg"
-    phone = instance.phone or "unknown"
-    return f"avatars/{phone}/{phone}{ext}"
+    # Random storage names avoid publishing a user's phone number in URLs.
+    ext = os.path.splitext(filename)[1].lower() or ".webp"
+    return f"avatars/{uuid.uuid4().hex}{ext}"
 
 
 # ============================================================
@@ -635,6 +635,7 @@ class AgencyProfile(models.Model):
     logo = models.ImageField(upload_to="agencies/logos/", null=True, blank=True)
     has_business_license = models.BooleanField(default=False)
     license_number = models.CharField(max_length=100, blank=True)
+    license_expires_at = models.DateField(null=True,blank=True)
     license_image = models.ImageField(upload_to="agencies/licenses/", null=True, blank=True)
     class MaritalStatus(models.TextChoices):
         SINGLE = "single", "مجرد"
@@ -660,6 +661,7 @@ class ExpertProfile(models.Model):
     expert_code = models.CharField(max_length=40, unique=True, null=True, blank=True)
     job_title = models.CharField(max_length=150, blank=True)
     specialties = models.JSONField(default=list, blank=True)
+    commission_share_rate = models.DecimalField(max_digits=7,decimal_places=4,null=True,blank=True)
     experience_years = models.PositiveSmallIntegerField(default=0)
     professional_document = models.FileField(upload_to="experts/documents/", null=True, blank=True)
     job_details = models.TextField(blank=True)

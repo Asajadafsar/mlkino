@@ -1,6 +1,6 @@
 "use client";
 import {createContext,useCallback,useContext,useEffect,useState,type ReactNode} from "react";
-export type LandingUser={id:number;full_name:string;avatar:string|null;role_display:string};
+export type LandingUser={id:number;full_name:string;avatar:string|null;role_display:string;role?:string};
 type Session={user:LandingUser|null;loading:boolean};
 const SessionContext=createContext<Session>({user:null,loading:true});
 export function apiOrigin(){
@@ -13,7 +13,7 @@ export function LandingSessionProvider({children}:{children:ReactNode}){
  const load=useCallback(async(signal:AbortSignal)=>{
   try{
    const origin=apiOrigin();
-   const options:RequestInit={credentials:'include',cache:'no-store',signal};
+   const options:RequestInit={credentials:'include',cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(12000)])};
    let response=await fetch(origin+'/accounts/session/',options);
    if(response.status===401){
     const refresh=await fetch(origin+'/accounts/token/refresh/',{...options,method:'POST'});

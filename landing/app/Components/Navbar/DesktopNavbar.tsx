@@ -1,58 +1,18 @@
 "use client";
-import {useLandingSession} from "../../Core/Session";
-import {PANEL_LINKS} from "../../Core/panel";
-
-
-import { useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { Drawer, IconButton } from "@mui/material";
-import MenuRounded from "@mui/icons-material/MenuRounded";
-import CloseRounded from "@mui/icons-material/CloseRounded";
-import NotificationsNoneRounded from "@mui/icons-material/NotificationsNoneRounded";
-import ChatBubbleOutlineRounded from "@mui/icons-material/ChatBubbleOutlineRounded";
-import KeyboardArrowDownRounded from "@mui/icons-material/KeyboardArrowDownRounded";
-import PersonOutlineRounded from "@mui/icons-material/PersonOutlineRounded";
-import AddRounded from "@mui/icons-material/AddRounded";
-import { isNavActive } from "./nav-items";
-import SubmitMenu from "./SubmitMenu";
-import styles from "./navbar.module.css";
-
-const links = [
-  { href: "/", label: "خانه" },
-  { href: "/files", label: "فایل‌های ملکی" },
-  { href: "/requests", label: "درخواست‌های ملکی" },
-  { href: PANEL_LINKS.reminders, label: "یادآوری‌ها" },
-];
-
-export default function DesktopNavbar() {
-  const pathname = usePathname();
-  const {user,loading}=useLandingSession();
-  const accountHref=user?PANEL_LINKS.dashboard:PANEL_LINKS.login;
-  const accountLabel=user?(user.full_name||"حساب من"):"ورود / ثبت‌نام";
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [submitAnchor, setSubmitAnchor] = useState<HTMLElement | null>(null);
-  return <>
-    <header className={`${styles.header} ${pathname === "/search" ? styles.searchHeader : ""}`}>
-      <div className={styles.shell}>
-        <IconButton className={styles.menuButton} aria-label="باز کردن منوی اصلی" aria-expanded={drawerOpen} aria-controls={drawerOpen ? "main-navigation-drawer" : undefined} onClick={() => setDrawerOpen(true)}><MenuRounded /></IconButton>
-        <Link href="/" className={styles.brand} aria-label="ملکینو، صفحه اصلی"><Image src="/images/melkino.png" alt="" width={54} height={54} priority /><strong>ملکینو</strong></Link>
-        <nav className={styles.desktopLinks} aria-label="منوی اصلی سایت">{links.map(({ href, label }) => <Link key={href} href={href} aria-current={isNavActive(pathname, href) ? "page" : undefined}>{label}</Link>)}</nav>
-        <div className={styles.actions}>
-          <button type="button" className={styles.submitDesktop} onClick={event => setSubmitAnchor(event.currentTarget)} aria-haspopup="menu" aria-expanded={Boolean(submitAnchor)} aria-controls={submitAnchor ? "header-submit-menu" : undefined}><AddRounded /> ثبت ملک</button>
-          <Link href={PANEL_LINKS.chats} className={styles.iconLink} aria-label="چت و تماس"><ChatBubbleOutlineRounded /></Link>
-          <Link href={PANEL_LINKS.reminders} className={styles.iconLink} aria-label="یادآوری‌ها"><NotificationsNoneRounded /></Link>
-          <Link href={accountHref} className={styles.account} aria-label={accountLabel} aria-busy={loading}>{user?.avatar?<img src={user.avatar} alt="" width={36} height={36} style={{borderRadius:"50%",objectFit:"cover"}}/>:<PersonOutlineRounded />}<span><strong>{accountLabel}</strong><small>{user?.role_display||"پنل کاربری"}</small></span><KeyboardArrowDownRounded /></Link>
-        </div>
-      </div>
-    </header>
-    <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)} slotProps={{ paper: { sx: { width: 320, maxWidth: "calc(100vw - 32px)", bgcolor:"#f9f9ff" } } }}>
-      <div id="main-navigation-drawer" className={styles.drawer}>
-        <div className={styles.drawerTitle}><strong>منوی ملکینو</strong><IconButton aria-label="بستن منو" onClick={() => setDrawerOpen(false)}><CloseRounded /></IconButton></div>
-        <nav aria-label="منوی اصلی موبایل">{[...links, {href:"/search",label:"جستجوی پیشرفته"}, {href:"/categories",label:"همه دسته‌بندی‌ها"}, {href:"/vip",label:"فایل‌های ویژه"}, {href:PANEL_LINKS.chats,label:"چت و تماس"}, {href:accountHref,label:accountLabel}].map(({ href, label }) => <Link key={href} href={href} onClick={() => setDrawerOpen(false)} aria-current={isNavActive(pathname, href) ? "page" : undefined}>{label}</Link>)}</nav>
-      </div>
-    </Drawer>
-    <SubmitMenu id="header-submit-menu" anchorEl={submitAnchor} onClose={() => setSubmitAnchor(null)} />
-  </>;
-}
+import {useLandingSession} from '../../Core/Session';
+import {PANEL_LINKS} from '../../Core/panel';
+import {usePublic} from '../Catalog/usePublic';
+import type {PublicConfig} from '../../Core/catalog';
+import {useState} from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import {usePathname} from 'next/navigation';
+import NotificationsNoneRounded from '@mui/icons-material/NotificationsNoneRounded';
+import ChatBubbleOutlineRounded from '@mui/icons-material/ChatBubbleOutlineRounded';
+import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded';
+import AddRounded from '@mui/icons-material/AddRounded';
+import {isNavActive} from './nav-items';
+import SubmitMenu from './SubmitMenu';
+import styles from './navbar.module.css';
+const links=[{href:'/',label:'خانه'},{href:'/files',label:'فایل‌های ملکینو'},{href:'/requests',label:'درخواست‌های ملکینو'},{href:'/vip',label:'فایل‌های ویژه'},{href:'/search',label:'جستجوی پیشرفته'}];
+export default function DesktopNavbar(){const pathname=usePathname(),{user,loading}=useLandingSession(),{data:config}=usePublic<PublicConfig>('config/'),[anchor,setAnchor]=useState<HTMLElement|null>(null);const href=user?PANEL_LINKS.dashboard:PANEL_LINKS.login,label=loading?'در حال بررسی حساب…':user?(user.full_name||'حساب من'):'ورود / ثبت‌نام';return <><header className={styles.header}><div className={styles.shell}><Link href="/" className={styles.brand} aria-label="ملکینو، صفحه اصلی"><Image src="/images/melkino.png" alt="" width={54} height={54} preload/><strong>ملکینو</strong></Link><nav className={styles.desktopLinks} aria-label="منوی اصلی سایت">{links.filter(x=>x.href!=='/files'&&x.href!=='/vip'||config?.features?.files!==false).filter(x=>x.href!=='/requests'||config?.features?.requests!==false).map(x=><Link key={x.href} href={x.href} aria-current={isNavActive(pathname,x.href)?'page':undefined}>{x.label}</Link>)}</nav><div className={styles.actions}>{user?.role==='expert'?<Link className={styles.submitDesktop} href={PANEL_LINKS.createFile}><AddRounded/>ثبت فایل تخصصی</Link>:<button type="button" className={styles.submitDesktop} aria-haspopup="menu" aria-expanded={!!anchor} onClick={e=>setAnchor(e.currentTarget)}><AddRounded/>ثبت ملک / درخواست</button>}{config?.features?.chats!==false&&<Link href={PANEL_LINKS.chats} className={styles.iconLink} aria-label="چت و تماس"><ChatBubbleOutlineRounded/></Link>}<Link href={PANEL_LINKS.reminders} className={styles.iconLink} aria-label="یادآوری‌ها"><NotificationsNoneRounded/></Link><Link href={href} className={styles.account} aria-label={label} aria-busy={loading}>{user?.avatar?<Image src={user.avatar} alt="" width={36} height={36}/>:<PersonOutlineRounded/>}<span><strong>{label}</strong><small>{user?.role_display||'پنل کاربری'}</small></span></Link></div></div><nav className={styles.quickMobile} aria-label="فهرست املاک در موبایل">{links.filter(x=>x.href!=='/').filter(x=>x.href!=='/files'&&x.href!=='/vip'||config?.features?.files!==false).filter(x=>x.href!=='/requests'||config?.features?.requests!==false).map(x=><Link key={x.href} href={x.href} aria-current={isNavActive(pathname,x.href)?'page':undefined}>{x.label}</Link>)}</nav></header><SubmitMenu id="header-submit-menu" anchorEl={anchor} onClose={()=>setAnchor(null)}/></>}

@@ -16,6 +16,7 @@ type ContactField =
     | 'email'
     | 'address'
     | 'instagram'
+    | 'eitaa'
     | 'telegram'
     | 'linkedin'
     | 'whatsapp'
@@ -87,6 +88,7 @@ export function ContactSettings({
                     placeholder="نشانی محل کسب‌وکار"
                 />
 
+                <CustomTextField name="eitaa" label="ایتا" value={settings.contact.eitaa} change={event=>handleChange('eitaa',event.target.value)} placeholder="https://eitaa.com/your-page" />
                 <CustomTextField
                     name="instagram"
                     label="لینک اینستاگرام"

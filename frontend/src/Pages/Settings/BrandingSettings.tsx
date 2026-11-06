@@ -1,5 +1,5 @@
-import React, {useRef} from 'react'
-import {Box, Button, Stack, Typography} from '@mui/material'
+import React, {useRef,useState} from 'react'
+import {Alert,Box, Button, Stack, Typography} from '@mui/material'
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined'
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
@@ -31,6 +31,7 @@ function ImageUploadField({
     previewHeight = 140,
 }: ImageUploadFieldProps) {
     const inputRef = useRef<HTMLInputElement>(null)
+    const [error,setError]=useState('')
 
     const handleFileChange = (
         event: React.ChangeEvent<HTMLInputElement>,
@@ -39,9 +40,8 @@ function ImageUploadField({
 
         if (!file) return
 
-        if (!file.type.startsWith('image/')) {
-            return
-        }
+        setError('')
+        if (!['image/jpeg','image/png','image/webp','image/avif','image/x-icon','image/vnd.microsoft.icon'].includes(file.type)||file.size>5*1024*1024) {setError('تصویر PNG، JPEG، WebP یا AVIF تا ۵ مگابایت انتخاب کنید؛ SVG مجاز نیست.');return}
 
         const reader = new FileReader()
 
@@ -65,7 +65,7 @@ function ImageUploadField({
     }
 
     return (
-        <Stack spacing={1.5}>
+        <Stack spacing={1.5}>{error&&<Alert severity="error">{error}</Alert>}
             {/* Preview */}
             <Box
                 sx={{
@@ -210,7 +210,7 @@ export function BrandingSettings({
             title="برندینگ"
             description="لوگوها و هویت بصری پنل را مدیریت کنید."
         >
-            <Stack spacing={3}>
+            <Stack spacing={3}><ImageUploadField label="تصویر اصلی لندینگ" name="heroImage" placeholder="https://example.com/hero.webp" value={settings.branding.heroImage} onChange={value=>update('heroImage',value)} previewHeight={220}/>
                 <ImageUploadField
                     label="Logo اصلی"
                     name="logo"

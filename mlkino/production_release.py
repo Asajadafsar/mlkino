@@ -47,7 +47,7 @@ PANEL_SETTINGS_PUBLIC_BASE_URL = 'https://api.mlkino.com'
 
 # Preserve server-installed apps and its audit/provider integrations.
 MIDDLEWARE = list(dict.fromkeys(MIDDLEWARE))  # noqa: F405
-for middleware in reversed(['accounts.middleware.TrustedBrowserOriginMiddleware', 'accounts.middleware.RequestTimezoneMiddleware', 'accounts.middleware.ActivityFailureMiddleware']):
+for middleware in reversed(['accounts.middleware.TrustedBrowserOriginMiddleware', 'accounts.middleware.FeatureAccessMiddleware', 'accounts.middleware.RequestTimezoneMiddleware', 'accounts.middleware.ActivityFailureMiddleware']):
     if middleware not in MIDDLEWARE:
         MIDDLEWARE.insert(MIDDLEWARE.index('django.middleware.security.SecurityMiddleware') + 1, middleware)
 

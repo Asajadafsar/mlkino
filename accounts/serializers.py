@@ -88,6 +88,10 @@ class VerifyOtpSerializer(serializers.Serializer):
 
 
 class CompleteRegisterSerializer(serializers.Serializer):
+    def validate_avatar(self, value):
+        from .media_processing import optimized_avatar
+        return optimized_avatar(value)
+
     postal_manual = serializers.BooleanField(required=False, default=False)
     province = serializers.CharField(required=False,allow_blank=True,max_length=50)
     city = serializers.CharField(required=False,allow_blank=True,max_length=50)
@@ -384,9 +388,8 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         }
 
     def validate_avatar(self, value):
-        if value and value.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError('حجم عکس باید کمتر از ۵ مگابایت باشد.')
-        return value
+        from .media_processing import optimized_avatar
+        return optimized_avatar(value)
 
     def validate_first_name(self, value):
         value = value.strip()

@@ -1,3 +1,7 @@
+from .reporting_api import WorkflowReportsView
+from .public_api import PublicCatalogView, PublicConfigView, PublicLocationsView, PublicMapTileView
+from .workflow_api import (ContactsView, AssignmentsView, AssignmentRespondView, AssignmentReferView, OwnerSubmissionView, PropertyPublishView, FavoritesView, VisitSlotsView, VisitsView, OffersView, PropertyChatView, ArchiveView, RoutingSettingsView, BusinessRolesView, WorkflowOverviewView, ActivityAttachmentView, SavedFiltersView, PropertyContactView)
+from .finance_api import FinancialSettingsView, CommissionCalculateView, FinancialDocumentView, FinancialPostView, LedgerView, FinancialReceiptView
 from .role_api import UserRoleView
 from .dashboard_estate_api import DashboardEstateView
 from .analytics_api import EstateAnalyticsView
@@ -16,6 +20,42 @@ app_name = "panel"
 from .settings_api import PanelAppearanceView
 
 urlpatterns = [
+    path('public/catalog/',PublicCatalogView.as_view()),
+    path('public/catalog/<int:pk>/',PublicCatalogView.as_view()),
+    path('public/config/',PublicConfigView.as_view()),
+    path('public/locations/',PublicLocationsView.as_view()),
+    path('public/tiles/<int:z>/<int:x>/<int:y>.png',PublicMapTileView.as_view()),
+    path('workflows/reports/',WorkflowReportsView.as_view()),
+    path('workflows/',WorkflowOverviewView.as_view()),
+    path('workflows/activities/<int:pk>/attachment/',ActivityAttachmentView.as_view()),
+    path('workflows/saved-filters/',SavedFiltersView.as_view()),
+    path('workflows/saved-filters/<int:pk>/',SavedFiltersView.as_view()),
+    path('workflows/contacts/',ContactsView.as_view()),
+    path('workflows/contacts/<int:pk>/',ContactsView.as_view()),
+    path('workflows/assignments/',AssignmentsView.as_view()),
+    path('workflows/assignments/<int:pk>/respond/',AssignmentRespondView.as_view()),
+    path('workflows/assignments/<int:pk>/refer/',AssignmentReferView.as_view()),
+    path('workflows/owner-submissions/',OwnerSubmissionView.as_view()),
+    path('workflows/properties/<int:pk>/publish/',PropertyPublishView.as_view()),
+    path('workflows/properties/<int:pk>/contact/',PropertyContactView.as_view()),
+    path('workflows/properties/<int:pk>/chat/',PropertyChatView.as_view()),
+    path('workflows/favorites/',FavoritesView.as_view()),
+    path('workflows/favorites/<int:pk>/',FavoritesView.as_view()),
+    path('workflows/visit-slots/',VisitSlotsView.as_view()),
+    path('workflows/visits/',VisitsView.as_view()),
+    path('workflows/visits/<int:pk>/',VisitsView.as_view()),
+    path('workflows/offers/',OffersView.as_view()),
+    path('workflows/archive/',ArchiveView.as_view()),
+    path('workflows/settings/',RoutingSettingsView.as_view()),
+    path('workflows/roles/',BusinessRolesView.as_view()),
+    path('workflows/financial-settings/',FinancialSettingsView.as_view()),
+    path('workflows/commission/calculate/',CommissionCalculateView.as_view()),
+    path('workflows/finance/',FinancialDocumentView.as_view()),
+    path('workflows/finance/<int:pk>/',FinancialDocumentView.as_view()),
+    path('workflows/finance/<int:pk>/post/',FinancialPostView.as_view()),
+    path('workflows/finance/<int:pk>/receipt/',FinancialReceiptView.as_view()),
+    path('workflows/ledger/',LedgerView.as_view()),
+
     path('users/<int:user_id>/role/',UserRoleView.as_view(),name='user-role-change'),
     path('dashboard/estate-overview/',DashboardEstateView.as_view(),name='dashboard-estate-overview'),
     path('dashboard/estate-analytics/',EstateAnalyticsView.as_view(),name='estate-analytics'),

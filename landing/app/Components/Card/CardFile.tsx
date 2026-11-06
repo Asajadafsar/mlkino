@@ -1,5 +1,5 @@
 "use client";
-import {PANEL_LINKS} from "../../Core/panel";
+import {PANEL_LINKS,PANEL_ORIGIN} from "../../Core/panel";
 import { useState } from "react";
 import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
 import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
@@ -145,7 +145,7 @@ export default function CardFile({
   //   (data).virtualTourUrl;
 
   const handleBookmarkClick = (e: React.MouseEvent) => {
-    e.stopPropagation();window.location.assign(PANEL_LINKS.files)
+    e.stopPropagation();window.location.assign(PANEL_ORIGIN+'/favorites?property='+data.id)
   };
 
   const handleDetails = () => {
@@ -161,7 +161,7 @@ export default function CardFile({
   //   }
   // };
 
-  const handleVisitRequest = () => {window.location.assign(PANEL_LINKS.createRequest)};
+  const handleVisitRequest = () => {window.location.assign(PANEL_ORIGIN+'/visits?property='+data.id)};
 
   if (appearance === "showcase") return <>
     <article className={showcase.card}>
@@ -187,7 +187,7 @@ export default function CardFile({
         </div>
       </div>
     </article>
-    <VisitRequestModal key={visitModalOpen ? "open" : "closed"} open={visitModalOpen} onClose={() => setVisitModalOpen(false)} property={data} onSubmit={async payload => { console.log("Visit request:", { ...payload, propertyId: data.id }); }} />
+    <VisitRequestModal key={visitModalOpen ? "open" : "closed"} open={visitModalOpen} onClose={() => setVisitModalOpen(false)} property={data} onSubmit={async () => { window.location.assign(PANEL_ORIGIN+'/visits?property='+data.id); }} />
     <VirtualTourModal open={virtualTourModalOpen} onClose={() => setVirtualTourModalOpen(false)} links={data.virtualTourUrl} />
   </>;
 
@@ -659,9 +659,9 @@ export default function CardFile({
         open={visitModalOpen}
         onClose={() => setVisitModalOpen(false)}
         property={data}
-        onSubmit={async (payload) => {
+        onSubmit={async () => {
           // اینجا به API وصل کن
-          console.log("Visit request:", { ...payload, propertyId: data.id });
+          window.location.assign(PANEL_ORIGIN+'/visits?property='+data.id);
         }}
       />
       <VirtualTourModal
