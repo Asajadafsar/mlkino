@@ -122,6 +122,9 @@ class Command(BaseCommand):
         for i,client in enumerate(clients):
             ws=agencies[i%len(agencies)];expert=next((e for n,e in enumerate(experts) if expert_offices[n]==i%len(agencies)),None);role=['owner','buyer','landlord','tenant'][i%4]
             contact,_=CRMContact.objects.get_or_create(workspace=ws,phone=client.phone,defaults={'user':client,'expert':expert,'name':'مخاطب نمایشی '+str(i),'national_code':f'{9900000000+i:010d}','phone2':'025000'+f'{1000+i:04d}','job':['کارمند','فروشنده','پزشک','آزاد'][i%4],'roles':[role],'data':{'demo_namespace':NAMESPACE,'province':client.province,'city':client.city,'budget':'4500000000','note':'داده کاملاً مصنوعی؛ تماس واقعی نگیرید'}})
+            if contact.data.get('demo_namespace')==NAMESPACE:
+                contact.national_code=contact.national_code or f'{9900000000+i:010d}';contact.phone2=contact.phone2 or '025000'+f'{1000+i:04d}';contact.job=contact.job or ['کارمند','فروشنده','پزشک','آزاد'][i%4]
+                contact.save(update_fields=['national_code','phone2','job','updated_at'])
             contacts.append(contact);UserBusinessRole.objects.get_or_create(user=client,workspace=ws,role=role)
         UserBusinessRole.objects.get_or_create(user=experts[0],workspace=agencies[0],role='finance')
         rows=[]
@@ -136,6 +139,8 @@ class Command(BaseCommand):
                 row=PropertyRecord.objects.create(kind=kind,created_by=creator,data=data,publication_state=state,assigned_expert=expert if state=='published' else None,office=office,featured=i%5==0,archived_at=now-timedelta(days=1) if i%13==12 else None)
                 PropertyRecord.objects.filter(pk=row.pk).update(created_at=now-timedelta(days=i*2),updated_at=now-timedelta(hours=i))
             rows.append(row)
+            if row.data.get('demo_namespace')==NAMESPACE and not row.data.get('source'):
+                row.data={**row.data,'source':'landing' if i%3==0 else 'panel'};row.save(update_fields=['data','updated_at'])
             status='accepted' if row.publication_state in ('published','draft') else ['pending','rejected','expired','market'][(i//4)%4]
             ref,ref_created=PropertyReferral.objects.get_or_create(property=row,attempt=1,defaults={'expert':None if status=='market' else expert,'status':status,'expires_at':now+timedelta(minutes=20) if status=='pending' else now-timedelta(days=1)})
             if ref_created and status=='accepted' and not row.assigned_expert_id:
