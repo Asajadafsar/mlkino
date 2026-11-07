@@ -69,10 +69,16 @@ class ContactsView(APIView):
         if not isinstance(name,str) or not 2<=len(name.strip())<=200 or not re.fullmatch(r'\+?\d{8,15}',phone):raise ValidationError('نام و شماره تماس معتبر وارد کنید.')
         roles=d.get('roles')
         if roles is None:roles=[{'lessor':'landlord'}.get(d['kind'],d['kind'])] if d.get('kind') else row.roles if row else ['owner']
-        if not isinstance(roles,list) or not roles or not set(roles)<={'owner','buyer','landlord','tenant'}:raise ValidationError('نوع مخاطب معتبر نیست.')
+        if not isinstance(roles,list) or not roles or not set(roles)<={'owner','buyer','landlord','tenant','expert'}:raise ValidationError('نوع مخاطب معتبر نیست.')
         ws=ident(d.get('workspace_id') or (row.workspace_id if row else workspace(request.user)))
         get_object_or_404(User.objects.select_for_update(of=('self',)),pk=ws)
         if ws not in workspaces(request.user) and not is_superadmin(request.user):raise PermissionDenied('دفتر متعلق به شما نیست.')
+        staff_user=None
+        if 'expert' in roles:
+            if row and 'expert' in row.roles and row.user_id and row.phone==phone:staff_user=row.user
+            else:
+                staff_user=User.objects.filter(phone=phone,role='expert').first()
+                if not staff_user or not AgencyExpertLink.objects.filter(agency_id=ws,expert=staff_user).exists():raise ValidationError('کارشناس طرف حساب باید عضو همین دفتر باشد.')
         expert_id=ident(d['expert_id']) if d.get('expert_id') else row.expert_id if row else request.user.pk if request.user.role=='expert' else None
         if expert_id and expert_id!=ws and not AgencyExpertLink.objects.filter(agency_id=ws,expert_id=expert_id).exists():raise ValidationError('کارشناس متعلق به دفتر نیست.')
         metadata=dict(row.data) if row else {}
@@ -93,6 +99,7 @@ class ContactsView(APIView):
             u=get_object_or_404(User,pk=ident(d['user_id']))
             if u.phone!=phone:raise ValidationError('شماره حساب با مخاطب مطابقت ندارد.')
             row.user=u
+        if staff_user:row.user=staff_user
         row.save();audit(request.user,'crm.saved','contact',row.pk)
         return envelope(contact_json(row),code=200 if pk else 201)
 

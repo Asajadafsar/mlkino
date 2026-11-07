@@ -190,6 +190,20 @@ class WorkflowTests(TestCase):
         self.assertEqual(self.client.get(f'/panel/public/catalog/{self.row.pk}/').status_code,404)
         AgencyExpertLink.objects.create(agency=self.agency,expert=self.expert)
         self.assertEqual(self.client.get(f'/panel/files/{self.row.pk}/').status_code,200)
+    def test_expert_settlement_uses_real_scoped_payee_and_is_visible_only_to_recipient(self):
+        import uuid
+        self.login(self.agency)
+        people=self.client.get('/panel/workflows/finance/',{'experts':'true'}).data['data']['results']
+        self.assertEqual([p['id'] for p in people],[self.expert.pk])
+        payload={'kind':'settlement','amount':'50','expert_id':self.expert.pk,'idempotency_key':str(uuid.uuid4()),'description':'تسویه سهم کارشناس'}
+        result=self.post('workflows/finance/',payload);self.assertEqual(result.status_code,201,result.data)
+        pk=result.data['data']['id'];self.assertEqual(result.data['data']['payee_expert_id'],self.expert.pk)
+        self.assertEqual(CRMContact.objects.get(pk=result.data['data']['party_id']).user_id,self.expert.pk)
+        self.assertEqual(self.post('workflows/finance/',payload).data['data']['id'],pk)
+        self.assertEqual(self.post('workflows/finance/',{**payload,'expert_id':self.next.pk,'idempotency_key':str(uuid.uuid4())}).status_code,404)
+        self.login(self.expert);self.assertEqual(self.client.get(f'/panel/workflows/finance/{pk}/').status_code,200)
+        self.assertEqual(self.post(f'workflows/finance/{pk}/post/',{}).status_code,403)
+        self.login(self.next);self.assertEqual(self.client.get(f'/panel/workflows/finance/{pk}/').status_code,404)
     def test_chat_context_and_archive_are_scoped(self):
         self.row.publication_state='published';self.row.assigned_expert=self.expert;self.row.save()
         first=self.post(f'workflows/properties/{self.row.pk}/chat/',{},self.buyer);self.assertEqual(first.status_code,200,first.data)

@@ -66,7 +66,7 @@ def clean_entries(raw,amount,kind):
     return cleaned
 
 def serialize(row):
-    result={'id':row.pk,'kind':row.kind,'workspace_id':row.workspace_id,'activity_id':row.activity_id,'party_id':row.party_id,'amount':str(row.amount),'direction':row.direction,'status':row.status,'description':row.description,'entries':row.entries,'calculation':row.calculation,'created_at':row.created_at.isoformat(),'posted_at':row.posted_at.isoformat() if row.posted_at else None,'reverses_id':row.reverses_id,'receipt_url':f'/panel/workflows/finance/{row.pk}/receipt/' if row.receipt else None,**row.data}
+    result={'id':row.pk,'kind':row.kind,'workspace_id':row.workspace_id,'activity_id':row.activity_id,'party_id':row.party_id,'party_name':row.party.name if row.party else '', 'payee_expert_id':row.party.user_id if row.party and 'expert' in row.party.roles else None,'amount':str(row.amount),'direction':row.direction,'status':row.status,'description':row.description,'entries':row.entries,'calculation':row.calculation,'created_at':row.created_at.isoformat(),'posted_at':row.posted_at.isoformat() if row.posted_at else None,'reverses_id':row.reverses_id,'receipt_url':f'/panel/workflows/finance/{row.pk}/receipt/' if row.receipt else None,**row.data}
     if row.kind=='invoice':
         paid=sum((r.amount for r in FinancialDocument.objects.filter(workspace_id=row.workspace_id,kind='payment',status='posted',data__invoice_id=row.pk)),Decimal(0))
         result.update(paid_amount=str(paid),outstanding=str(max(Decimal(0),row.amount-paid)),payment_status='paid' if paid>=row.amount else 'partial' if paid else 'pending')
@@ -121,6 +121,14 @@ class FinancialDocumentView(APIView):
     def get(self,request,pk=None):
         feature('finance');qs=finance_scope(request.user)
         if pk:return envelope(serialize(get_object_or_404(qs,pk=pk)))
+        if request.query_params.get('experts')=='true':
+            can_finance(request.user)
+            from .models import AgencyExpertLink
+            links=AgencyExpertLink.objects.filter(expert__role='expert',expert__is_active=True).select_related('expert')
+            if not is_superadmin(request.user):links=links.filter(agency_id__in=workspaces(request.user))
+            people={}
+            for link in links.order_by('id')[:2000]:people.setdefault(link.expert_id,{'id':link.expert_id,'full_name':link.expert.full_name,'workspace_id':link.agency_id})
+            return envelope({'results':list(people.values()),'total_results':len(people)})
         if request.query_params.get('status'):qs=qs.filter(status=request.query_params['status'])
         if request.query_params.get('kind'):qs=qs.filter(kind=request.query_params['kind'])
         qs=filtered(qs,request)
@@ -134,7 +142,7 @@ class FinancialDocumentView(APIView):
         if not isinstance(nested,dict) or set(nested)-{'payment_date','source_account','destination_account','reference','method'}:raise ValidationError('اطلاعات پرداخت معتبر نیست.')
         for key,value in nested.items():d[{'payment_date':'paid_at','reference':'tracking_number','method':'payment_method'}.get(key,key)]=value
 
-        allowed={'kind','activity_id','party_id','amount','direction','description','entries','rate_version_id','transaction_amount','reverses_id','idempotency_key','workspace_id','payment_method','tracking_number','source_account','destination_account','receipt','paid_at','invoice_id','transaction_date','metadata'}
+        allowed={'kind','activity_id','party_id','expert_id','amount','direction','description','entries','rate_version_id','transaction_amount','reverses_id','idempotency_key','workspace_id','payment_method','tracking_number','source_account','destination_account','receipt','paid_at','invoice_id','transaction_date','metadata'}
         if set(d)-allowed:raise ValidationError('فیلد سند معتبر نیست.')
         kind=d.get('kind');direction=d.get('direction','debit')
         if kind not in ('invoice','payment','settlement','reversal') or direction not in ('debit','credit'):raise ValidationError('نوع سند معتبر نیست.')
@@ -157,12 +165,23 @@ class FinancialDocumentView(APIView):
             activity=get_object_or_404(visible(request.user),pk=positive_id(d['activity_id']),kind='contracts')
             if workspace(activity.created_by)!=ws and not is_superadmin(request.user):raise PermissionDenied()
         if d.get('party_id'):party=get_object_or_404(CRMContact,pk=positive_id(d['party_id']),workspace_id=ws)
+        payee=None
+        if d.get('expert_id'):
+            if kind!='settlement':raise ValidationError('کارشناس دریافت‌کننده فقط برای تسویه کارشناس انتخاب می‌شود.')
+            from .models import AgencyExpertLink
+            link=get_object_or_404(AgencyExpertLink.objects.select_related('expert'),agency_id=ws,expert_id=positive_id(d['expert_id']),expert__role='expert')
+            payee=link.expert
+            if party and party.user_id!=payee.pk:raise ValidationError('طرف حساب با کارشناس دریافت‌کننده مطابقت ندارد.')
+            party,_=CRMContact.objects.get_or_create(workspace_id=ws,phone=payee.phone,defaults={'user':payee,'name':payee.full_name or 'کارشناس دفتر','roles':['expert']})
+            if party.user_id and party.user_id!=payee.pk:raise ValidationError('شماره کارشناس به طرف حساب دیگری متصل است.')
+            party.user=payee;party.roles=list(dict.fromkeys([*party.roles,'expert']));party.save(update_fields=['user','roles','updated_at'])
         if d.get('rate_version_id'):
             rate=get_object_or_404(FinancialRateVersion,pk=positive_id(d['rate_version_id']),workspace_id=ws)
             when=parse_date(str(d.get('transaction_date') or (activity.data.get('contract_datetime','')[:10] if activity else '') or timezone.localdate()))
             if not when:raise ValidationError('تاریخ معامله معتبر نیست.')
             if not rate.valid_from<=when or rate.valid_to and rate.valid_to<when:raise ValidationError('نرخ در این تاریخ معتبر نیست.')
-            calculation=calc(money(d.get('transaction_amount'),True),rate,activity.assigned_expert if activity and activity.assigned_expert_id else None,when)
+            if payee and rate.expert_id and rate.expert_id!=payee.pk:raise ValidationError('نسخه توافق متعلق به کارشناس دریافت‌کننده نیست.')
+            calculation=calc(money(d.get('transaction_amount'),True),rate,payee or (activity.assigned_expert if activity and activity.assigned_expert_id else None),when)
             if kind=='invoice' and amount!=Decimal(calculation['invoice_total']):raise ValidationError('مبلغ صورتحساب باید با جمع کمیسیون و مالیات محاسبه‌شده برابر باشد.')
         if kind=='reversal':
             reverses=get_object_or_404(FinancialDocument.objects.select_for_update(of=('self',)),pk=positive_id(d.get('reverses_id')),workspace_id=ws,status='posted')

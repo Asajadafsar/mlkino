@@ -1,0 +1,10 @@
+import {useState} from 'react'
+import {Accordion,AccordionSummary,AccordionDetails,Alert,Button,LinearProgress,Table,TableBody,TableCell,TableHead,TableRow,Typography} from '@mui/material'
+import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded'
+import api from '../../Core/Request'
+import {label,persianNumber,unpack,workflowError,WorkflowRow} from './workflowClient'
+export function LedgerPanel(){
+ const[expanded,setExpanded]=useState(false),[rows,setRows]=useState<WorkflowRow[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState('')
+ const load=async()=>{setLoading(true);setError('');try{const data=unpack<{results:WorkflowRow[]}>(await api.get('workflows/ledger/'));setRows(data.results)}catch(e){setError(workflowError(e))}finally{setLoading(false)}}
+ return <Accordion expanded={expanded} onChange={(_,value)=>{setExpanded(value);if(value)void load()}} sx={{mb:2,borderRadius:3,overflow:'hidden'}}><AccordionSummary expandIcon={<ExpandMoreRounded/>}><Typography fontWeight={800}>دفتر کل اسناد ثبت‌شده</Typography></AccordionSummary><AccordionDetails>{loading&&<LinearProgress/>}{error&&<Alert severity="error">{error}</Alert>}<Typography variant="body2" color="text.secondary" sx={{mb:1}}>گردش و مانده حساب‌ها از آرتیکل‌های قطعی و برگشتی محاسبه می‌شوند. پیش‌نویس‌ها در دفتر کل نیستند.</Typography><Button disabled={loading} onClick={load}>بازخوانی دفتر کل</Button><div style={{overflowX:'auto'}}><Table size="small"><TableHead><TableRow>{['حساب','بدهکار (تومان)','بستانکار (تومان)','مانده گردش (تومان)'].map(text=><TableCell key={text}>{text}</TableCell>)}</TableRow></TableHead><TableBody>{rows.map(row=><TableRow key={row.account}><TableCell>{label(row.account)}</TableCell><TableCell>{persianNumber(row.debit)}</TableCell><TableCell>{persianNumber(row.credit)}</TableCell><TableCell>{persianNumber(row.balance)}</TableCell></TableRow>)}</TableBody></Table></div>{!loading&&!rows.length&&<Typography sx={{p:2}}>هنوز آرتیکل قطعی ثبت نشده است.</Typography>}</AccordionDetails></Accordion>
+}
