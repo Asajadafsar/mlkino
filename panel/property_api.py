@@ -1,6 +1,7 @@
 """Persisted, scoped property files and search requests."""
 import json
 import math
+import re
 import uuid
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -14,7 +15,7 @@ from .settings_api import envelope, is_superadmin, http_url
 
 FLOORS = {'طبقه اول', 'طبقه آخر', 'پیلوت', 'فرقی نمی‌کند', 'سایر طبقات'}
 NUMBERS = {'area','totalPrice','pricePerMeter','rent','mortgagePrice','monthlyRent','latitude','longitude','buildYear','roomCount','totalFloor','floor','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','monthlyCharge','monthlyChargeFrom','monthlyChargeTo'}
-FIELDS = NUMBERS | {'contractType','propertyType','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','description','internalNote','images','virtualTourLink','floorPreferences','requesterType','title','work_phone','workPhone','virtualTourUrl','otherLink','external_links'}
+FIELDS = NUMBERS | {'contractType','propertyType','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','ownerNationalId','ownerNationalCode','customerName','customerPhone','customerPhone2','customerJob','customerNationalId','customerNationalCode','description','internalNote','images','virtualTourLink','floorPreferences','requesterType','title','work_phone','workPhone','virtualTourUrl','otherLink','external_links'}
 
 def normalize(value):
     return str('' if value is None else value).translate(str.maketrans('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩يك','01234567890123456789یک')).replace('\u200c',' ').strip().lower()
@@ -101,6 +102,22 @@ def validate_payload(request, kind, previous=None):
                 row=known.get(normalize(name))
                 if row and selected and not any(normalize(x.get('district')) in selected for x in row): raise ValidationError({'neighborhood':'محله با منطقه انتخاب‌شده مطابقت ندارد.'})
     if data.get('requesterType') not in (None,'customer','owner'):raise ValidationError({'requesterType':'نوع درخواست‌کننده معتبر نیست.'})
+    for prefix in ('owner','customer'):
+        national=data.get(prefix+'NationalId') or data.get(prefix+'NationalCode')
+        if national:
+            from accounts.validators import validate_iranian_national_code
+            try:data[prefix+'NationalId']=validate_iranian_national_code(normalize(national).replace(' ',''))
+            except Exception:raise ValidationError({prefix+'NationalId':'کد ملی معتبر ۱۰ رقمی وارد کنید.'})
+        phone=data.get(prefix+'Phone')
+        if phone:
+            from accounts.validators import validate_iranian_mobile
+            try:data[prefix+'Phone']=validate_iranian_mobile(normalize(phone).replace(' ',''))
+            except Exception:raise ValidationError({prefix+'Phone':'شماره موبایل معتبر وارد کنید.'})
+        phone2=data.get(prefix+'Phone2')
+        if phone2:
+            clean=re.sub(r'[^0-9+]','',normalize(phone2))
+            if not re.fullmatch(r'\+?\d{8,15}',clean):raise ValidationError({prefix+'Phone2':'تلفن دوم معتبر وارد کنید.'})
+            data[prefix+'Phone2']=clean
     if len(json.dumps(data,ensure_ascii=False))>100000: raise ValidationError('حجم اطلاعات بیش از حد مجاز است.')
     uploads=request.FILES.getlist('images') if hasattr(request,'FILES') else []
     if len(uploads)>15: raise ValidationError({'images':'حداکثر ۱۵ تصویر مجاز است.'})
@@ -120,13 +137,19 @@ def validate_payload(request, kind, previous=None):
         if key in data and not minimum<=data[key]<=maximum:raise ValidationError({key:'موقعیت باید داخل محدوده ایران باشد.'})
     return data
 
-def serialize(row): return {**row.data,**({'requesterName':row.created_by.full_name,'requesterPhone':row.created_by.phone} if row.kind=='request' else {}),'id':row.pk,'created_at':row.created_at.isoformat(),'updated_at':row.updated_at.isoformat(),'publication_state':row.publication_state,'assigned_expert_id':row.assigned_expert_id,'office_id':row.office_id,'featured':row.featured,'archived':bool(row.archived_at)}
+def serialize(row,user=None):
+    result={**row.data,**({'requesterName':row.created_by.full_name,'requesterPhone':row.created_by.phone} if row.kind=='request' else {}),'id':row.pk,'created_at':row.created_at.isoformat(),'updated_at':row.updated_at.isoformat(),'publication_state':row.publication_state,'assigned_expert_id':row.assigned_expert_id,'office_id':row.office_id,'featured':row.featured,'archived':bool(row.archived_at)}
+    if user is not None:
+        from .models import PropertyPin
+        result['pinned']=PropertyPin.objects.filter(user=user,property=row).exists()
+    return result
 
 class PropertyListView(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request,kind):
-        from .workflow_services import feature
+        from .workflow_services import feature,require_expert_permission
         feature('files' if kind=='file' else 'requests')
+        if request.user.role=='expert':require_expert_permission(request.user,'can_manage_files' if kind=='file' else 'can_manage_requests')
         rows=list(scope(request.user).filter(kind=kind).select_related('created_by'))
         stats={'total':len(rows),'active':sum(r.data.get('requestStatus',r.data.get('status','')) in ('فعال','تایید شده','تأیید شده','تایید شده توسط کارشناس') for r in rows),'customer':sum(r.data.get('requesterType','customer')=='customer' for r in rows),'owner':sum(r.data.get('requesterType')=='owner' for r in rows)}
         params=request.query_params
@@ -159,23 +182,37 @@ class PropertyListView(APIView):
             rows=[r for r in rows if (r.data.get('totalPrice',r.data.get('totalPriceFrom',0))<=amount<=r.data.get('totalPrice',r.data.get('totalPriceTo',float('inf'))))]
         try: page=max(1,int(params.get('page',1)));size=min(100,max(1,int(params.get('page_size',24))))
         except ValueError: raise ValidationError('شماره صفحه معتبر نیست.')
-        total=len(rows);return envelope({'results':[serialize(r) for r in rows[(page-1)*size:page*size]],'total_results':total,'has_more':page*size<total,'stats':stats})
+        pinned=params.get('pinned')
+        if pinned in ('true','1'):rows=[r for r in rows if r.pins.filter(user=request.user).exists()]
+        total=len(rows);return envelope({'results':[serialize(r,request.user) for r in rows[(page-1)*size:page*size]],'total_results':total,'has_more':page*size<total,'stats':stats})
     def post(self,request,kind):
         if kind=='file' and request.user.role not in ('superadmin','agency','expert') and not is_superadmin(request.user): raise PermissionDenied('ثبت فایل برای این نقش مجاز نیست.')
-        from .workflow_services import dispatch,feature,audit,workspace
+        from .workflow_services import dispatch,feature,audit,workspace,require_expert_permission,touch_contact
         feature('files' if kind=='file' else 'requests')
+        if request.user.role=='expert':require_expert_permission(request.user,'can_manage_files' if kind=='file' else 'can_manage_requests')
         data=validate_payload(request,kind)
-        if kind=='request':data['selfServiceRequest']=request.user.role not in ('agency','expert','superadmin')
+        professional=request.user.role in ('agency','expert','superadmin') or is_superadmin(request.user)
+        data['source']='panel' if professional else 'landing'
+        if kind=='request':data['selfServiceRequest']=not professional;data['requesterType']='customer'
         row=PropertyRecord.objects.create(kind=kind,created_by=request.user,data=data,office_id=workspace(request.user) if request.user.role in ('agency','expert') else None,assigned_expert=request.user if request.user.role=='expert' else None)
+        if professional:touch_contact(row,request.user)
         audit(request.user,'property.created','property',row.pk,property=row)
         if kind=='request' and data.get('publicationStatus')!='draft':dispatch(row.pk,request.user)
-        return envelope(serialize(row),message='اطلاعات ثبت شد.',code=201)
+        return envelope(serialize(row,request.user),message='اطلاعات ثبت شد.',code=201)
 
 class PropertyDetailView(APIView):
     permission_classes=[IsAuthenticated]
-    def get(self,request,kind,pk): return envelope(serialize(get_object_or_404(scope(request.user),kind=kind,pk=pk)))
+    def get(self,request,kind,pk):
+        row=get_object_or_404(scope(request.user),kind=kind,pk=pk)
+        if request.user.role=='expert':
+            from .workflow_services import require_expert_permission
+            require_expert_permission(request.user,'can_manage_files' if kind=='file' else 'can_manage_requests',row.office_id)
+        return envelope(serialize(row,request.user))
     def patch(self,request,kind,pk):
         row=get_object_or_404(scope(request.user),kind=kind,pk=pk)
+        if request.user.role=='expert':
+            from .workflow_services import require_expert_permission
+            require_expert_permission(request.user,'can_manage_files' if kind=='file' else 'can_manage_requests',row.office_id)
         if request.user.role not in ('agency','expert') and not is_superadmin(request.user):
             if row.assigned_expert_id:raise PermissionDenied('این پرونده به کارشناس سپرده شده است؛ تغییرات را با مسئول پرونده هماهنگ کنید.')
         if row.created_by_id!=request.user.pk and row.assigned_expert_id!=request.user.pk and not (request.user.role=='agency' and row.office_id==request.user.pk) and not is_superadmin(request.user): raise PermissionDenied('ویرایش این پرونده مجاز نیست.')
@@ -183,4 +220,4 @@ class PropertyDetailView(APIView):
         if row.data.get('publicationStatus')=='pending':
             from .workflow_services import dispatch
             dispatch(row.pk,request.user)
-        return envelope(serialize(row),message='تغییرات ذخیره شد.')
+        return envelope(serialize(row,request.user),message='تغییرات ذخیره شد.')

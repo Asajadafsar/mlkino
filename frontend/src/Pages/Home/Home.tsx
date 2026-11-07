@@ -233,6 +233,7 @@ export function Home(props) {
                         <Route path="workflows" element={<WorkflowOverview/>}/>
                         <Route path="crm" element={<WorkflowPage section="contacts"/>}/>
                         <Route path="assignments" element={<WorkflowPage section="assignments"/>}/>
+                        <Route path="seller-requests" element={<WorkflowPage section="assignments" assignmentKind="file" assignmentSource="landing" title="درخواست فروشندگان"/>}/>
                         <Route path="favorites" element={<WorkflowPage section="favorites"/>}/>
                         <Route path="visits" element={<WorkflowPage section="visits"/>}/>
                         <Route path="visit-slots" element={<WorkflowPage section="visit-slots"/>}/>

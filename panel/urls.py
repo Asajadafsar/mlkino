@@ -1,6 +1,6 @@
 from .reporting_api import WorkflowReportsView
 from .public_api import PublicCatalogView, PublicConfigView, PublicLocationsView, PublicMapTileView
-from .workflow_api import (ContactsView, AssignmentsView, AssignmentRespondView, AssignmentReferView, OwnerSubmissionView, PropertyPublishView, FavoritesView, VisitSlotsView, VisitsView, OffersView, PropertyChatView, ArchiveView, RoutingSettingsView, BusinessRolesView, WorkflowOverviewView, ActivityAttachmentView, SavedFiltersView, PropertyContactView)
+from .workflow_api import (ContactsView, ExpertPermissionsView, AssignmentsView, AssignmentRespondView, AssignmentReferView, OwnerSubmissionView, PropertyPublishView, FavoritesView, PropertyPinView, VisitSlotsView, VisitsView, OffersView, PropertyChatView, ArchiveView, RoutingSettingsView, BusinessRolesView, WorkflowOverviewView, ActivityAttachmentView, SavedFiltersView, PropertyContactView)
 from .finance_api import FinancialSettingsView, CommissionCalculateView, FinancialDocumentView, FinancialPostView, LedgerView, FinancialReceiptView
 from .role_api import UserRoleView
 from .dashboard_estate_api import DashboardEstateView
@@ -32,6 +32,7 @@ urlpatterns = [
     path('workflows/saved-filters/<int:pk>/',SavedFiltersView.as_view()),
     path('workflows/contacts/',ContactsView.as_view()),
     path('workflows/contacts/<int:pk>/',ContactsView.as_view()),
+    path('workflows/expert-permissions/<int:expert_id>/',ExpertPermissionsView.as_view()),
     path('workflows/assignments/',AssignmentsView.as_view()),
     path('workflows/assignments/<int:pk>/respond/',AssignmentRespondView.as_view()),
     path('workflows/assignments/<int:pk>/refer/',AssignmentReferView.as_view()),
@@ -39,6 +40,7 @@ urlpatterns = [
     path('workflows/properties/<int:pk>/publish/',PropertyPublishView.as_view()),
     path('workflows/properties/<int:pk>/contact/',PropertyContactView.as_view()),
     path('workflows/properties/<int:pk>/chat/',PropertyChatView.as_view()),
+    path('workflows/properties/<int:pk>/pin/',PropertyPinView.as_view()),
     path('workflows/favorites/',FavoritesView.as_view()),
     path('workflows/favorites/<int:pk>/',FavoritesView.as_view()),
     path('workflows/visit-slots/',VisitSlotsView.as_view()),

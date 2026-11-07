@@ -71,7 +71,7 @@ export function PropertyRecordForm({
             () => <BaseStep {...stepProps} mode={mode} editMode={editMode} />,
             () => <FinancialStep {...stepProps} mode={mode} />,
             () => <TechnicalStep {...stepProps} mode={mode} />,
-            () => <OwnerStep {...stepProps} />,
+            () => <OwnerStep {...stepProps} mode={mode} />,
             () => <ImagesStep setProperty={setProperty} />,
             () => <DescriptionStep {...stepProps} />,
         ],
@@ -79,6 +79,7 @@ export function PropertyRecordForm({
             () => <BaseStep {...stepProps} mode={mode} />,
             () => <FinancialStep {...stepProps} mode={mode} />,
             () => <TechnicalStep {...stepProps} mode={mode} />,
+            () => <OwnerStep {...stepProps} mode={mode} />,
             () => <DescriptionStep {...stepProps} />,
         ],
         // «آگهی» همان فیلدهای فایل/درخواست را (با حذف/اضافه شدن مواردی طبق طرح آگهی) در یک

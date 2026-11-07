@@ -11,7 +11,7 @@ from .settings_api import envelope, is_superadmin, http_url
 from .property_api import normalize
 
 STATUSES={'follow-ups':{'در حال پیگیری','انجام شده','نیازمند اقدام'},'contracts':{'فعال','در انتظار امضا','لغو شده','پایان یافته','پیش‌نویس','در حال بررسی','نهایی','بایگانی‌شده','لغوشده'}}
-FIELDS={'file_name','status','expert_name','full_name','phone_number','date','description','meeting_manager','contract_datetime','agreed_price','price_difference','owner_commission','buyer_commission','image','contract_type','visitStatus','nextStatus','statusDescription','archive','property_id','party_ids','party_id','expert_id','office_id','assignee_id','due_at','priority','call_result','result','notes'}
+FIELDS={'file_name','status','expert_name','full_name','phone_number','date','description','meeting_manager','contract_datetime','agreed_price','price_difference','owner_commission','buyer_commission','image','contract_type','visitStatus','nextStatus','statusDescription','archive','property_id','party_ids','party_id','expert_id','office_id','assignee_id','due_at','priority','call_result','result','notes','visit_id'}
 MONEY={'agreed_price','price_difference','owner_commission','buyer_commission'}
 
 def visible(user):
@@ -29,6 +29,9 @@ def visible(user):
 
 def can_write(user):
     if not is_superadmin(user) and user.role not in ('agency','expert'):raise PermissionDenied('ثبت و ویرایش این بخش برای نقش شما مجاز نیست.')
+    if user.role=='expert':
+        from .workflow_services import require_expert_permission
+        require_expert_permission(user,'can_manage_followups')
 
 def clean(incoming,kind,previous=None):
     if not isinstance(incoming,dict):raise ValidationError('اطلاعات فرم معتبر نیست.')

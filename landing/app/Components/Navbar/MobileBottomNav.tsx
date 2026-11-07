@@ -31,7 +31,7 @@ export default function MobileBottomNav() {
             onClick={event => setAnchorEl(event.currentTarget)}
           ><span className={styles.submitIcon}><AddRounded /></span><span>ثبت</span></button>;
           const target=key==="profile"?(user?PANEL_LINKS.dashboard:PANEL_LINKS.login):href;
-          const title=key==="profile"?(loading?"حساب کاربری":user?(user.full_name||"حساب من"):"ورود / ثبت‌نام"):label;
+          const title=key==="profile"?(loading?"حساب کاربری":user?"پنل کاربری":"ورود / ثبت‌نام"):label;
           const active = isNavActive(pathname, target);
           return <Link prefetch={false} key={key} href={target} className={styles.bottomLink} aria-busy={key==='profile'&&loading} aria-current={active ? "page" : undefined}>
             <span className={styles.bottomIcon}>{active ? <ActiveIcon /> : <Icon />}</span><span>{title}</span>

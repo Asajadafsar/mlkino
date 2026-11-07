@@ -10,13 +10,38 @@ class CRMContact(models.Model):
     expert=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,blank=True,related_name='managed_contacts')
     name=models.CharField(max_length=200)
     phone=models.CharField(max_length=20)
+    national_code=models.CharField(max_length=10,null=True,blank=True,db_index=True)
+    phone2=models.CharField(max_length=20,blank=True)
+    job=models.CharField(max_length=200,blank=True)
     roles=models.JSONField(default=list)
     data=models.JSONField(default=dict)
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at=models.DateTimeField(auto_now=True)
     class Meta:
         ordering=['-updated_at','-id']
-        constraints=[models.UniqueConstraint(fields=['workspace','phone'],name='crm_workspace_phone_unique')]
+        constraints=[
+            models.UniqueConstraint(fields=['workspace','phone'],name='crm_workspace_phone_unique'),
+            models.UniqueConstraint(fields=['workspace','national_code'],condition=Q(national_code__isnull=False),name='crm_workspace_national_unique'),
+        ]
+
+class ExpertPermission(models.Model):
+    """Office-owned, server-enforced capabilities for one current expert."""
+    workspace=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,related_name='expert_permission_policies')
+    expert=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,related_name='office_permission_policies')
+    permissions=models.JSONField(default=dict)
+    updated_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,related_name='+')
+    created_at=models.DateTimeField(auto_now_add=True)
+    updated_at=models.DateTimeField(auto_now=True)
+    class Meta:
+        constraints=[models.UniqueConstraint(fields=['workspace','expert'],name='expert_permission_workspace_unique')]
+
+class PropertyPin(models.Model):
+    user=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name='property_pins')
+    property=models.ForeignKey('panel.PropertyRecord',on_delete=models.CASCADE,related_name='pins')
+    created_at=models.DateTimeField(auto_now_add=True)
+    class Meta:
+        ordering=['-created_at','-id']
+        constraints=[models.UniqueConstraint(fields=['user','property'],name='property_pin_user_unique')]
 
 class PropertyReferral(models.Model):
     property=models.ForeignKey('panel.PropertyRecord',on_delete=models.PROTECT,related_name='referrals')
@@ -59,13 +84,43 @@ class VisitSlot(models.Model):
 
 class PropertyVisit(models.Model):
     slot=models.ForeignKey(VisitSlot,on_delete=models.PROTECT,related_name='bookings')
-    visitor=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,related_name='property_visits')
+    visitor=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,null=True,blank=True,related_name='property_visits')
+    visitor_contact=models.ForeignKey(CRMContact,on_delete=models.PROTECT,null=True,blank=True,related_name='property_visits')
     status=models.CharField(max_length=16,default='pending',db_index=True)
+    assigned_expert=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,null=True,blank=True,related_name='assigned_property_visits')
+    visitor_name=models.CharField(max_length=200,blank=True)
+    visitor_phone=models.CharField(max_length=20,blank=True)
+    preferred_days=models.JSONField(default=list,blank=True)
+    preferred_time=models.CharField(max_length=100,blank=True)
+    notes=models.TextField(blank=True)
+    expires_at=models.DateTimeField(null=True,blank=True,db_index=True)
+    result=models.CharField(max_length=20,blank=True,db_index=True)
+    status_description=models.TextField(blank=True)
+    next_follow_up_at=models.DateTimeField(null=True,blank=True,db_index=True)
+    owner_commission=models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    buyer_commission=models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    expert_share=models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    office_share=models.DecimalField(max_digits=20,decimal_places=2,default=0)
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at=models.DateTimeField(auto_now=True)
     class Meta:
         ordering=['-created_at','-id']
         constraints=[models.UniqueConstraint(fields=['slot','visitor'],condition=Q(status__in=['pending','confirmed']),name='visit_active_booking_unique')]
+
+class VisitAssignment(models.Model):
+    visit=models.ForeignKey(PropertyVisit,on_delete=models.PROTECT,related_name='assignments')
+    expert=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,related_name='visit_assignments')
+    status=models.CharField(max_length=16,default='pending',db_index=True)
+    attempt=models.PositiveIntegerField(default=1)
+    expires_at=models.DateTimeField(db_index=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+    updated_at=models.DateTimeField(auto_now=True)
+    class Meta:
+        ordering=['-created_at','-id']
+        constraints=[
+            models.UniqueConstraint(fields=['visit','attempt'],name='visit_assignment_attempt_unique'),
+            models.UniqueConstraint(fields=['visit'],condition=Q(status='pending'),name='visit_assignment_one_pending'),
+        ]
 
 class PropertyOffer(models.Model):
     request=models.ForeignKey('panel.PropertyRecord',on_delete=models.PROTECT,related_name='offers')

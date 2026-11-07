@@ -61,12 +61,9 @@ async function togglePinRequest(
     id: number,
     pinned: boolean,
 ) {
-    return DataProvider.post(`${resource}/${id}/pin`, {
-        data: {pinned},
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    })
+    return pinned
+        ? DataProvider.post(`workflows/properties/${id}/pin/`, {data: {}})
+        : DataProvider.delete(`workflows/properties/${id}/pin/`)
 }
 
 export function PropertyCard({

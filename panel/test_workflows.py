@@ -6,8 +6,8 @@ from django.utils import timezone
 from django.core.cache import cache
 from rest_framework.test import APIClient
 from accounts.models import User,AccountNotification
-from .models import (PropertyRecord,AgencyExpertLink,PropertyReferral,CRMContact,VisitSlot,PropertyVisit,FinancialDocument,FinancialRateVersion,UserBusinessRole)
-from .workflow_services import dispatch,respond,expire_due
+from .models import (PropertyRecord,AgencyExpertLink,PropertyReferral,CRMContact,ExpertPermission,PropertyPin,VisitSlot,PropertyVisit,VisitAssignment,FinancialDocument,FinancialRateVersion,UserBusinessRole)
+from .workflow_services import dispatch,respond,expire_due,expire_visit_due
 
 class WorkflowTests(TestCase):
     def setUp(self):
@@ -55,6 +55,32 @@ class WorkflowTests(TestCase):
         self.assertEqual(self.client.get('/panel/workflows/favorites/').data['data']['total_results'],1)
         self.login(self.owner);self.assertEqual(self.client.get('/panel/workflows/favorites/').data['data']['total_results'],0)
         self.row.publication_state='draft';self.row.save();self.login(self.buyer);self.assertEqual(self.client.get('/panel/workflows/favorites/').data['data']['total_results'],0)
+    def test_agency_permissions_are_server_enforced_and_version_expert_share(self):
+        self.login(self.agency)
+        permissions={'can_manage_files':False,'can_manage_requests':True,'can_manage_visits':True,'can_manage_contacts':True,'can_manage_followups':True,'can_manage_finance':False,'can_publish':False}
+        response=self.client.patch(f'/panel/workflows/expert-permissions/{self.expert.pk}/',{'permissions':permissions,'expert_share_percent':'35'},format='json')
+        self.assertEqual(response.status_code,200,response.data)
+        self.login(self.expert)
+        self.assertIn(self.client.post(f'/panel/workflows/properties/{self.row.pk}/pin/',{},format='json').status_code,(403,404))
+        profile=self.client.get('/accounts/profile/').data['data']
+        self.assertFalse(profile['permissions']['can_manage_files'])
+        self.assertTrue(ExpertPermission.objects.filter(workspace=self.agency,expert=self.expert).exists())
+        from .models import ExpertShareAgreement
+        self.assertEqual(ExpertShareAgreement.objects.get(workspace=self.agency,expert=self.expert).share_percent,Decimal('35'))
+    def test_contact_national_code_deduplicates_and_exposes_related_records(self):
+        self.login(self.agency)
+        first=self.post('workflows/contacts/',{'name':'مالک اول','phone':'09121111111','national_code':'1000000001','roles':['owner']})
+        self.assertEqual(first.status_code,201,first.data)
+        second=self.post('workflows/contacts/',{'name':'مالک به‌روزشده','phone':'09121111111','national_code':'1000000001','roles':['owner','landlord']})
+        self.assertEqual(second.status_code,201,second.data);self.assertEqual(first.data['data']['id'],second.data['data']['id'])
+        self.assertEqual(CRMContact.objects.filter(workspace=self.agency,national_code='1000000001').count(),1)
+        lookup=self.client.get('/panel/workflows/contacts/',{'national_code':'1000000001'})
+        self.assertEqual(lookup.data['data']['total_results'],1)
+    def test_pin_is_private_per_user(self):
+        self.row.office=self.agency;self.row.assigned_expert=self.expert;self.row.save()
+        self.login(self.expert);self.assertEqual(self.client.post(f'/panel/workflows/properties/{self.row.pk}/pin/',{},format='json').status_code,201)
+        self.assertTrue(PropertyPin.objects.filter(user=self.expert,property=self.row).exists())
+        self.login(self.agency);self.assertFalse(PropertyPin.objects.filter(user=self.agency,property=self.row).exists())
     def test_visit_capacity_conflict_permissions_cancel(self):
         self.row.assigned_expert=self.expert;self.row.office=self.agency;self.row.publication_state='published';self.row.save()
         start=timezone.now()+timedelta(days=1);payload={'property_id':self.row.pk,'starts_at':start.isoformat(),'ends_at':(start+timedelta(hours=1)).isoformat(),'capacity':1}

@@ -150,6 +150,12 @@
     "default": true
   },
   {
+    "key": "sellerRequests",
+    "link": "seller-requests",
+    "label": "درخواست فروشندگان",
+    "default": true
+  },
+  {
     "key": "favorites",
     "link": "favorites",
     "label": "علاقه‌مندی‌ها",

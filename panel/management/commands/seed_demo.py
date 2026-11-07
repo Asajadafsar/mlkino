@@ -13,8 +13,8 @@ from PIL import Image,ImageDraw
 from accounts.models import User,AgencyProfile,ExpertProfile,AgencyExpert,AccountNotification,ActivityLog,Announcement
 from panel.models import (AgencyExpertLink,PropertyRecord,EstateActivity,DirectConversation,DirectMessage,
     PersonalReminder,ImportantTask,TaskAssignment,PanelSettings)
-from panel.workflow_models import (CRMContact,PropertyReferral,WorkflowEvent,PropertyFavorite,VisitSlot,
-    PropertyVisit,PropertyOffer,FinancialRateVersion,FinancialDocument,UserBusinessRole,PropertyChat)
+from panel.workflow_models import (CRMContact,ExpertPermission,PropertyPin,PropertyReferral,WorkflowEvent,PropertyFavorite,VisitSlot,
+    PropertyVisit,VisitAssignment,PropertyOffer,FinancialRateVersion,FinancialDocument,UserBusinessRole,PropertyChat)
 from panel.finance_api import clean_entries,calc
 
 NAMESPACE='MLKINO-DEMO-v1'
@@ -114,10 +114,14 @@ class Command(BaseCommand):
             AgencyExpertLink.objects.get_or_create(agency=agency,expert=expert)
             AgencyExpert.objects.get_or_create(agency=agency,expert=expert,defaults={'is_active':True})
             ExpertProfile.objects.get_or_create(user=expert,defaults={'expert_code':f'DEMO-EXPERT-{i}','job_title':'کارشناس نمایشی','experience_years':i+1,'job_details':NAMESPACE})
+            ExpertPermission.objects.get_or_create(workspace=agency,expert=expert,defaults={'updated_by':agency,'permissions':{
+                'can_create_files':True,'can_manage_requests':i%4!=0,'can_manage_contacts':True,
+                'can_manage_visits':True,'can_manage_followups':True,'can_manage_finance':i%3==0,
+            }})
         contacts=[]
         for i,client in enumerate(clients):
             ws=agencies[i%len(agencies)];expert=next((e for n,e in enumerate(experts) if expert_offices[n]==i%len(agencies)),None);role=['owner','buyer','landlord','tenant'][i%4]
-            contact,_=CRMContact.objects.get_or_create(workspace=ws,phone=client.phone,defaults={'user':client,'expert':expert,'name':'مخاطب نمایشی '+str(i),'roles':[role],'data':{'demo_namespace':NAMESPACE,'province':client.province,'city':client.city,'budget':'4500000000','note':'داده کاملاً مصنوعی؛ تماس واقعی نگیرید'}})
+            contact,_=CRMContact.objects.get_or_create(workspace=ws,phone=client.phone,defaults={'user':client,'expert':expert,'name':'مخاطب نمایشی '+str(i),'national_code':f'{9900000000+i:010d}','phone2':'025000'+f'{1000+i:04d}','job':['کارمند','فروشنده','پزشک','آزاد'][i%4],'roles':[role],'data':{'demo_namespace':NAMESPACE,'province':client.province,'city':client.city,'budget':'4500000000','note':'داده کاملاً مصنوعی؛ تماس واقعی نگیرید'}})
             contacts.append(contact);UserBusinessRole.objects.get_or_create(user=client,workspace=ws,role=role)
         UserBusinessRole.objects.get_or_create(user=experts[0],workspace=agencies[0],role='finance')
         rows=[]
@@ -128,7 +132,7 @@ class Command(BaseCommand):
             row=PropertyRecord.objects.filter(data__demo_key=token).first()
             if not row:
                 kind='request' if i%3==0 else 'file';state=['published','draft','pending','published'][i%4]
-                data={'demo_key':token,'demo_namespace':NAMESPACE,'title':f'ملک نمایشی {i+1} — {city}','contractType':'رهن و اجاره' if i%2 else 'فروش','propertyType':['آپارتمان','ویلا','زمین','تجاری','اداری'][i%5],'province':province,'city':city,'district':[district] if kind=='request' else district,'neighborhood':[neighborhood] if kind=='request' else neighborhood,'area':70+i*11,'areaFrom':70+i*5,'areaTo':150+i*5,'totalPrice':3000000000+i*150000000,'mortgagePrice':300000000+i*20000000,'monthlyRent':5000000+i*1000000,'roomCount':i%4+1,'ownerName':'مالک نمایشی '+str(i),'ownerPhone':clients[i%len(clients)].phone,'workPhone':expert.phone,'latitude':lat+(i%4)*0.0005,'longitude':lon+(i%3)*0.0005,'description':'این ملک کاملاً نمایشی است و برای معامله واقعی اعتبار ندارد.','images':[property_picture(i)],'amenities':['پارکینگ','آسانسور'] if i%2 else ['انباری'],'floorPreferences':['طبقه اول'] if kind=='request' else [],'requesterType':'owner' if i%6==0 else 'customer','status':'فعال','requestStatus':'در انتظار بررسی'}
+                data={'demo_key':token,'demo_namespace':NAMESPACE,'source':'landing' if i%3==0 else 'panel','title':f'ملک نمایشی {i+1} — {city}','contractType':'رهن و اجاره' if i%2 else 'فروش','propertyType':['آپارتمان','ویلا','زمین','تجاری','اداری'][i%5],'province':province,'city':city,'district':[district] if kind=='request' else district,'neighborhood':[neighborhood] if kind=='request' else neighborhood,'area':70+i*11,'areaFrom':70+i*5,'areaTo':150+i*5,'totalPrice':3000000000+i*150000000,'mortgagePrice':300000000+i*20000000,'monthlyRent':5000000+i*1000000,'roomCount':i%4+1,'ownerName':'مالک نمایشی '+str(i),'ownerPhone':clients[i%len(clients)].phone,'ownerNationalId':f'{9900000000+i%len(clients):010d}','workPhone':expert.phone,'latitude':lat+(i%4)*0.0005,'longitude':lon+(i%3)*0.0005,'description':'این ملک کاملاً نمایشی است و برای معامله واقعی اعتبار ندارد.','images':[property_picture(i)],'amenities':['پارکینگ','آسانسور'] if i%2 else ['انباری'],'floorPreferences':['طبقه اول'] if kind=='request' else [],'requesterType':'owner' if i%6==0 else 'customer','status':'فعال','requestStatus':'در انتظار بررسی'}
                 row=PropertyRecord.objects.create(kind=kind,created_by=creator,data=data,publication_state=state,assigned_expert=expert if state=='published' else None,office=office,featured=i%5==0,archived_at=now-timedelta(days=1) if i%13==12 else None)
                 PropertyRecord.objects.filter(pk=row.pk).update(created_at=now-timedelta(days=i*2),updated_at=now-timedelta(hours=i))
             rows.append(row)
@@ -147,8 +151,12 @@ class Command(BaseCommand):
         for i,row in enumerate(published):
             expert=row.assigned_expert or experts[0]
             PropertyFavorite.objects.get_or_create(user=clients[i%len(clients)],property=row)
+            PropertyPin.objects.get_or_create(user=expert,property=row)
             slot,_=VisitSlot.objects.get_or_create(property=row,expert=expert,starts_at=now.replace(hour=10,minute=0,second=0,microsecond=0)+timedelta(days=2+i),defaults={'ends_at':now.replace(hour=11,minute=0,second=0,microsecond=0)+timedelta(days=2+i),'capacity':2})
-            PropertyVisit.objects.get_or_create(slot=slot,visitor=clients[i%len(clients)],defaults={'status':['pending','confirmed','cancelled','rejected'][i%4]})
+            visit,_=PropertyVisit.objects.get_or_create(slot=slot,visitor=clients[i%len(clients)],defaults={'visitor_contact':contacts[i%len(contacts)],'assigned_expert':expert,'visitor_name':'بازدیدکننده نمایشی '+str(i),'visitor_phone':clients[i%len(clients)].phone,'preferred_days':['شنبه','دوشنبه'],'preferred_time':'ساعت ۱۷ تا ۱۹','notes':'هماهنگی نمایشی؛ تماس واقعی نگیرید.','status':['pending','confirmed','cancelled','rejected'][i%4],'expires_at':now+timedelta(minutes=20)})
+            if visit.status=='pending':VisitAssignment.objects.get_or_create(visit=visit,attempt=1,defaults={'expert':expert,'status':'pending','expires_at':visit.expires_at or now+timedelta(minutes=20)})
+            elif visit.status=='confirmed' and i%2:
+                visit.result='follow_up';visit.status_description='مشتری برای تصمیم نهایی زمان بیشتری خواست.';visit.next_follow_up_at=now+timedelta(days=3);visit.save(update_fields=['result','status_description','next_follow_up_at'])
             peer=clients[i%len(clients)];u1,u2=sorted([peer.pk,expert.pk])
             chat,_=DirectConversation.objects.get_or_create(user1_id=u1,user2_id=u2)
             PropertyChat.objects.get_or_create(property=row,user=peer,defaults={'conversation':chat})

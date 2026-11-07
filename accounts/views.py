@@ -1052,6 +1052,9 @@ class ProfileView(APIView):
             )
 
         from panel.serializers import role_profile_data
+        from panel.workflow_services import expert_permissions
+        permissions=expert_permissions(user) if user.role=='expert' else {}
+        permissions['can_finance']=user.is_superuser or user.role in ('superadmin','agency') or user.business_roles.filter(role='finance').exists() and permissions.get('can_manage_finance',True)
         return {
             **role_profile_data(user, {"request": request}),
             "id": user.id,
@@ -1091,7 +1094,7 @@ class ProfileView(APIView):
             "has_profile": user.has_profile,
             "registration_required": user.registration_required,
             "workspace_roles": list(user.business_roles.values('workspace_id','role')),
-            "permissions": {"can_finance": user.is_superuser or user.role in ('superadmin','agency') or user.business_roles.filter(role='finance').exists()},
+            "permissions": permissions,
             "last_login": user.last_login,
             "date_joined": user.date_joined,
             "profile_updated_at": user.profile_updated_at,

@@ -11,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied,ValidationError
 from .models import FinancialDocument,FinancialRateVersion,CRMContact,EstateActivity,UserBusinessRole
 from .settings_api import envelope,is_superadmin
-from .workflow_services import workspaces,workspace,audit,feature
+from .workflow_services import workspaces,workspace,audit,feature,expert_permissions
 from .workflow_pagination import filtered,paginate
 
 CENT=Decimal('.01')
@@ -31,9 +31,11 @@ def finance_scope(user):
     if is_superadmin(user):return qs
     if user.role=='agency':return qs.filter(workspace=user)
     granted=UserBusinessRole.objects.filter(user=user,role='finance').values_list('workspace_id',flat=True)
+    if user.role=='expert' and not expert_permissions(user).get('can_manage_finance',False):return qs.none()
     return qs.filter(Q(workspace_id__in=granted)|Q(kind='settlement',party__user=user)) if user.role=='expert' else qs.filter(workspace_id__in=granted)
 def can_finance(user,workspace_id=None):
     if is_superadmin(user) or user.role=='agency' and (workspace_id is None or workspace_id==user.pk):return
+    if user.role=='expert' and not expert_permissions(user,workspace_id).get('can_manage_finance',False):raise PermissionDenied('مدیر دفتر دسترسی مالی این کارشناس را غیرفعال کرده است.')
     grants=UserBusinessRole.objects.filter(user=user,role='finance')
     if workspace_id is not None:grants=grants.filter(workspace_id=workspace_id)
     if not grants.exists():raise PermissionDenied('ثبت مالی فقط برای مدیر دفتر یا مسئول مالی مجاز است.')

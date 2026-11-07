@@ -26,6 +26,9 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
 import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined'
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn'
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined'
+import FolderSpecialOutlinedIcon from '@mui/icons-material/FolderSpecialOutlined'
+import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined'
+import BusinessCenterOutlinedIcon from '@mui/icons-material/BusinessCenterOutlined'
 import { UserRole } from '../../redux/RoleSlice'
 
 
@@ -65,198 +68,47 @@ const iconStyle = { fontSize: '1.9rem !important' }
 const groupIconStyle = { fontSize: '1.6rem !important' }
 
 export const drawerGroups: DrawerGroupType[] = [
-    {
-        id: 'darineh-store',
-        title: 'فروشگاه دارینه',
-        icon: <StorefrontIcon sx={groupIconStyle} />,
-    },
-    {
-        id: 'darineh-orders',
-        title: 'سفارش‌های طلا',
-        icon: <DiamondIcon sx={groupIconStyle} />,
-    },
-    {
-        id: 'darineh-guarantee',
-        title: 'تضمین قیمت',
-        icon: <WorkspacePremium sx={groupIconStyle} />,
-    },
-    {
-        id: 'darineh-investment',
-        title: 'سرمایه‌گذاری طلا',
-        icon: <TrendingUpIcon sx={groupIconStyle} />,
-    },
-    {
-        id: 'darineh-finance',
-        title: 'واریز و برداشت',
-        icon: <CreditCardIcon sx={groupIconStyle} />,
-    },
-    {
-        id: 'darineh-content',
-        title: 'محتوا و اطلاع‌رسانی',
-        icon: <CampaignIcon sx={groupIconStyle} />,
-    },
-    {
-        id: 'silver-store',
-        title: 'فروشگاه نقرینه',
-        icon: <StorefrontIcon sx={groupIconStyle} />,
-    },
-    {
-        id: 'silver-orders',
-        title: 'سفارش‌های نقره',
-        icon: <DiamondIcon sx={groupIconStyle} />,
-    },
-    {
-        id: 'silver-finance',
-        title: 'واریز و برداشت',
-        icon: <CreditCardIcon sx={groupIconStyle} />,
-    },
-    {
-        id: 'silver-content',
-        title: 'محتوا و اطلاع‌رسانی',
-        icon: <CampaignIcon sx={groupIconStyle} />,
-    },
+    {id:'estate',title:'فایل و درخواست',icon:<HomeWorkOutlinedIcon sx={groupIconStyle}/>},
+    {id:'crm',title:'اشخاص و ارتباطات',icon:<GroupIcon sx={groupIconStyle}/>},
+    {id:'operations',title:'عملیات و پیگیری',icon:<BusinessCenterOutlinedIcon sx={groupIconStyle}/>},
+    {id:'management',title:'مدیریت دفتر',icon:<ManageAccountsOutlinedIcon sx={groupIconStyle}/>},
+    {id:'content',title:'محتوا و اطلاع‌رسانی',icon:<CampaignIcon sx={groupIconStyle}/>},
+    {id:'account',title:'حساب و پشتیبانی',icon:<AccountCircleRoundedIcon sx={groupIconStyle}/>},
 ]
 
 export const drawerItems: DrawerItemType[] = [
-    {title:'مرکز عملیات',link:'workflows',role:'all',icon:<AssignmentTurnedInIcon sx={iconStyle}/>},
-    {title:'کارتابل ارجاع‌ها',link:'assignments',role:'all',icon:<TrackChangesIcon sx={iconStyle}/>},
-    {title:'علاقه‌مندی‌ها',link:'favorites',role:'all',icon:<HomeIcon sx={iconStyle}/>},
-    {title:'گزارش‌های مدیریتی',link:'reports',role:[UserRole.SUPERADMIN,UserRole.AGENCY],icon:<TrendingUpIcon sx={iconStyle}/>},
-    {title:'مالی و حسابداری',link:'finance',role:[UserRole.SUPERADMIN,UserRole.AGENCY],icon:<CreditCardIcon sx={iconStyle}/>},
-    {title:'تنظیمات مالی',link:'financial-settings',role:[UserRole.SUPERADMIN,UserRole.AGENCY],icon:<PaymentIcon sx={iconStyle}/>},
-    {title:'نقش‌های دفاتر',link:'workspace-roles',role:UserRole.SUPERADMIN,icon:<GroupIcon sx={iconStyle}/>},
     {
         title: 'پیشخوان',
         link: 'dashboard',
         role: 'all',
         icon: <Dashboard sx={iconStyle} />,
     },
-    {
-        title: 'اطلاعیه ها',
-        link: 'announcements',
-        role: UserRole.SUPERADMIN,
-        icon: <CampaignIcon sx={iconStyle} />,
-    },
-    {
-        title: 'کاربران',
-        link: 'users',
-        role: UserRole.SUPERADMIN,
-        icon: <GroupIcon sx={iconStyle} />,
-    },
-    {title: 'کارشناسان من', link: 'users/expert', role: UserRole.AGENCY, icon: <GroupIcon sx={iconStyle} />},
-    {
-        title: 'خریداران',
-        link: 'customers',
-        role: [UserRole.SUPERADMIN, UserRole.AGENCY, UserRole.EXPERT],
-        icon: <HandshakeIcon sx={iconStyle} />,
-    },
-    {
-        title: 'مالکین',
-        link: 'owners',
-        role: [UserRole.SUPERADMIN, UserRole.AGENCY, UserRole.EXPERT],
-        icon: <HomeWorkOutlinedIcon sx={iconStyle} />,
-    },
-    {
-        title: 'موجر و مستاجر',
-        link: 'landlord-tenant',
-        role: [UserRole.SUPERADMIN, UserRole.AGENCY, UserRole.EXPERT],
-        icon: <VpnKeyIcon sx={iconStyle} />,
-    },
-    {
-        title: 'فایل ها',
-        link: 'files',
-        role: 'all',
-        icon: <HomeIcon sx={iconStyle} />,
-    },
-    {
-        title: 'درخواست ها',
-        link: 'requests',
-        role: 'all',
-        icon: <AddCircleOutlineIcon sx={iconStyle} />,
-    },
-    {
-        title: 'درخواست مشتریان',
-        link: 'customers-requests',
-        role: 'all',
-        icon: <ShoppingBasketIcon sx={iconStyle} />,
-    },
-    {
-        title: 'درخواست مالکین',
-        link: 'owners-requests',
-        role: 'all',
-        icon: <PaymentIcon sx={iconStyle} />,
-    },
-    {
-        title: 'یادآوری ها',
-        link: 'reminders',
-        role: 'all',
-        icon: <NotificationsActiveIcon sx={iconStyle} />,
-    },
-    {
-        title: 'بازدید ها',
-        link: 'visits',
-        role: 'all',
-        icon: <VisibilityIcon sx={iconStyle} />,
-    },
-    {
-        title: 'پیگیری ها',
-        link: 'follow-ups',
-        role: 'all',
-        icon: <TrackChangesIcon sx={iconStyle} />,
-    },
-    {
-        title: 'قراردادها',
-        link: 'contracts',
-        role: 'all',
-        icon: <DescriptionOutlinedIcon sx={iconStyle} />,
-    },
-    {
-        title: 'بایگانی ها',
-        link: 'archives',
-        role: 'all',
-        icon: <ArchiveOutlinedIcon sx={iconStyle} />,
-    },
-    {
-        title: 'کارهای مهم امروز',
-        link: 'tasks',
-        role: 'all',
-        icon: <AssignmentTurnedInIcon sx={iconStyle} />,
-    },
-    {
-        title: 'چت و تماس',
-        link: 'chats',
-        role: 'all',
-        icon: <ForumOutlinedIcon sx={iconStyle} />,
-    },
-    {
-        title: 'دیوارکوب — به‌زودی',
-        disabled: true,
-        link: 'advertisements',
-        role: 'all',
-        icon: <LocalOfferIcon sx={iconStyle} />,
-    },
-    {
-        title: 'تنظیمات',
-        link: 'settings',
-        role: UserRole.SUPERADMIN,
-        icon: <SettingsRoundedIcon sx={iconStyle} />,
-    },
-    {
-        title: 'پروفایل',
-        link: 'profile',
-        role: 'all',
-        icon: <AccountCircleRoundedIcon sx={iconStyle} />,
-    },
-    {
-        title: 'لاگ',
-        link: 'logs',
-         role: UserRole.SUPERADMIN,
-        icon: <AssignmentIcon sx={iconStyle} />,
-    },
-    {
-        title: 'تیکت‌ها',
-        link: 'tickets',
-        role: 'all',
-        icon: <SupportAgentIcon sx={iconStyle} />,
-    },
+    {title:'فایل‌های ملکی',link:'files',role:'all',groupId:'estate',icon:<HomeIcon sx={iconStyle}/>},
+    {title:'درخواست فایل',link:'requests',role:'all',groupId:'estate',icon:<AddCircleOutlineIcon sx={iconStyle}/>},
+    {title:'درخواست فروشندگان',link:'seller-requests',role:[UserRole.SUPERADMIN,UserRole.AGENCY,UserRole.EXPERT],groupId:'estate',icon:<FolderSpecialOutlinedIcon sx={iconStyle}/>},
+    {title:'کارتابل ارجاع‌ها',link:'assignments',role:[UserRole.SUPERADMIN,UserRole.AGENCY,UserRole.EXPERT],groupId:'estate',icon:<TrackChangesIcon sx={iconStyle}/>},
+    {title:'علاقه‌مندی‌ها',link:'favorites',role:'all',groupId:'estate',icon:<HomeIcon sx={iconStyle}/>},
+    {title:'مالکین',link:'owners',role:[UserRole.SUPERADMIN,UserRole.AGENCY,UserRole.EXPERT],groupId:'crm',icon:<HomeWorkOutlinedIcon sx={iconStyle}/>},
+    {title:'خریداران',link:'customers',role:[UserRole.SUPERADMIN,UserRole.AGENCY,UserRole.EXPERT],groupId:'crm',icon:<HandshakeIcon sx={iconStyle}/>},
+    {title:'موجران و مستأجران',link:'landlord-tenant',role:[UserRole.SUPERADMIN,UserRole.AGENCY,UserRole.EXPERT],groupId:'crm',icon:<VpnKeyIcon sx={iconStyle}/>},
+    {title:'چت و تماس',link:'chats',role:'all',groupId:'crm',icon:<ForumOutlinedIcon sx={iconStyle}/>},
+    {title:'بازدیدها',link:'visits',role:'all',groupId:'operations',icon:<VisibilityIcon sx={iconStyle}/>},
+    {title:'پیگیری‌ها',link:'follow-ups',role:'all',groupId:'operations',icon:<TrackChangesIcon sx={iconStyle}/>},
+    {title:'قراردادها',link:'contracts',role:'all',groupId:'operations',icon:<DescriptionOutlinedIcon sx={iconStyle}/>},
+    {title:'یادآوری‌ها',link:'reminders',role:'all',groupId:'operations',icon:<NotificationsActiveIcon sx={iconStyle}/>},
+    {title:'کارهای مهم امروز',link:'tasks',role:'all',groupId:'operations',icon:<AssignmentTurnedInIcon sx={iconStyle}/>},
+    {title:'بایگانی‌ها',link:'archives',role:'all',groupId:'operations',icon:<ArchiveOutlinedIcon sx={iconStyle}/>},
+    {title:'مرکز عملیات',link:'workflows',role:'all',groupId:'management',icon:<AssignmentTurnedInIcon sx={iconStyle}/>},
+    {title:'گزارش‌های مدیریتی',link:'reports',role:[UserRole.SUPERADMIN,UserRole.AGENCY],groupId:'management',icon:<TrendingUpIcon sx={iconStyle}/>},
+    {title:'کارشناسان من',link:'users/expert',role:UserRole.AGENCY,groupId:'management',icon:<GroupIcon sx={iconStyle}/>},
+    {title:'کاربران',link:'users',role:UserRole.SUPERADMIN,groupId:'management',icon:<GroupIcon sx={iconStyle}/>},
+    {title:'مالی و حسابداری',link:'finance',role:[UserRole.SUPERADMIN,UserRole.AGENCY],groupId:'management',icon:<CreditCardIcon sx={iconStyle}/>},
+    {title:'تنظیمات مالی',link:'financial-settings',role:[UserRole.SUPERADMIN,UserRole.AGENCY],groupId:'management',icon:<PaymentIcon sx={iconStyle}/>},
+    {title:'نقش‌های دفاتر',link:'workspace-roles',role:UserRole.SUPERADMIN,groupId:'management',icon:<GroupIcon sx={iconStyle}/>},
+    {title:'اطلاعیه‌ها',link:'announcements',role:UserRole.SUPERADMIN,groupId:'content',icon:<CampaignIcon sx={iconStyle}/>},
+    {title:'دیوارکوب — به‌زودی',disabled:true,link:'advertisements',role:'all',groupId:'content',icon:<LocalOfferIcon sx={iconStyle}/>},
+    {title:'تنظیمات',link:'settings',role:UserRole.SUPERADMIN,groupId:'account',icon:<SettingsRoundedIcon sx={iconStyle}/>},
+    {title:'پروفایل',link:'profile',role:'all',groupId:'account',icon:<AccountCircleRoundedIcon sx={iconStyle}/>},
+    {title:'لاگ سامانه',link:'logs',role:UserRole.SUPERADMIN,groupId:'account',icon:<AssignmentIcon sx={iconStyle}/>},
+    {title:'تیکت‌های پشتیبانی',link:'tickets',role:'all',groupId:'account',icon:<SupportAgentIcon sx={iconStyle}/>},
 ]

@@ -283,4 +283,4 @@ class EstateActivity(models.Model):
     class Meta:
         ordering = ['-created_at', '-id']
 
-from .workflow_models import (CRMContact,PropertyReferral,WorkflowEvent,PropertyFavorite,VisitSlot,PropertyVisit,PropertyOffer,FinancialRateVersion,FinancialDocument,UserBusinessRole,PropertyChat,SavedReportFilter,ConversationArchive,ExpertShareAgreement)
+from .workflow_models import (CRMContact,ExpertPermission,PropertyPin,PropertyReferral,WorkflowEvent,PropertyFavorite,VisitSlot,PropertyVisit,VisitAssignment,PropertyOffer,FinancialRateVersion,FinancialDocument,UserBusinessRole,PropertyChat,SavedReportFilter,ConversationArchive,ExpertShareAgreement)

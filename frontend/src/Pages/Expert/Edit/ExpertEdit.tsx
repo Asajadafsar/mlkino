@@ -1,8 +1,9 @@
 import {buildUserRequestData} from '../../User/UserRequestData'
-import {Alert, CircularProgress} from '@mui/material'
+import {Alert, CircularProgress, Stack} from '@mui/material'
 import {useUserDetails} from '../../../Core/useUserDetails'
 import {EditPage} from '../../../Components/Table/EditPage'
 import {Expert, ExpertType} from '../Expert'
+import {ExpertPermissions} from '../ExpertPermissions'
 
 const resource = 'users'
 
@@ -12,6 +13,7 @@ export function ExpertEdit({title}: {title: string}) {
     if (!expert || !initial) return <CircularProgress aria-label="دریافت کاربر" />
 
     return (
+        <Stack spacing={2.5}>
         <EditPage
             resource={resource}
             title={title}
@@ -23,5 +25,7 @@ export function ExpertEdit({title}: {title: string}) {
         >
             <Expert expert={expert} setExpert={setExpert} resource={resource} />
         </EditPage>
+        <ExpertPermissions expertId={Number(expert.id)} />
+        </Stack>
     )
 }
