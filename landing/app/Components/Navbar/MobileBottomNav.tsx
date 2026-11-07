@@ -19,7 +19,7 @@ export default function MobileBottomNav() {
     <nav className={styles.bottom} aria-label="ناوبری پایین صفحه">
       <div className={styles.bottomInner}>
         {NAV_ITEMS.map(({ key, href, label, icon: Icon, activeIcon: ActiveIcon }) => {
-          if (key === "submit"&&user?.role==='expert') return <Link key={key} href={PANEL_LINKS.createFile} className={styles.submitBottom} aria-label="ثبت فایل تخصصی"><span className={styles.submitIcon}><AddRounded/></span><span>ثبت فایل</span></Link>;
+          if (key === "submit"&&user?.role==='expert') return <Link prefetch={false} key={key} href={PANEL_LINKS.createFile} className={styles.submitBottom} aria-label="ثبت فایل تخصصی"><span className={styles.submitIcon}><AddRounded/></span><span>ثبت فایل</span></Link>;
           if (key === "submit") return <button
             key={key}
             type="button"
@@ -33,7 +33,7 @@ export default function MobileBottomNav() {
           const target=key==="profile"?(user?PANEL_LINKS.dashboard:PANEL_LINKS.login):href;
           const title=key==="profile"?(loading?"حساب کاربری":user?(user.full_name||"حساب من"):"ورود / ثبت‌نام"):label;
           const active = isNavActive(pathname, target);
-          return <Link key={key} href={target} className={styles.bottomLink} aria-busy={key==='profile'&&loading} aria-current={active ? "page" : undefined}>
+          return <Link prefetch={false} key={key} href={target} className={styles.bottomLink} aria-busy={key==='profile'&&loading} aria-current={active ? "page" : undefined}>
             <span className={styles.bottomIcon}>{active ? <ActiveIcon /> : <Icon />}</span><span>{title}</span>
           </Link>;
         })}

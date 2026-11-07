@@ -1,10 +1,11 @@
 """Anonymous catalog intentionally excludes owner/contact/internal and draft data."""
 from decimal import Decimal,InvalidOperation
 from django.shortcuts import get_object_or_404
+from django.db.models import Q,Exists,OuterRef,F
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
-from .models import PropertyRecord
+from .models import PropertyRecord,AgencyExpertLink
 from .settings_api import envelope
 from .settings_runtime import system_settings
 from .property_api import normalize
@@ -12,7 +13,10 @@ from .geography_api import IranLocationsView,MapTileView
 from .workflow_services import feature
 
 SAFE_FIELDS=('title','propertyType','contractType','province','city','district','neighborhood','area','totalPrice','mortgagePrice','monthlyRent','roomCount','images','latitude','longitude','description','documentType','amenities','buildYear','totalFloor','floor','external_links','image_variants','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','floorPreferences')
-def public_rows():return PropertyRecord.objects.filter(publication_state='published',archived_at=None).select_related('assigned_expert','office__agency_profile','created_by')
+def public_rows():
+    membership=AgencyExpertLink.objects.filter(agency_id=OuterRef('office_id'),expert_id=OuterRef('assigned_expert_id'))
+    return PropertyRecord.objects.filter(publication_state='published',archived_at=None).annotate(_expert_membership=Exists(membership)).filter(Q(assigned_expert__isnull=True)|Q(assigned_expert__role='expert',assigned_expert__is_active=True,assigned_expert__account_status='active')&(Q(office__isnull=True)|Q(office_id=F('assigned_expert_id'))|Q(_expert_membership=True))).select_related('assigned_expert','office__agency_profile','created_by')
+
 def public_serialize(row):
     result={k:row.data[k] for k in SAFE_FIELDS if k in row.data}
     # Internal notes, precise postal/address and owner details are never projected.

@@ -22,9 +22,15 @@ def normalize(value):
 def scope(user):
     qs = PropertyRecord.objects.all()
     if is_superadmin(user): return qs
-    ids = {user.pk}
-    if user.role == 'agency': ids.update(AgencyExpertLink.objects.filter(agency=user).values_list('expert_id',flat=True))
-    return qs.filter(Q(created_by_id__in=ids)|Q(assigned_expert=user)|Q(office=user,office__role='agency'))
+    if user.role not in ('agency','expert'):
+        from .models import WorkflowEvent
+        submitted=WorkflowEvent.objects.filter(actor=user,event='property.owner.submitted').values('property_id')
+        return qs.filter(created_by=user).filter((Q(kind='request')&(Q(data__selfServiceRequest=True)|Q(data__selfServiceRequest__isnull=True)))|Q(data__ownerSubmission=True)|Q(pk__in=submitted))
+    if user.role=='agency':
+        experts=AgencyExpertLink.objects.filter(agency=user).values('expert_id')
+        return qs.filter(Q(office=user)|Q(office__isnull=True,created_by=user)|Q(office__isnull=True,created_by_id__in=experts))
+    offices=AgencyExpertLink.objects.filter(expert=user).values_list('agency_id',flat=True)
+    return qs.filter(Q(created_by=user)|Q(assigned_expert=user)).filter(Q(office__isnull=True)|Q(office=user)|Q(office_id__in=offices))
 
 def validate_payload(request, kind, previous=None):
     if 'payload' in request.data:
@@ -159,6 +165,7 @@ class PropertyListView(APIView):
         from .workflow_services import dispatch,feature,audit,workspace
         feature('files' if kind=='file' else 'requests')
         data=validate_payload(request,kind)
+        if kind=='request':data['selfServiceRequest']=request.user.role not in ('agency','expert','superadmin')
         row=PropertyRecord.objects.create(kind=kind,created_by=request.user,data=data,office_id=workspace(request.user) if request.user.role in ('agency','expert') else None,assigned_expert=request.user if request.user.role=='expert' else None)
         audit(request.user,'property.created','property',row.pk,property=row)
         if kind=='request' and data.get('publicationStatus')!='draft':dispatch(row.pk,request.user)
@@ -169,6 +176,8 @@ class PropertyDetailView(APIView):
     def get(self,request,kind,pk): return envelope(serialize(get_object_or_404(scope(request.user),kind=kind,pk=pk)))
     def patch(self,request,kind,pk):
         row=get_object_or_404(scope(request.user),kind=kind,pk=pk)
+        if request.user.role not in ('agency','expert') and not is_superadmin(request.user):
+            if row.assigned_expert_id:raise PermissionDenied('این پرونده به کارشناس سپرده شده است؛ تغییرات را با مسئول پرونده هماهنگ کنید.')
         if row.created_by_id!=request.user.pk and row.assigned_expert_id!=request.user.pk and not (request.user.role=='agency' and row.office_id==request.user.pk) and not is_superadmin(request.user): raise PermissionDenied('ویرایش این پرونده مجاز نیست.')
         row.data=validate_payload(request,kind,row.data);row.save(update_fields=['data','updated_at'])
         if row.data.get('publicationStatus')=='pending':

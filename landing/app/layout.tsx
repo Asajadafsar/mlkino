@@ -1,3 +1,5 @@
+import {LandingFavoritesProvider} from "./Core/Favorites";
+import {publicApiOrigin} from "./Core/catalog";
 import {LandingSessionProvider} from "./Core/Session";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
@@ -27,6 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable}>
+      <head><link rel="preconnect" href={publicApiOrigin()} crossOrigin="anonymous"/></head>
       <body style={{ margin: 0 }}>
         <AppRouterCacheProvider options={cacheRtlOptions}>
           <PublicTheme>
@@ -39,11 +42,11 @@ export default function RootLayout({
                 minHeight: "100vh",
               }}
             >
-              <LandingSessionProvider><Navbar />
+              <LandingSessionProvider><LandingFavoritesProvider><Navbar />
 
               <Box component="main" sx={{ flexGrow: 1, pb: { xs: "calc(104px + env(safe-area-inset-bottom))", lg: 0 } }}>
                 {children}
-              </Box></LandingSessionProvider>
+              </Box></LandingFavoritesProvider></LandingSessionProvider>
 
             </Box>
           </PublicTheme>

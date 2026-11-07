@@ -12,6 +12,7 @@ from rest_framework.exceptions import PermissionDenied,ValidationError
 from .models import FinancialDocument,FinancialRateVersion,CRMContact,EstateActivity,UserBusinessRole
 from .settings_api import envelope,is_superadmin
 from .workflow_services import workspaces,workspace,audit,feature
+from .workflow_pagination import filtered,paginate
 
 CENT=Decimal('.01')
 def parse_date(value):
@@ -48,7 +49,7 @@ def calc(amount,rate,expert=None,when=None):
     deductions=money(values.get('deductions','0'))
     if deductions>gross:raise ValidationError('کسورات نباید از کمیسیون بیشتر باشد.')
     net=gross-deductions;expert_amount=(net*Decimal(values.get('expert_share_rate','0'))/100).quantize(CENT,ROUND_HALF_UP)
-    return {k:str(v) for k,v in {'transaction_amount':amount,'gross':gross,'tax':tax,'deductions':deductions,'expert_share':expert_amount,'office_share':net-expert_amount,'net':net}.items()}|{'rate_version':rate.pk,'mode':values.get('mode','agreed'),'expert_id':expert.pk if expert else None,'agreement_version':agreement.pk if agreement else None}
+    return {k:str(v) for k,v in {'transaction_amount':amount,'gross':gross,'tax':tax,'invoice_total':gross+tax,'deductions':deductions,'expert_share':expert_amount,'office_share':net-expert_amount,'net':net}.items()}|{'rate_version':rate.pk,'mode':values.get('mode','agreed'),'expert_id':expert.pk if expert else None,'agreement_version':agreement.pk if agreement else None}
 def clean_entries(raw,amount,kind):
     if not raw:
         debit,credit={'invoice':('receivables','commission_income'),'payment':('cash','receivables'),'settlement':('expert_payable','cash')}[kind]
@@ -122,10 +123,10 @@ class FinancialDocumentView(APIView):
         if pk:return envelope(serialize(get_object_or_404(qs,pk=pk)))
         if request.query_params.get('status'):qs=qs.filter(status=request.query_params['status'])
         if request.query_params.get('kind'):qs=qs.filter(kind=request.query_params['kind'])
-        docs=list(qs[:500])
+        qs=filtered(qs,request)
         totals=qs.filter(status__in=('posted','reversed')).aggregate(debit=Sum('amount',filter=Q(direction='debit')),credit=Sum('amount',filter=Q(direction='credit')))
         debit=totals['debit'] or Decimal(0);credit=totals['credit'] or Decimal(0)
-        return envelope({'results':[serialize(r) for r in docs],'total_results':qs.count(),'summary':{'debit':str(debit),'credit':str(credit),'balance':str(debit-credit)}})
+        return envelope({**paginate(qs,request,serialize),'summary':{'debit':str(debit),'credit':str(credit),'balance':str(debit-credit)}})
     @transaction.atomic
     def post(self,request):
         feature('finance');can_finance(request.user);d=dict(request.data)
@@ -162,11 +163,17 @@ class FinancialDocumentView(APIView):
             if not when:raise ValidationError('تاریخ معامله معتبر نیست.')
             if not rate.valid_from<=when or rate.valid_to and rate.valid_to<when:raise ValidationError('نرخ در این تاریخ معتبر نیست.')
             calculation=calc(money(d.get('transaction_amount'),True),rate,activity.assigned_expert if activity and activity.assigned_expert_id else None,when)
+            if kind=='invoice' and amount!=Decimal(calculation['invoice_total']):raise ValidationError('مبلغ صورتحساب باید با جمع کمیسیون و مالیات محاسبه‌شده برابر باشد.')
         if kind=='reversal':
             reverses=get_object_or_404(FinancialDocument.objects.select_for_update(of=('self',)),pk=positive_id(d.get('reverses_id')),workspace_id=ws,status='posted')
             if hasattr(reverses,'reversal'):raise ValidationError('این سند قبلاً برگشت خورده است.')
             amount=reverses.amount;direction='credit' if reverses.direction=='debit' else 'debit';entries=[{'account':e['account'],'debit':e['credit'],'credit':e['debit']} for e in reverses.entries]
-        else:entries=clean_entries(d.get('entries'),amount,kind)
+        else:
+            entries=d.get('entries')
+            if not entries and kind=='invoice' and calculation:
+                entries=[{'account':'receivables','debit':str(amount),'credit':'0.00'},{'account':'commission_income','debit':'0.00','credit':calculation['gross']}]
+                if Decimal(calculation['tax']):entries.append({'account':'tax_payable','debit':'0.00','credit':calculation['tax']})
+            entries=clean_entries(entries,amount,kind)
         description=d.get('description','')
         if not isinstance(description,str) or len(description)>2000:raise ValidationError('شرح معتبر وارد کنید.')
         metadata={k:('' if d.get(k) is None else d.get(k,'')) for k in ('payment_method','tracking_number','source_account','destination_account','receipt','paid_at')}

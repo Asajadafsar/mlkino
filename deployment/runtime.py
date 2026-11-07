@@ -116,7 +116,15 @@ def backend_deploy(release):
         run(['systemctl','stop',duplicate,*units])
         # Existing code/config/media are retained. Only reviewed allowlisted files change.
         for name in data['files']:
-            target=base/name;target.parent.mkdir(parents=True,exist_ok=True)
+            target=base/name
+            # Release process uses umask 077, but application source directories
+            # must remain readable by the ASGI/job users. Secrets are excluded
+            # from this allowlist. Never change existing directory permissions.
+            missing=[];parent=target.parent
+            while not parent.exists():
+                missing.append(parent);parent=parent.parent
+            for parent in reversed(missing):
+                parent.mkdir();parent.chmod(0o755)
             temp=target.with_name(target.name+'.mlkino-new');shutil.copy2(incoming/name,temp);os.chmod(temp,0o644);os.replace(temp,target)
         for name in dropins:
             p=pathlib.Path(name);p.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(HERE/'systemd/90-mlkino-release.conf',p)

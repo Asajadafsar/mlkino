@@ -17,11 +17,15 @@ MONEY={'agreed_price','price_difference','owner_commission','buyer_commission'}
 def visible(user):
     qs=EstateActivity.objects.select_related('created_by')
     if is_superadmin(user):return qs
-    ids={user.pk}
-    if user.role=='agency':ids.update(AgencyExpertLink.objects.filter(agency=user).values_list('expert_id',flat=True))
     from .models import UserBusinessRole
     finance=UserBusinessRole.objects.filter(user=user,role='finance').values_list('workspace_id',flat=True)
-    return qs.filter(Q(created_by_id__in=ids)|Q(assigned_expert=user)|Q(office_id__in=finance)|Q(office=user,office__role='agency'))
+    if user.role=='agency':
+        experts=AgencyExpertLink.objects.filter(agency=user).values('expert_id')
+        return qs.filter(Q(office=user)|Q(office__isnull=True,created_by=user)|Q(office__isnull=True,created_by_id__in=experts))
+    if user.role=='expert':
+        offices=AgencyExpertLink.objects.filter(expert=user).values_list('agency_id',flat=True)
+        return qs.filter((Q(created_by=user)|Q(assigned_expert=user))&(Q(office__isnull=True)|Q(office=user)|Q(office_id__in=offices))|Q(office_id__in=finance))
+    return qs.filter(Q(office_id__in=finance)|Q(parties__user=user)).distinct()
 
 def can_write(user):
     if not is_superadmin(user) and user.role not in ('agency','expert'):raise PermissionDenied('ثبت و ویرایش این بخش برای نقش شما مجاز نیست.')

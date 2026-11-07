@@ -27,7 +27,7 @@ class DashboardEstateTests(TestCase):
         self.assertEqual(self.get(self.admin,priceFrom='bad').status_code,400);self.assertEqual(self.get(self.admin,priceFrom='500',priceTo='100').status_code,400)
         self.client.force_authenticate(None);self.assertEqual(self.client.get('/panel/dashboard/estate-overview/').status_code,401)
     def test_unresolved_locations_are_counted_without_inventing_coordinates(self):
-        PropertyRecord.objects.create(kind='file',created_by=self.user,data={'city':'شهر نامشخص'})
+        PropertyRecord.objects.create(kind='file',created_by=self.user,data={'city':'شهر نامشخص','ownerSubmission':True})
         d=self.get(self.user).data['data'];self.assertEqual(d['matching_files'],1);self.assertEqual(d['mapped_files'],0);self.assertEqual(d['points'],[])
 
     def test_map_tiles_touching_iran_are_available_even_when_center_is_outside(self):

@@ -30,6 +30,7 @@ def audit(actor,event,entity,pk,property=None,**metadata):
 def touch_contact(row,expert):
     phone=row.data.get('ownerPhone') or row.created_by.phone
     roles=['owner' if row.kind=='file' or row.data.get('requesterType')=='owner' else ('tenant' if row.data.get('contractType')=='رهن و اجاره' else 'buyer')]
+    if roles==['owner'] and row.data.get('contractType')=='رهن و اجاره':roles.append('landlord')
     contact,created=CRMContact.objects.get_or_create(workspace_id=row.office_id or workspace(expert),phone=phone,defaults={'name':row.data.get('ownerName') or row.created_by.full_name or 'متقاضی','expert':expert,'user':row.created_by if row.created_by.phone==phone else User.objects.filter(phone=phone).first(),'roles':roles,'data':{'province':row.data.get('province',''),'city':row.data.get('city','')}})
     if not created:
         contact.roles=list(dict.fromkeys(contact.roles+roles));contact.expert=expert;contact.save(update_fields=['roles','expert','updated_at'])
@@ -79,6 +80,7 @@ def dispatch(property_id,actor=None,explicit_expert=None):
 
 @transaction.atomic
 def respond(referral_id,user,decision,publish=False):
+    if not is_superadmin(user) and user.role!='expert':raise PermissionDenied('پاسخ به ارجاع فقط برای کارشناس فعال مجاز است.')
     ref=PropertyReferral.objects.select_related('property').get(pk=referral_id)
     row=PropertyRecord.objects.select_for_update(of=('self',)).get(pk=ref.property_id)
     ref=PropertyReferral.objects.select_for_update(of=('self',)).get(pk=referral_id)
@@ -86,6 +88,7 @@ def respond(referral_id,user,decision,publish=False):
     target='accepted' if decision=='accept' else 'rejected'
     if ref.status==target:return ref
     if ref.status!='pending':raise ValidationError('این ارجاع دیگر قابل پاسخ نیست.')
+    if decision=='accept' and (not ref.expert or ref.expert.role!='expert' or not ref.expert.is_active or ref.expert.account_status!='active'):raise ValidationError('کارشناس این ارجاع فعال نیست؛ پرونده باید دوباره ارجاع شود.')
     if ref.expires_at<=timezone.now():
         ref.status='expired';ref.save(update_fields=['status','updated_at']);audit(user,'routing.expired','referral',ref.pk,property=row,status='expired');dispatch(row.pk,user);return ref
     ref.status=target;ref.save(update_fields=['status','updated_at'])

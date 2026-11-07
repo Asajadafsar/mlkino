@@ -10,6 +10,8 @@ import SendRoundedIcon from '@mui/icons-material/SendRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import DoneAllRoundedIcon from '@mui/icons-material/DoneAllRounded'
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
+import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
+import {usePanelSettings} from '../../Core/PanelSettingsContext';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import {useSearchParams,Link} from 'react-router-dom'
 import {DataProvider} from '../../Core/DataProvider'
@@ -24,11 +26,13 @@ const time = (date: string) => new Date(date).toLocaleTimeString('fa-IR', {hour:
 
 export default function ChatPage() {
     const {user} = useContext(CurrentUserContext)
+    const {settings}=usePanelSettings()
+    const [notice,setNotice]=useState('')
     const {connected, conversations, lastEvent, reload, send, startCall, error: inboxError} = useRealtime()
     const [params, setParams] = useSearchParams()
     const selectedId = Number(params.get('conversation')) || null
     const propertyIntent=params.get('property')
-    useEffect(()=>{if(!propertyIntent||params.get('conversation'))return;let active=true;DataProvider.post<any>(`workflows/properties/${propertyIntent}/chat/`,{data:{}}).then(response=>{if(active)setParams({conversation:String(response.data.chat_id),property:propertyIntent},{replace:true})}).catch(e=>{if(active)setError(e.message||'گفتگوی این ملک برقرار نشد.')});return()=>{active=false}},[propertyIntent,params.get('conversation')])
+    useEffect(()=>{if(!propertyIntent||params.get('conversation'))return;let active=true;DataProvider.post<any>(`workflows/properties/${propertyIntent}/chat/`,{data:{}}).then(async response=>{await reload();if(active)setParams({conversation:String(response.data.chat_id),property:propertyIntent},{replace:true})}).catch(e=>{if(active)setError(e.message||'گفتگوی این ملک برقرار نشد.')});return()=>{active=false}},[propertyIntent,params.get('conversation')])
     const [selected, setSelected] = useState<Conversation | null>(null)
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [loading, setLoading] = useState(false)
@@ -123,9 +127,11 @@ export default function ChatPage() {
         try {await DataProvider.delete(`chats/${message.conversation}/messages/${message.id}/`); setMessages(previous => previous.map(item => item.id === message.id ? {...item, deleted_at: new Date().toISOString(), body: '', attachment: null} : item))}
         catch (error: any) {setError(error.message)}
     }
+    const archiveSelected=async()=>{if(!selectedId||sending)return;setSending(true);try{await DataProvider.post('workflows/archive/',{data:{entity_type:'conversation',id:selectedId,archived:true}});await reload();setParams({});setNotice('گفتگو بایگانی شد.')}catch(e:any){setError(e.message||'بایگانی گفتگو انجام نشد.')}finally{setSending(false)}}
     const filtered = conversations.filter(chat => (chat.peer.full_name || '').includes(search) || chat.last_message?.body.includes(search))
     return <Stack spacing={2}>
         <Stack direction="row" alignItems="center" justifyContent="space-between"><Box><Typography variant="h2">چت و تماس</Typography><Typography color="text.secondary" variant="body2">گفتگوهای شما، نزدیک‌تر از همیشه</Typography></Box><Chip size="small" color={connected ? 'success' : 'warning'} variant="outlined" label={connected ? 'اتصال لحظه‌ای برقرار' : 'در حال اتصال مجدد…'} /></Stack>
+        {notice&&<Alert severity="success" onClose={()=>setNotice('')} action={<Button component={Link} to="/archives">مشاهده بایگانی</Button>}>{notice}</Alert>}
         {(error || inboxError) && <Alert severity="error" onClose={() => setError('')}>{error || inboxError}</Alert>}
         {!connected && <Alert severity="info">اتصال لحظه‌ای برقرار نیست. برای دریافت پیام‌های جدید، اتصال سرور را بررسی کنید. پیام‌های شما محفوظ‌اند.</Alert>}
         <Paper variant="outlined" sx={{borderRadius: '18px', overflow: 'hidden', height: {xs: 'calc(100dvh - 260px)', md: 'calc(100dvh - 225px)'}, minHeight: 470, display: 'flex'}}>
@@ -146,7 +152,7 @@ export default function ChatPage() {
                     <Stack direction="row" alignItems="center" gap={1.5} sx={{px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider'}}>
                         <IconButton aria-label="بازگشت به گفتگوها" sx={{display: {md: 'none'}}} onClick={() => setParams({})}><ArrowForwardRoundedIcon /></IconButton>
                         <Avatar src={selected.peer.avatar || undefined}>{selected.peer.full_name?.[0] || 'م'}</Avatar><Box sx={{flex: 1}}><Typography fontWeight={700}>{selected.peer.full_name || `کاربر #${selected.peer.id}`}</Typography><Typography variant="caption" color={typing ? 'primary' : 'text.secondary'}>{typing ? 'در حال نوشتن…' : roleNames[selected.peer.role] || 'مخاطب'}</Typography></Box>
-                        <Tooltip title="تماس صوتی"><span><IconButton aria-label="تماس صوتی" disabled={!connected} onClick={() => startCall(selected)}><CallOutlinedIcon /></IconButton></span></Tooltip><Tooltip title="تماس تصویری"><span><IconButton aria-label="تماس تصویری" disabled={!connected} onClick={() => startCall(selected, true)}><VideocamOutlinedIcon /></IconButton></span></Tooltip>
+                        {settings.features.archives!==false&&<Tooltip title="بایگانی گفتگو"><span><IconButton aria-label="بایگانی گفتگو" disabled={sending} onClick={archiveSelected}><ArchiveOutlinedIcon/></IconButton></span></Tooltip>}<Tooltip title="تماس صوتی"><span><IconButton aria-label="تماس صوتی" disabled={!connected} onClick={() => startCall(selected)}><CallOutlinedIcon /></IconButton></span></Tooltip><Tooltip title="تماس تصویری"><span><IconButton aria-label="تماس تصویری" disabled={!connected} onClick={() => startCall(selected, true)}><VideocamOutlinedIcon /></IconButton></span></Tooltip>
                     </Stack>
                     {!!selected.properties?.length&&<Stack direction="row" flexWrap="wrap" gap={1} sx={{px:2,py:1,bgcolor:'background.paper'}}><Typography variant="caption">گفتگو درباره:</Typography>{selected.properties.map(property=><Chip key={property.id} size="small" component={Link} clickable to={`/${property.kind==='request'?'requests':'files'}/${property.id}`} label={property.title}/>)}</Stack>}
                     <Stack spacing={1.5} sx={{flex: 1, overflowY: 'auto', p: {xs: 2, md: 3}, bgcolor: 'background.default', backgroundImage: 'radial-gradient(#b9c8e326 .8px,transparent .8px)', backgroundSize: '18px 18px'}}>

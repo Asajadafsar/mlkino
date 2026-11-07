@@ -19,6 +19,7 @@ from .workflow_services import workspaces,workspace,audit,feature,dispatch,respo
 from .property_api import scope,serialize as property_serialize,validate_payload,normalize
 from .public_api import public_serialize,public_rows
 from .finance_api import money
+from .workflow_pagination import filtered,paginate
 
 def ident(value):
     try:
@@ -26,12 +27,14 @@ def ident(value):
         n=int(value);assert n>0
     except (ValueError,TypeError,AssertionError):raise ValidationError('شناسه معتبر انتخاب کنید.')
     return n
-def results(qs,serialize,limit=200):return {'results':[serialize(x) for x in qs[:limit]],'total_results':qs.count()}
+def results(qs,serialize,request):return paginate(filtered(qs,request),request,serialize)
 def can_manage(user,row):
+    if not is_superadmin(user) and user.role not in ('agency','expert'):raise PermissionDenied('مدیریت حرفه‌ای این پرونده برای نقش شما مجاز نیست.')
+    if not is_superadmin(user) and not scope(user).filter(pk=row.pk).exists():raise PermissionDenied('این پرونده در محدوده دفتر شما نیست.')
     if not(is_superadmin(user) or row.assigned_expert_id==user.pk or row.created_by_id==user.pk and user.role in ('expert','agency') or user.role=='agency' and row.office_id==user.pk):raise PermissionDenied('مدیریت این پرونده مجاز نیست.')
 def view_property(user,pk):
     row=get_object_or_404(PropertyRecord.objects.select_related('assigned_expert','created_by','office'),pk=pk)
-    if (row.publication_state!='published' or row.archived_at) and not scope(user).filter(pk=pk).exists():raise PermissionDenied('این ملک قابل مشاهده نیست.')
+    if not public_rows().filter(pk=pk).exists() and not scope(user).filter(pk=pk).exists():raise PermissionDenied('این ملک قابل مشاهده نیست.')
     return row
 
 def contact_scope(user):
@@ -39,7 +42,8 @@ def contact_scope(user):
     if is_superadmin(user):return qs
     if user.role=='agency':return qs.filter(workspace=user)
     granted=UserBusinessRole.objects.filter(user=user,role='finance').values_list('workspace_id',flat=True)
-    return qs.filter(Q(expert=user)|Q(workspace=user)|Q(workspace_id__in=granted))
+    if user.role=='expert':return qs.filter(Q(expert=user,workspace_id__in=workspaces(user))|Q(workspace=user)|Q(workspace_id__in=granted))
+    return qs.filter(workspace_id__in=granted)
 def contact_json(r):return {'id':r.pk,'name':r.name,'full_name':r.name,'phone':r.phone,'roles':r.roles,'kind':('lessor' if r.roles[0]=='landlord' else r.roles[0]) if r.roles else 'owner','office_id':r.workspace_id,'workspace_id':r.workspace_id,'expert_id':r.expert_id,'user_id':r.user_id,'created_at':r.created_at.isoformat(),'properties':list(r.properties.values_list('id',flat=True)),'activities':list(r.estate_activities.values_list('id',flat=True)),**r.data}
 
 class ContactsView(APIView):
@@ -49,9 +53,9 @@ class ContactsView(APIView):
         if pk:return envelope(contact_json(get_object_or_404(qs,pk=pk)))
         if request.query_params.get('search'):qs=qs.filter(Q(name__icontains=request.query_params['search'])|Q(phone__icontains=request.query_params['search']))
         rows=list(qs)
-        kind=request.query_params.get('kind')
+        kind=request.query_params.get('kind') or request.query_params.get('role')
         if kind:rows=[x for x in rows if ('landlord' if kind=='lessor' else kind) in x.roles]
-        return envelope({'results':[contact_json(x) for x in rows[:200]],'total_results':len(rows)})
+        return envelope(paginate(rows,request,contact_json))
     def post(self,request):return self.save(request)
     def patch(self,request,pk):return self.save(request,pk)
     @transaction.atomic
@@ -96,14 +100,15 @@ def referral_scope(user):
     qs=PropertyReferral.objects.select_related('property','expert')
     if is_superadmin(user):return qs
     if user.role=='agency':return qs.filter(Q(property__office=user)|Q(expert_id__in=AgencyExpertLink.objects.filter(agency=user).values('expert_id')))
-    return qs.filter(Q(expert=user)|Q(property__created_by=user))
+    if user.role=='expert':return qs.filter(Q(expert=user)|Q(property__created_by=user))
+    return qs.filter(property_id__in=scope(user).values('pk'))
 def referral_json(r):return {'id':r.pk,'property_id':r.property_id,'property_title':r.property.data.get('title') or r.property.data.get('propertyType','ملک'),'expert_id':r.expert_id,'expert_name':r.expert.full_name if r.expert else 'بازار املاک ملکینو','status':r.status,'expires_at':r.expires_at.isoformat() if r.expires_at else None,'attempt':r.attempt,'created_at':r.created_at.isoformat(),'history':[{'event':e.event,'actor_id':e.actor_id,'created_at':e.created_at.isoformat()} for e in r.property.workflow_events.all()[:100]]}
 class AssignmentsView(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request):
         feature('assignments');qs=referral_scope(request.user)
         if request.query_params.get('status'):qs=qs.filter(status=request.query_params['status'])
-        return envelope(results(qs,referral_json))
+        return envelope(results(qs,referral_json,request))
 class AssignmentRespondView(APIView):
     permission_classes=[IsAuthenticated]
     def post(self,request,pk):
@@ -128,7 +133,7 @@ class OwnerSubmissionView(APIView):
     permission_classes=[IsAuthenticated]
     @transaction.atomic
     def post(self,request):
-        feature('files');d=validate_payload(request,'file');d['requesterType']='owner'
+        feature('files');d=validate_payload(request,'file');d['requesterType']='owner';d['ownerSubmission']=True
         draft=d.get('publicationStatus')=='draft'
         row=PropertyRecord.objects.create(kind='file',created_by=request.user,data=d,publication_state='draft' if draft else 'pending')
         audit(request.user,'property.owner.submitted','property',row.pk,property=row)
@@ -149,7 +154,8 @@ class FavoritesView(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request):
         feature('favorites');qs=PropertyFavorite.objects.filter(user=request.user,property__publication_state='published',property__archived_at=None).select_related('property__assigned_expert','property__office__agency_profile','property__created_by')
-        return envelope(results(qs,lambda r:{'id':r.pk,'property_id':r.property_id,'property':public_serialize(r.property)}))
+        if request.query_params.get('ids')=='true':return envelope({'ids':list(qs.values_list('property_id',flat=True))})
+        return envelope(results(qs,lambda r:{'id':r.pk,'property_id':r.property_id,'property':public_serialize(r.property)},request))
     def post(self,request):
         feature('favorites');row=get_object_or_404(public_rows(),pk=ident(request.data.get('property_id')))
         fav,created=PropertyFavorite.objects.get_or_create(user=request.user,property=row)
@@ -167,7 +173,7 @@ class VisitSlotsView(APIView):
         if request.query_params.get('property_id'):
             row=view_property(request.user,ident(request.query_params['property_id']));qs=qs.filter(property=row)
         elif not is_superadmin(request.user):qs=qs.filter(Q(property__publication_state='published')|Q(expert=request.user))
-        return envelope(results(qs,slot_json))
+        return envelope(results(qs,slot_json,request))
     @transaction.atomic
     def post(self,request):
         feature('visits');row=get_object_or_404(PropertyRecord.objects.select_for_update(of=('self',)),pk=ident(request.data.get('property_id')));can_manage(request.user,row)
@@ -186,11 +192,16 @@ class VisitSlotsView(APIView):
 def visit_scope(user):
     qs=PropertyVisit.objects.select_related('slot__property','visitor','slot__expert')
     if is_superadmin(user):return qs
-    return qs.filter(Q(visitor=user)|Q(slot__expert=user)|Q(slot__property__office=user,slot__property__office__role='agency'))
+    if user.role=='expert':return qs.filter(Q(visitor=user)|Q(slot__expert=user,slot__property_id__in=scope(user).values('pk')))
+    if user.role=='agency':return qs.filter(Q(visitor=user)|Q(slot__property__office=user))
+    return qs.filter(visitor=user)
 def visit_json(r):return {'id':r.pk,'slot_id':r.slot_id,'property_id':r.slot.property_id,'property_title':r.slot.property.data.get('title') or r.slot.property.data.get('propertyType','ملک'),'visitor_name':r.visitor.full_name,'user_id':r.visitor_id,'expert_id':r.slot.expert_id,'starts_at':r.slot.starts_at.isoformat(),'ends_at':r.slot.ends_at.isoformat(),'status':r.status,'created_at':r.created_at.isoformat()}
 class VisitsView(APIView):
     permission_classes=[IsAuthenticated]
-    def get(self,request):feature('visits');return envelope(results(visit_scope(request.user),visit_json))
+    def get(self,request):
+        feature('visits');qs=visit_scope(request.user)
+        if request.query_params.get('property_id'):qs=qs.filter(slot__property_id=ident(request.query_params['property_id']))
+        return envelope(results(qs,visit_json,request))
     @transaction.atomic
     def post(self,request):
         feature('visits');User.objects.select_for_update(of=('self',)).get(pk=request.user.pk)
@@ -209,7 +220,8 @@ class VisitsView(APIView):
         feature('visits');row=get_object_or_404(visit_scope(request.user).select_for_update(of=('self',)),pk=pk)
         status=request.data.get('status')
         if status not in ('confirmed','rejected','cancelled'):raise ValidationError('وضعیت بازدید معتبر نیست.')
-        if row.visitor_id==request.user.pk and row.slot.expert_id!=request.user.pk and not is_superadmin(request.user) and status!='cancelled':raise PermissionDenied('فقط کارشناس می‌تواند بازدید را تأیید یا رد کند.')
+        manager=is_superadmin(request.user) or request.user.role=='expert' and row.slot.expert_id==request.user.pk or request.user.role=='agency' and row.slot.property.office_id==request.user.pk
+        if not manager and status!='cancelled':raise PermissionDenied('فقط مسئول پرونده می‌تواند بازدید را تأیید یا رد کند.')
         if row.status in ('cancelled','rejected') and status!=row.status:raise ValidationError('بازدید بسته‌شده را دوباره رزرو کنید.')
         row.status=status;row.save(update_fields=['status','updated_at']);audit(request.user,'visit.changed','visit',row.pk,property=row.slot.property,status=status)
         notify(row.visitor,'visit','وضعیت بازدید تغییر کرد',link=f'/visits?visit={row.pk}');return envelope(visit_json(row))
@@ -219,7 +231,7 @@ class OffersView(APIView):
     def get(self,request):
         feature('offers');qs=PropertyOffer.objects.select_related('request','property','created_by')
         if not is_superadmin(request.user):qs=qs.filter(Q(created_by=request.user)|Q(request__created_by=request.user)|Q(request__assigned_expert=request.user))
-        return envelope(results(qs,lambda r:{'id':r.pk,'request_id':r.request_id,'property_id':r.property_id,'message':r.message,'created_by':r.created_by_id,'created_at':r.created_at.isoformat(),'property':public_serialize(r.property)}))
+        return envelope(results(qs,lambda r:{'id':r.pk,'request_id':r.request_id,'property_id':r.property_id,'message':r.message,'created_by':r.created_by_id,'created_at':r.created_at.isoformat(),'property':public_serialize(r.property)},request))
     def post(self,request):
         feature('offers');target=get_object_or_404(public_rows(),pk=ident(request.data.get('request_id')),kind='request')
         row=get_object_or_404(scope(request.user),pk=ident(request.data.get('property_id')),kind='file',publication_state='published',archived_at=None)
@@ -257,7 +269,7 @@ class ArchiveView(APIView):
         data += [{'id':x.conversation_id,'entity_type':'conversation','title':'گفتگوی بایگانی‌شده','created_at':x.archived_at.isoformat()} for x in ConversationArchive.objects.filter(user=request.user)]
         search=normalize(request.query_params.get('search',''))
         if search:data=[r for r in data if search in normalize(str(r))]
-        return envelope({'results':data[:200],'total_results':len(data)})
+        return envelope(paginate(data,request))
     @transaction.atomic
     def post(self,request):
         feature('archives');kind=request.data.get('entity_type');pk=ident(request.data.get('id'));archived=request.data.get('archived')
