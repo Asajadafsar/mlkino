@@ -1,0 +1,11 @@
+{
+  "environment": "Chrome 155 / Lighthouse 13.6.0, mobile simulated throttling; guest Production; single lab run",
+  "url": "https://mlkino.com/",
+  "performance": 0.99,
+  "lcp_ms": 2220.0335,
+  "tbt_ms": 37.99999999999977,
+  "cls": 0,
+  "protocols": [
+    "h2"
+  ]
+}

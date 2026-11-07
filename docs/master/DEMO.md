@@ -38,3 +38,15 @@ python manage.py seed_demo --settings=mlkino.demo --profile=full
 برای نصب، env خصوصی سرور باید `MLKINO_DEMO_SECRET_KEY`, `MLKINO_DEMO_DB_NAME`, `MLKINO_DEMO_DB_USER`, `MLKINO_DEMO_DB_PASSWORD`, `MLKINO_DEMO_MEDIA_ROOT` داشته باشد. API به‌طور صریح پیامک و استعلام هویت/کدپستی واقعی را مسدود می‌کند. فایل‌های خصوصی از مسیر عمومی media قابل دریافت نیستند.
 
 Build پنل با `REACT_APP_API_URL=http://demo.localhost:8102`, `REACT_APP_WS_URL=ws://demo.localhost:8102`, `REACT_APP_LANDING_URL=http://demo.localhost:4201` ساخته می‌شود. لندینگ با `NEXT_PUBLIC_API_URL=http://demo.localhost:8102`, `NEXT_PUBLIC_PANEL_URL=http://demo.localhost:4200` ساخته می‌شود. این مقادیر برای Demo هستند و نباید در Build Production استفاده شوند.
+
+## محیط ایجادشده و بررسی‌شده — 2026-11-07
+
+Demo مستقل روی سرور ایجاد و Seed کامل اجرا شد؛ ۳۱ حساب و ۴۰ فایل/درخواست اولیه دارد. سناریوهای E2E، رکوردهای مصنوعی بیشتری در همین Demo ایجاد کرده‌اند. هیچ داده واقعی Production کپی نشده است.
+
+با تونل SSH فعال همین دستگاه:
+
+- لندینگ: http://demo.localhost:4201
+- پنل: http://demo.localhost:4200
+- API: http://demo.localhost:8102
+
+حساب‌های نمونه: سوپرادمین `09000100001`، دفتر `09000100010`، کارشناس `09000100030`، کاربر `09000100060`. رمز همه حساب‌های Seed طبق درخواست مالک `123456789` است. این رمز برای حساب واقعی Production اعمال نشده است. سرویس‌ها روی loopback هستند و این نام‌های localhost برای دسترسی عمومی اینترنتی نیستند. Chrome نام demo.localhost را به loopback resolve می‌کند.
