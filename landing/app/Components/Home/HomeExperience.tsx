@@ -4,6 +4,7 @@ import {useState} from 'react';
 import {usePublic} from '../Catalog/usePublic';
 import PublicCatalog from '../Catalog/PublicCatalog';
 import PropertySearch from './PropertySearch';
+import {PANEL_LINKS} from '../../Core/panel';
 import MapPreview from './MapPreview';
 import {CATEGORIES} from './categories';
 import {faNumber,safeExternal,type PublicConfig} from '../../Core/catalog';
@@ -19,5 +20,5 @@ export default function HomeExperience(){const [deal,setDeal]=useState('buy');co
  <nav className={styles.homeFeedTabs} aria-label="فهرست فایل‌ها و درخواست‌ها">{sections.map((section,index)=><button key={section.label} type="button" aria-pressed={feed===index} onClick={()=>setFeed(index)}>{index===0?'♛ ':index===1?'▥ ':'▤ '}{section.label}</button>)}</nav>
  <div className={catalogStyles.homeSections}>{sections.filter((_,index)=>index===feed).map(section=><section key={section.label}><header className={catalogStyles.sectionHeading}><h2>{section.label}</h2><Link prefetch={false} href={section.href}>مشاهده همه ←</Link></header><PublicCatalog kind={section.kind} featured={section.featured} embedded showFilters={false} showMap={false}/></section>)}</div>
  <MapPreview/>
- <section className={catalogStyles.support} aria-label="راه‌های ارتباطی ملکینو"><div><h2>همراه شما در ملکینو</h2><p>برای مدیریت درخواست‌ها و ارتباط امن، از پنل کاربری استفاده کنید.</p></div><nav aria-label="پشتیبانی">{config?.support?.phone&&<a href={'tel:'+config.support.phone.replace(/[^+0-9]/g,'')}>تماس با پشتیبانی: {config.support.phone}</a>}{Object.entries(config?.support||{}).filter(([key])=>key!=='phone').map(([key,url])=>{const safe=safeExternal(url);return safe?<a key={key} href={safe} target="_blank" rel="noopener noreferrer">{({instagram:'اینستاگرام',telegram:'تلگرام',eitaa:'ایتا'} as Record<string,string>)[key]||'شبکه اجتماعی'}</a>:null})}<Link prefetch={false} href="/support">پشتیبانی داخل پنل</Link></nav></section>
+ <section className={catalogStyles.support} aria-label="راه‌های ارتباطی ملکینو"><div><h2>همراه شما در ملکینو</h2><p>برای مدیریت درخواست‌ها و ارتباط امن، از پنل کاربری استفاده کنید.</p></div><nav aria-label="پشتیبانی">{config?.support?.phone&&<a href={'tel:'+config.support.phone.replace(/[^+0-9]/g,'')}>تماس با پشتیبانی: {config.support.phone}</a>}{Object.entries(config?.support||{}).filter(([key])=>key!=='phone').map(([key,url])=>{const safe=safeExternal(url);return safe?<a key={key} href={safe} target="_blank" rel="noopener noreferrer">{({instagram:'اینستاگرام',telegram:'تلگرام',eitaa:'ایتا'} as Record<string,string>)[key]||'شبکه اجتماعی'}</a>:null})}<Link prefetch={false} href={PANEL_LINKS.tickets}>پشتیبانی داخل پنل</Link></nav></section>
  </div>}
