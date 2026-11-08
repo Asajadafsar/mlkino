@@ -86,7 +86,8 @@ class WorkflowTests(TestCase):
         start=timezone.now()+timedelta(days=1);payload={'property_id':self.row.pk,'starts_at':start.isoformat(),'ends_at':(start+timedelta(hours=1)).isoformat(),'capacity':1}
         slot=self.post('workflows/visit-slots/',payload,self.expert);self.assertEqual(slot.status_code,201,slot.data);sid=slot.data['data']['id']
         self.assertEqual(self.post('workflows/visit-slots/',payload).status_code,400)
-        booking=self.post('workflows/visits/',{'slot_id':sid},self.buyer);self.assertEqual(booking.status_code,201);bid=booking.data['data']['id']
+        booking=self.post('workflows/visits/',{'slot_id':sid,'preferred_days':['روز دلخواه'],'preferred_time':'03:00'},self.buyer);self.assertEqual(booking.status_code,201);bid=booking.data['data']['id']
+        booked=PropertyVisit.objects.get(pk=bid);self.assertEqual(booked.preferred_days,[timezone.localtime(start).date().isoformat()]);self.assertEqual(booked.preferred_time,f'{timezone.localtime(start):%H:%M}-{timezone.localtime(start+timedelta(hours=1)):%H:%M}')
         self.assertEqual(self.post('workflows/visits/',{'slot_id':sid},self.owner).status_code,400)
         self.login(self.buyer);self.assertEqual(self.client.patch(f'/panel/workflows/visits/{bid}/',{'status':'confirmed'},format='json').status_code,403)
         self.login(self.expert);self.assertEqual(self.client.patch(f'/panel/workflows/visits/{bid}/',{'status':'confirmed'},format='json').status_code,200)

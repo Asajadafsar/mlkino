@@ -1,13 +1,54 @@
 "use client";
-import {FavoriteButton} from './FavoriteButton';
-import {ContactButton} from './ContactButton';
+import {useState} from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
-import {useState} from 'react';
-import {PANEL_ORIGIN} from '../../Core/panel';
+import ApartmentRounded from '@mui/icons-material/ApartmentRounded';
+import BedRounded from '@mui/icons-material/BedRounded';
+import StraightenRounded from '@mui/icons-material/StraightenRounded';
+import LocationOnRounded from '@mui/icons-material/LocationOnRounded';
+import VerifiedUserRounded from '@mui/icons-material/VerifiedUserRounded';
+import FavoriteBorderRounded from '@mui/icons-material/FavoriteBorderRounded';
+import ShareRounded from '@mui/icons-material/ShareRounded';
 import {faNumber,propertyTitle,safeExternal,type PublicConfig,type PublicProperty} from '../../Core/catalog';
 import {usePublic} from './usePublic';
-import styles from './catalog.module.css';
-const PublicMap=dynamic(()=>import('./PublicMap'),{ssr:false});
-export default function PublicPropertyDetails({id}:{id:number}){const {data:config}=usePublic<PublicConfig>('config/');const {data:row,error,loading,retry}=usePublic<PublicProperty>('catalog/'+id+'/');const [selected,setSelected]=useState(0),[broken,setBroken]=useState<Record<string,boolean>>({});if(loading)return <section className={styles.shell}><div className={styles.skeleton}/><p role="status">در حال دریافت مشخصات ملک…</p></section>;if(error||!row)return <section className={styles.shell}><h1>دریافت ملک انجام نشد</h1><p role="alert">{error||'ملک منتشرشده‌ای با این شناسه موجود نیست.'}</p><button onClick={retry}>تلاش دوباره</button><Link href="/files">بازگشت به فایل‌ها</Link></section>;const images=(row.images||[]).filter(x=>!!safeExternal(x)||x.startsWith('/')&&!x.startsWith('//'));const image=images[selected]||images[0];return <section className={styles.shell}><Link href={row.kind==='request'?'/requests':'/files'}>بازگشت به فهرست</Link><header className={styles.detailHeading}><div><h1>{propertyTitle(row)}</h1><p>{[row.province,row.city,Array.isArray(row.district)?row.district.join('، '):row.district,Array.isArray(row.neighborhood)?row.neighborhood.join('، '):row.neighborhood].filter(Boolean).join(' · ')}</p></div>{row.featured&&<span className={styles.badge}>ویژه ملکینو</span>}</header><div className={styles.detailGrid}><div><div className={styles.galleryMain}>{image&&!broken[image]?<Image src={image} alt={propertyTitle(row)} fill sizes="(max-width:800px) 100vw, 65vw" preload onError={()=>setBroken(v=>({...v,[image]:true}))}/>:<p>تصویر برای این فایل ثبت نشده است.</p>}</div>{images.length>1&&<div className={styles.thumbnails}>{images.map((src,i)=><button type="button" key={src} aria-label={'تصویر '+faNumber(i+1)} aria-pressed={selected===i} onClick={()=>setSelected(i)}><Image src={src} alt="" width={100} height={70} style={{objectFit:'cover'}}/></button>)}</div>}<article className={styles.detailCard}><h2>مشخصات ملک</h2><dl className={styles.specs}>{[['نوع ملک',row.propertyType],['نوع معامله',row.contractType],['متراژ',faNumber(row.area??row.areaFrom)+(row.areaTo?' تا '+faNumber(row.areaTo):'')+' متر'],['تعداد اتاق',faNumber(row.roomCount)],['قیمت فروش',row.totalPrice!=null?faNumber(row.totalPrice)+' تومان':null],['رهن',row.mortgagePrice!=null?faNumber(row.mortgagePrice)+' تومان':null],['اجاره ماهانه',row.monthlyRent!=null?faNumber(row.monthlyRent)+' تومان':null]].filter(([,v])=>v!=null&&v!=='').map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>{row.amenities?.length?<div className={styles.tags}>{row.amenities.map(x=><span key={x}>{x}</span>)}</div>:null}<h2>توضیحات</h2><p className={styles.description}>{row.description||'توضیح بیشتری ثبت نشده است.'}</p></article></div><aside><div className={styles.detailCard}><h2>ارتباط درباره این ملک</h2>{row.office?.name&&<p>{row.office.name}</p>}{row.expert?.name&&<p>کارشناس: {row.expert.name}</p>}<div className={styles.detailActions}><ContactButton id={row.id} label="تماس با کارشناس"/>{config?.features?.chats!==false&&<Link href={PANEL_ORIGIN+'/chats?property='+row.id}>گفتگو درباره این ملک</Link>}{config?.features?.visits!==false&&<Link href={PANEL_ORIGIN+'/visits?property='+row.id}>انتخاب زمان بازدید</Link>}{config?.features?.favorites!==false&&<FavoriteButton id={row.id} title={propertyTitle(row)} showLabel/>}</div><small>گفتگو، علاقه‌مندی و رزرو بازدید با ورود به حساب انجام می‌شود. اطلاعات خصوصی مالک عمومی نیست.</small>{row.external_links&&<div className={styles.external}>{Object.entries(row.external_links).map(([name,url])=>{const safe=safeExternal(url);return safe?<a key={name} href={safe} target="_blank" rel="noopener noreferrer">{({telegram:'تلگرام',eitaa:'ایتا',instagram:'اینستاگرام',virtual_tour:'تور مجازی'} as Record<string,string>)[name]||'لینک تکمیلی'}</a>:null})}</div>}</div><PublicMap rows={[row]}/></aside></div></section>}
+import PublicMap from './PublicMap';
+import {ContactButton} from './ContactButton';
+import {FavoriteButton} from './FavoriteButton';
+import {CatalogVisitButton} from './CatalogVisitButton';
+import {PANEL_ORIGIN} from '../../Core/panel';
+import styles from './propertyDetail.module.css';
+
+const location=(row:PublicProperty)=>[row.province,row.city,Array.isArray(row.district)?row.district.join('، '):row.district,Array.isArray(row.neighborhood)?row.neighborhood.join('، '):row.neighborhood].filter(Boolean).join('، ');
+const price=(row:PublicProperty)=>row.totalPrice!=null?`${faNumber(row.totalPrice)} تومان`:row.mortgagePrice!=null?`${faNumber(row.mortgagePrice)} رهن · ${faNumber(row.monthlyRent)} اجاره`:'قیمت توافقی';
+
+export default function PublicPropertyDetails({id}:{id:number}){
+ const {data:config}=usePublic<PublicConfig>('config/');
+ const {data:row,error,loading,retry}=usePublic<PublicProperty>('catalog/'+id+'/');
+ const [selected,setSelected]=useState(0),[broken,setBroken]=useState<Record<string,boolean>>({});
+ if(loading)return <main className={styles.page}><div className={styles.skeleton}/></main>;
+ if(error||!row)return <main className={styles.page}><section className={styles.error}><h1>دریافت جزئیات ملک انجام نشد</h1><p>{error||'این فایل منتشر نشده یا در دسترس نیست.'}</p><button onClick={retry}>تلاش دوباره</button><Link href="/files">بازگشت به فایل‌ها</Link></section></main>;
+ const images=(row.images||[]).filter(x=>!!safeExternal(x)||x.startsWith('/')&&!x.startsWith('//'));
+ const image=images[selected]||images[0];
+ const specs=[{icon:<StraightenRounded/>,label:'متراژ',value:`${faNumber(row.area??row.areaFrom)} متر`},{icon:<BedRounded/>,label:'تعداد خواب',value:`${faNumber(row.roomCount)} خواب`},{icon:<ApartmentRounded/>,label:'نوع ملک',value:row.propertyType},{icon:<VerifiedUserRounded/>,label:'نوع معامله',value:row.contractType}];
+ return <main className={styles.page}>
+  <nav className={styles.breadcrumb}><Link href="/">خانه</Link><span>›</span><Link href={row.kind==='request'?'/requests':'/files'}>{row.kind==='request'?'درخواست‌ها':'املاک'}</Link><span>›</span><b>{propertyTitle(row)}</b></nav>
+  <header className={styles.heading}><div><div className={styles.badges}>{row.featured&&<span>👑 ویژه</span>}<small>کد فایل: MLK-{faNumber(row.id)}</small></div><h1>{propertyTitle(row)}</h1><p><LocationOnRounded/>{location(row)}</p></div><div className={styles.headActions}><button aria-label="اشتراک‌گذاری"><ShareRounded/></button><FavoriteButton id={row.id} title={propertyTitle(row)}/></div></header>
+  <div className={styles.layout}>
+   <section className={styles.content}>
+    <div className={styles.gallery}><div className={styles.mainImage}>{image&&!broken[image]?<Image src={image} alt={propertyTitle(row)} fill sizes="(max-width:900px) 100vw, 70vw" priority onError={()=>setBroken(v=>({...v,[image]:true}))}/>:<div className={styles.noImage}><ApartmentRounded/><span>تصویر ملک ثبت نشده است</span></div>}<span className={styles.counter}>{faNumber(selected+1)} / {faNumber(Math.max(images.length,1))}</span></div>{images.length>1&&<div className={styles.thumbnails}>{images.slice(0,6).map((src,index)=><button key={src} aria-pressed={selected===index} onClick={()=>setSelected(index)}><Image src={src} alt="" fill sizes="120px"/></button>)}</div>}</div>
+    <div className={styles.tabs}><a href="#specs">مشخصات فایل</a><a href="#description">توضیحات</a><a href="#amenities">امکانات</a><a href="#map">موقعیت روی نقشه</a></div>
+    <section id="specs" className={styles.card}><div className={styles.specGrid}>{specs.map(item=><div key={item.label}>{item.icon}<small>{item.label}</small><strong>{item.value}</strong></div>)}</div></section>
+    <section id="description" className={styles.card}><h2>توضیحات فایل</h2><p>{row.description||'توضیحات تکمیلی برای این فایل ثبت نشده است.'}</p></section>
+    <section id="amenities" className={styles.card}><h2>امکانات رفاهی</h2><div className={styles.amenities}>{row.amenities?.length?row.amenities.map(item=><span key={item}>✓ {item}</span>):<span>امکاناتی ثبت نشده است.</span>}</div></section>
+    <section id="map" className={styles.card}><h2>موقعیت ملک</h2><PublicMap rows={[row]}/></section>
+   </section>
+   <aside className={styles.sidebar}>
+    <section className={styles.agent}><div className={styles.avatar}>{row.expert?.name?.slice(0,1)||'م'}</div><div><strong>{row.expert?.name||'کارشناس ملکینو'}</strong><small>{row.office?.name||'دفتر املاک ملکینو'}</small></div></section>
+    <div className={styles.actions}><ContactButton id={row.id} label="تماس با کارشناس"/>{config?.features?.visits!==false&&<CatalogVisitButton propertyId={row.id} label="رزرو بازدید"/>}{config?.features?.chats!==false&&<Link href={PANEL_ORIGIN+'/chats?property='+row.id}>ارسال پیام</Link>}</div>
+    <section className={styles.price}><small>قیمت پیشنهادی</small><strong>{price(row)}</strong></section>
+    <div className={styles.secondary}><FavoriteBorderRounded/> افزودن به علاقه‌مندی‌ها</div>
+    {row.external_links&&<section className={styles.links}><h3>مشاهده آنلاین ملک</h3>{Object.entries(row.external_links).map(([name,url])=>{const safe=safeExternal(url);return safe?<a key={name} href={safe} target="_blank" rel="noopener noreferrer">{({telegram:'تلگرام',eitaa:'ایتا',instagram:'اینستاگرام',virtual_tour:'تور مجازی ۳۶۰'} as Record<string,string>)[name]||'لینک تکمیلی'}</a>:null})}</section>}
+   </aside>
+  </div>
+ </main>;
+}

@@ -2,7 +2,7 @@
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
-import copy,json,uuid
+import copy,json,uuid,os
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand,CommandError
@@ -21,21 +21,27 @@ NAMESPACE='MLKINO-DEMO-v1'
 CITIES=[('قم','قم','منطقه ۴','بنیاد',34.6416,50.8746),('تهران','تهران','منطقه ۱','نیاوران',35.8104,51.4674),('فارس','شیراز','','معالی‌آباد',29.6610,52.4780),('اصفهان','اصفهان','','مرداویج',32.6091,51.6713),('خراسان رضوی','مشهد','','احمدآباد',36.3047,59.5786)]
 
 
-def require_demo_environment():
+SHOWCASE_CONFIRM='MLKINO_SHOWCASE_DATA_ACKNOWLEDGED'
+def require_demo_environment(showcase=False):
     name=str(settings.DATABASES.get('default',{}).get('NAME','')).lower()
+    if showcase:
+        if os.environ.get('MLKINO_SHOWCASE_SEED_CONFIRM')!=SHOWCASE_CONFIRM:
+            raise CommandError('برای Seed نمایشی روی محیط قابل مشاهده، تأیید صریح محیط لازم است.')
+        if getattr(settings,'DATABASE_ROUTERS',[]):raise CommandError('Seed نمایشی با database router مجاز نیست.')
+        return
     if getattr(settings,'MLKINO_DEMO_ENV',False) is not True or getattr(settings,'MLKINO_DEMO_SEED_ALLOWED',False) is not True or 'demo' not in name:
         raise CommandError('Seed فقط با MLKINO_DEMO_ENV=True و MLKINO_DEMO_SEED_ALLOWED=True در دیتابیس مستقل دارای نام demo مجاز است؛ Production مجاز نیست.')
     if getattr(settings,'DATABASE_ROUTERS',[]):raise CommandError('برای جلوگیری از ارسال داده به دیتابیس دیگر، Seed با router دیتابیس مجاز نیست.')
 
 
-def verify_demo_connection():
+def verify_demo_connection(showcase=False):
     # Check the live PostgreSQL connection too; a misleading NAME or service
     # alias must not route writes into a different live database.
     if connection.vendor!='postgresql':raise CommandError('اجرای واقعی Seed فقط در PostgreSQL محیط Demo سرور مجاز است.')
     with connection.cursor() as cursor:
         cursor.execute('SELECT current_database()');actual=str(cursor.fetchone()[0])
     declared=str(settings.DATABASES['default']['NAME'])
-    if actual!=declared or 'demo' not in actual.lower():raise CommandError('دیتابیس متصل‌شده با دیتابیس Demo اعلام‌شده مطابقت ندارد؛ هیچ داده‌ای ساخته نشد.')
+    if actual!=declared or not showcase and 'demo' not in actual.lower():raise CommandError('دیتابیس متصل‌شده با دیتابیس اعلام‌شده مطابقت ندارد؛ هیچ داده‌ای ساخته نشد.')
 
 
 def key(value):return str(uuid.uuid5(uuid.NAMESPACE_URL,NAMESPACE+':'+str(value)))
@@ -50,8 +56,8 @@ def property_picture(index):
         for x in (240,530):draw.rectangle((x,250,x+150,370),fill='#6a9abb');draw.line((x+75,250,x+75,370),fill='white',width=5)
         draw.rectangle((425,340,520,470),fill='#796656');draw.rectangle((0,0,960,38),fill='#16385b');draw.text((18,12),'MLKINO DEMO - SYNTHETIC PROPERTY - NOT FOR SALE',fill='white')
         stream=BytesIO();image.save(stream,format='WEBP',quality=80,method=5);default_storage.save(key,ContentFile(stream.getvalue(),name=key))
-    base=getattr(settings,'MLKINO_DEMO_PUBLIC_BASE_URL','https://demo.invalid').rstrip('/')
-    return base+default_storage.url(key)
+    base=(getattr(settings,'MLKINO_DEMO_PUBLIC_BASE_URL','') or getattr(settings,'PANEL_SETTINGS_PUBLIC_BASE_URL','') or ('http://127.0.0.1:8000' if settings.DEBUG else '')).rstrip('/')
+    return (base+default_storage.url(key)) if base else default_storage.url(key)
 
 
 class Command(BaseCommand):
@@ -60,20 +66,22 @@ class Command(BaseCommand):
         p.add_argument('--profile',choices=['small','full'],default='full')
         p.add_argument('--password',default='123456789')
         p.add_argument('--dry-run',action='store_true')
+        p.add_argument('--showcase',action='store_true',help='Seed برچسب‌خورده در محیط قابل مشاهده؛ نیازمند تأیید محیطی صریح')
     def handle(self,*args,**opts):
-        require_demo_environment()
+        require_demo_environment(opts['showcase'])
         if len(opts['password'])<8:raise CommandError('رمز حساب آزمایشی باید حداقل ۸ کاراکتر باشد.')
         size=8 if opts['profile']=='small' else 40
         if opts['dry_run']:
             self.stdout.write(json.dumps({'namespace':NAMESPACE,'mode':'dry-run','profile':opts['profile'],'property_count':size,'writes':0},ensure_ascii=False));return
-        verify_demo_connection()
+        verify_demo_connection(opts['showcase'])
         with transaction.atomic():
-            manifest=self.seed(size,opts['password'])
+            manifest=self.seed(size,opts['password'],showcase=bool(opts.get('showcase')))
         self.stdout.write(json.dumps(manifest,ensure_ascii=False,indent=2))
 
-    def seed(self,size,password):
+    def seed(self,size,password,showcase=False):
         from panel.settings_api import DEFAULTS
-        initial=copy.deepcopy(DEFAULTS);initial['general']['panelName']='ملکینو — محیط نمایشی'
+        initial=copy.deepcopy(DEFAULTS)
+        initial['general']['panelName']='ملکینو' if showcase else 'ملکینو — محیط نمایشی'
         settings_row,_=PanelSettings.objects.get_or_create(pk=1,defaults={'data':initial})
         metadata=settings_row.data.get('_demo_seed',{})
         if not isinstance(metadata,dict):raise CommandError('فراداده Demo معتبر نیست؛ داده موجود بازنویسی نشد.')
@@ -141,6 +149,8 @@ class Command(BaseCommand):
             rows.append(row)
             if row.data.get('demo_namespace')==NAMESPACE and not row.data.get('source'):
                 row.data={**row.data,'source':'landing' if i%3==0 else 'panel'};row.save(update_fields=['data','updated_at'])
+            if row.data.get('demo_namespace')==NAMESPACE and not any(isinstance(x,str) and x.startswith(('https://','http://')) for x in row.data.get('images',[])):
+                row.data={**row.data,'images':[property_picture(i)]};row.save(update_fields=['data','updated_at'])
             status='accepted' if row.publication_state in ('published','draft') else ['pending','rejected','expired','market'][(i//4)%4]
             ref,ref_created=PropertyReferral.objects.get_or_create(property=row,attempt=1,defaults={'expert':None if status=='market' else expert,'status':status,'expires_at':now+timedelta(minutes=20) if status=='pending' else now-timedelta(days=1)})
             if ref_created and status=='accepted' and not row.assigned_expert_id:

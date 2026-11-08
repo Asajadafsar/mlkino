@@ -274,11 +274,13 @@ class VisitsView(APIView):
         if not professional and PropertyVisit.objects.filter(visitor=request.user,status__in=['pending','confirmed'],slot__starts_at__lt=slot.ends_at,slot__ends_at__gt=slot.starts_at).exists():raise ValidationError('با بازدید دیگری که رزرو کرده‌اید تداخل دارد.')
         name=request.data.get('visitor_name') or request.user.full_name or 'کاربر ملکینو';phone=normalize(request.data.get('visitor_phone') or request.user.phone).replace(' ','').replace('-','')
         if not isinstance(name,str) or not 2<=len(name.strip())<=200 or not re.fullmatch(r'09\d{9}',phone):raise ValidationError('نام و شماره تماس خریدار را معتبر وارد کنید.')
-        days=request.data.get('preferred_days',[])
-        if isinstance(days,str):days=[days]
-        if not isinstance(days,list) or len(days)>14 or any(not isinstance(x,str) or len(x)>50 for x in days):raise ValidationError('روزهای مناسب بازدید معتبر نیست.')
-        preferred=request.data.get('preferred_time','');notes=request.data.get('notes','')
-        if not isinstance(preferred,str) or len(preferred)>100 or not isinstance(notes,str) or len(notes)>3000:raise ValidationError('زمان یا توضیحات بازدید معتبر نیست.')
+        # The visitor cannot propose an arbitrary date/time. Both values are
+        # derived from the expert-owned slot selected in the calendar.
+        local_start=timezone.localtime(slot.starts_at);local_end=timezone.localtime(slot.ends_at)
+        days=[local_start.date().isoformat()]
+        preferred=f'{local_start:%H:%M}-{local_end:%H:%M}'
+        notes=request.data.get('notes','')
+        if not isinstance(notes,str) or len(notes)>3000:raise ValidationError('توضیحات بازدید معتبر نیست.')
         contact=None;visitor=None if professional else request.user
         if professional:
             contact_id=request.data.get('contact_id')
