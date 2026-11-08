@@ -1,0 +1,12 @@
+.mobile{width:100%;min-width:0;padding:8px;border:1px solid #fff;border-radius:24px;background:#ffffffee;box-shadow:0 8px 24px #122b6218;backdrop-filter:blur(15px)}
+.mobile>div{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px!important}
+.mobile>div button{min-width:0!important;padding:10px 3px!important;border-radius:14px!important;font-size:11px!important;white-space:nowrap}
+.mobileBar{display:grid;grid-template-columns:48px minmax(0,1fr) 42px;align-items:center;gap:4px;min-height:58px;margin-top:8px;padding:5px;border:1px solid #e2e8f5;border-radius:18px;background:#f9fbff}
+.mobileBar input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#14234d;font:inherit;font-size:12px;text-align:right}
+.mobileBar input::placeholder{color:#8a95ad}
+.mobileBar button{display:grid;place-items:center;border:0;cursor:pointer}
+.searchButton{width:48px;height:48px;border-radius:14px;background:linear-gradient(145deg,#ffc000,#ff9e00);color:#fff;box-shadow:0 5px 12px #ffad0038}
+.searchButton svg{font-size:25px}
+.filterButton{width:40px;height:40px;border-radius:12px;background:#edf3ff;color:#183d78}
+.filterButton svg{font-size:22px}
+@media(max-width:359px){.mobile{padding:6px}.mobile>div button{font-size:9px!important}.mobileBar{grid-template-columns:44px minmax(0,1fr) 38px}.searchButton{width:44px;height:44px}.filterButton{width:36px;height:36px}.mobileBar input{font-size:10px}}
