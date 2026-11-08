@@ -30,6 +30,30 @@ class DashboardEstateTests(TestCase):
         PropertyRecord.objects.create(kind='file',created_by=self.user,data={'city':'شهر نامشخص','ownerSubmission':True})
         d=self.get(self.user).data['data'];self.assertEqual(d['matching_files'],1);self.assertEqual(d['mapped_files'],0);self.assertEqual(d['points'],[])
 
+    def test_presence_is_scoped_to_agency_and_filters_live_sessions(self):
+        from accounts.models import DeviceSession
+        from uuid import uuid4
+        U=get_user_model()
+        U.objects.filter(pk__in=[self.expert.pk,self.other.pk]).update(province='قم',city='قم')
+        DeviceSession.objects.create(user=self.expert,refresh_key=uuid4().hex,expires_at=timezone.now()+timedelta(days=1))
+        live=self.get(self.agency,map_layers='experts',presence='online').data['data']
+        self.assertEqual(live['matching_items'],1)
+        self.assertEqual(live['points'][0]['experts'],1)
+        self.assertEqual(live['points'][0]['online'],1)
+        self.assertEqual(self.get(self.agency,map_layers='agencies',presence='offline').data['data']['matching_items'],1)
+        self.assertEqual(self.get(self.agency,map_layers='experts',presence='offline').data['data']['matching_items'],0)
+        DeviceSession.objects.filter(user=self.expert).update(revoked_at=timezone.now())
+        self.assertEqual(self.get(self.agency,map_layers='experts',presence='online').data['data']['matching_items'],0)
+
+    def test_public_map_excludes_drafts_and_private_identity(self):
+        self.file.publication_state='published';self.file.data.update(latitude=34.6,longitude=50.8,ownerPhone='private');self.file.save()
+        self.client.force_authenticate(None)
+        r=self.client.get('/panel/public/map/')
+        self.assertEqual(r.status_code,200)
+        rows=r.data['data']['results']
+        self.assertEqual([row['id'] for row in rows],[self.file.pk])
+        self.assertNotIn('ownerPhone',rows[0])
+
     def test_map_tiles_touching_iran_are_available_even_when_center_is_outside(self):
         from tempfile import TemporaryDirectory
         from unittest.mock import patch,Mock

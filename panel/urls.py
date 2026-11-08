@@ -1,5 +1,5 @@
 from .reporting_api import WorkflowReportsView
-from .public_api import PublicCatalogView, PublicConfigView, PublicLocationsView, PublicMapTileView
+from .public_api import PublicCatalogView, PublicConfigView, PublicLocationsView, PublicMapTileView, PublicMapView
 from .workflow_api import (ContactsView, ExpertPermissionsView, AssignmentsView, AssignmentRespondView, AssignmentReferView, OwnerSubmissionView, PropertyPublishView, FavoritesView, PropertyPinView, VisitSlotsView, VisitsView, OffersView, PropertyChatView, ArchiveView, RoutingSettingsView, BusinessRolesView, WorkflowOverviewView, ActivityAttachmentView, SavedFiltersView, PropertyContactView)
 from .finance_api import FinancialSettingsView, CommissionCalculateView, FinancialDocumentView, FinancialPostView, LedgerView, FinancialReceiptView
 from .role_api import UserRoleView
@@ -25,6 +25,7 @@ urlpatterns = [
     path('public/config/',PublicConfigView.as_view()),
     path('public/locations/',PublicLocationsView.as_view()),
     path('public/tiles/<int:z>/<int:x>/<int:y>.png',PublicMapTileView.as_view()),
+    path('public/map/',PublicMapView.as_view()),
     path('workflows/reports/',WorkflowReportsView.as_view()),
     path('workflows/',WorkflowOverviewView.as_view()),
     path('workflows/activities/<int:pk>/attachment/',ActivityAttachmentView.as_view()),

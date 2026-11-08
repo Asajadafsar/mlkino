@@ -68,13 +68,32 @@ class DashboardEstateView(APIView):
         files=[r for r in records if r.kind=='file' and matches(r.data,q)]
         requests=[r for r in records if r.kind=='request' and matches(r.data,q)]
         contracts=[r for r in activities if r.kind=='contracts' and (not q.get('city') or normalize(r.created_by.city)==normalize(q['city']))]
-        layers=set(str(q.get('map_layers','files')).split('|'))&{'files','requests','contracts'}
+        layers=set(str(q.get('map_layers','files')).split('|'))&{'files','requests','contracts','agencies','experts','users'}
+        if user.role not in ('superadmin','agency'):layers-={'agencies','experts','users'}
+        from accounts.models import DeviceSession
+        online_ids=set(DeviceSession.objects.filter(revoked_at__isnull=True,expires_at__gt=timezone.now(),last_seen__gte=timezone.now()-timedelta(minutes=6)).values_list('user_id',flat=True))
+        presence=q.get('presence','all')
+        if presence not in ('all','online','offline'):return envelope(message='وضعیت حضور معتبر نیست.',code=400)
+        people_layers={'agency':'agencies','expert':'experts','user':'users'}
+        presence_counts={'online':0,'offline':0}
         grouped=defaultdict(Counter)
+        members=defaultdict(list)
         for kind,rows in [('files',files),('requests',requests),('contracts',contracts)]:
             if kind not in layers:continue
             for row in rows:
                 place=row.data if kind!='contracts' else {'province':row.created_by.province or '', 'city':row.created_by.city or ''}
                 grouped[(place.get('province',''),place.get('city',''))][kind]+=1
+        for person in people:
+            kind=people_layers[person.role]
+            if kind not in layers:continue
+            if q.get('province') and normalize(person.province)!=normalize(q['province']):continue
+            if q.get('city') and normalize(person.city)!=normalize(q['city']):continue
+            online=person.pk in online_ids
+            presence_counts['online' if online else 'offline']+=1
+            if presence!='all' and online!=(presence=='online'):continue
+            grouped[(person.province or '',person.city or '')][kind]+=1
+            grouped[(person.province or '',person.city or '')]['online' if online else 'offline']+=1
+            members[(person.province or '',person.city or '')].append({'id':person.pk,'name':person.full_name,'role':person.role,'online':online})
         points=[]
         for (province,name),kinds in grouped.items():
             p=choose(catalog('provinces'),province)
@@ -83,7 +102,8 @@ class DashboardEstateView(APIView):
             if not city:continue
             loc=catalog('city-neighborhood-lookup').get(str(city['id'])) or next((c for c in catalog('county-centers') if c['county_id']==city['county_id'] and normalize(c['center_name'])==normalize(city['name'])),None)
             if not loc or not loc.get('latitude') or not loc.get('longitude'):continue
-            points.append({'city':city['name'],'province':province,'count':sum(kinds.values()),**{kind:kinds[kind] for kind in ('files','requests','contracts')},'latitude':loc['latitude'],'longitude':loc['longitude']})
+            points.append({'city':city['name'],'province':province,'count':sum(kinds[k] for k in ('files','requests','contracts','agencies','experts','users')),**{kind:kinds[kind] for kind in ('files','requests','contracts','agencies','experts','users','online','offline')},'latitude':loc['latitude'],'longitude':loc['longitude']})
+            points[-1]['members']=members[(province,name)][:200]
         recent_requests=[serialize(r) for r in records if r.kind=='request'][:3]
         recent_contracts=[{**r.data,'id':r.pk,'created_at':r.created_at.isoformat()} for r in activities if r.kind=='contracts'][:3]
         market_city=q.get('city') or 'تهران'
@@ -91,5 +111,6 @@ class DashboardEstateView(APIView):
         def mean(rows):return round(sum(number(r.data['totalPrice']) for r in rows)/sum(number(r.data['area']) for r in rows)) if rows else None
         nowrows=[r for r in market if timezone.localdate(r.created_at)>=start];oldrows=[r for r in market if previous<=timezone.localdate(r.created_at)<start];current=mean(nowrows);old=mean(oldrows)
         index={'city':market_city,'sample_size':len(market),'price_per_meter':mean(market),'mean_listing_age_days':round(sum(max(0,(today-timezone.localdate(r.created_at)).days) for r in market)/len(market)) if market else None,'change_percent':round((current-old)/old*100,1) if current is not None and old else None}
-        matching=sum(len(rows) for kind,rows in [('files',files),('requests',requests),('contracts',contracts)] if kind in layers)
+        matching=sum(sum(kinds[k] for k in ('files','requests','contracts','agencies','experts','users')) for kinds in grouped.values())
+        counts['presence']={'total':sum(presence_counts.values()),'recent':presence_counts['online'],'previous':presence_counts['offline']}
         return envelope({'counts':counts,'points':points,'matching_files':len(files),'mapped_files':sum(p['files'] for p in points),'matching_items':matching,'mapped_items':sum(p['count'] for p in points),'map_precision':'city','period_days':30,'trend':[{'date':date,'count':count} for date,count in trend.items()],'distribution':[{'label':label,'count':count} for label,count in distribution.most_common()],'comparison':[{'label':label,'count':count} for label,count in regions.most_common(4)],'recent_requests':recent_requests,'recent_contracts':recent_contracts,'market_index':index})

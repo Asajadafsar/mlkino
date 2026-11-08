@@ -19,6 +19,8 @@ def public_rows():
 
 def public_serialize(row):
     result={k:row.data[k] for k in SAFE_FIELDS if k in row.data}
+    if row.kind=='file':
+        for key in ('areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo'):result.pop(key,None)
     # Internal notes, precise postal/address and owner details are never projected.
     if not isinstance(result.get('images',[]),list):result['images']=[]
     result['images']=[x for x in result.get('images',[]) if isinstance(x,str) and x.startswith(('https://','http://'))][:15]
@@ -75,6 +77,19 @@ def filter_catalog(rows,params):
             except (KeyError,ValueError,TypeError):return False
         rows=[r for r in rows if inside(r)]
     return rows
+
+class PublicMapView(APIView):
+    permission_classes=[AllowAny];authentication_classes=[]
+    def get(self,request):
+        from accounts.models import AgencyProfile
+        rows=[]
+        for row in public_rows().order_by('-created_at')[:1500]:
+            if not system_settings().get('features',{}).get('files' if row.kind=='file' else 'requests',True):continue
+            data=public_serialize(row)
+            if data.get('latitude') is not None and data.get('longitude') is not None:rows.append(data)
+        offices=[{'id':p.manager_id,'kind':'agency','title':p.agency_name,'latitude':float(p.latitude),'longitude':float(p.longitude),'city':p.manager.city,'province':p.manager.province,'images':[]} for p in AgencyProfile.objects.select_related('manager').filter(manager__role='agency',manager__is_active=True,manager__account_status='active',latitude__isnull=False,longitude__isnull=False)[:1500]]
+        for office in offices:office['map_kind']='agency'
+        return envelope({'results':rows+offices,'total_results':len(rows)+len(offices)})
 
 class PublicCatalogView(APIView):
     permission_classes=[AllowAny];authentication_classes=[]

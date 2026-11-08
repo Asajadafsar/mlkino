@@ -1,4 +1,5 @@
 .header { position:relative; z-index:1100; background:transparent; }
+.header{border-bottom:1px solid #e6ecfc;background:#ffffff70}.brand{font-weight:900}.quickMobile{display:none!important}
 .shell { width:100%; max-width:var(--page-max-width); margin-inline:auto; padding:12px 40px 20px; display:flex; align-items:center; gap:30px; min-height:84px; }
 .brand { display:inline-flex;align-items:center;gap:10px;color:#101d4f;flex-shrink:0; }
 .brand img {object-fit:contain;}
@@ -58,3 +59,4 @@
 .account strong {overflow:hidden;text-overflow:ellipsis;}
 .bottomLink > span:last-child {max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .quickMobile{display:none}.shell{gap:20px}.desktopLinks{gap:22px}.submitDesktop{white-space:nowrap}@media(max-width:1099px){.shell{display:grid;grid-template-columns:44px minmax(0,1fr) auto;justify-content:normal;width:100%;max-width:100%;min-width:0;gap:10px}.brand{min-width:0}.actions{min-width:0;margin:0}.quickMobile{display:flex;max-width:100%;gap:9px;padding:0 18px 15px;overflow-x:auto;scrollbar-width:none}.quickMobile a{flex-shrink:0;border:1px solid #e3e9f7;border-radius:11px;background:#ffffffd9;padding:9px 12px;font-size:11px;color:#425a88}.quickMobile a[aria-current=page]{background:var(--melkino-primary,#075bff);color:#fff;border-color:var(--melkino-primary,#075bff)}.searchHeader .actions{display:flex}}@media(max-width:599px){.shell{grid-template-columns:40px minmax(0,1fr) auto;padding-inline:12px}.shell .menuButton{min-width:40px}.brand{gap:5px}.brand strong{font-size:23px;letter-spacing:-1px}.brand img{width:38px;height:38px}.actions{gap:5px}.iconLink{width:38px;height:40px}.quickMobile{padding-inline:12px}}@media(min-width:1100px) and (max-width:1400px){.desktopLinks{gap:14px}.desktopLinks a{font-size:12px}.shell{gap:14px;padding-inline:24px}.submitDesktop{font-size:11px}}
+@media(max-width:1099px){.shell{grid-template-columns:minmax(0,1fr) auto;min-height:78px}.brand{grid-column:1;justify-self:start;overflow:visible}.actions{grid-column:2}.brand img{width:42px;height:42px}.brand strong{font-size:25px}}

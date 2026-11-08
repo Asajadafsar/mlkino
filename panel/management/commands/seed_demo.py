@@ -49,7 +49,11 @@ def marker(value):return NAMESPACE+':'+str(value)
 
 def property_picture(index):
     from django.core.files.storage import default_storage
-    key=f'demo_seed/properties/demo-house-{index%5}.webp'
+    from pathlib import Path
+    source=Path(__file__).resolve().parents[2]/'assets'/'showcase'/['apartment.webp','villa.webp','house.webp'][index%3]
+    key=f'demo_seed/properties/showcase-photo-{index%3}.webp' if source.exists() else f'demo_seed/properties/demo-house-{index%5}.webp'
+    if source.exists() and not default_storage.exists(key):
+        default_storage.save(key,ContentFile(source.read_bytes(),name=key))
     if not default_storage.exists(key):
         image=Image.new('RGB',(960,600),['#d8e8f3','#e5e4f5','#e8e5dc','#dcece3','#dce4f4'][index%5]);draw=ImageDraw.Draw(image)
         draw.rectangle((0,430,960,600),fill='#9ab69b');draw.rectangle((180,200,780,470),fill='#f2ede4');draw.polygon([(130,210),(480,65),(830,210)],fill='#425675')
@@ -117,6 +121,8 @@ class Command(BaseCommand):
             if i%2==0 and not profile.license_image:
                 canvas=Image.new('RGB',(600,320),'#f0f5ff');ImageDraw.Draw(canvas).text((25,130),'DEMO ONLY - NOT A VALID LICENSE',fill='#2450a4')
                 image=BytesIO();canvas.save(image,'WEBP',quality=85);profile.license_image.save('demo-license.webp',ContentFile(image.getvalue()))
+            if profile.latitude is None and profile.longitude is None:
+                profile.latitude=CITIES[i][4];profile.longitude=CITIES[i][5];profile.save(update_fields=['latitude','longitude'])
         for i,expert in enumerate(experts):
             agency=agencies[expert_offices[i]]
             AgencyExpertLink.objects.get_or_create(agency=agency,expert=expert)
@@ -149,8 +155,8 @@ class Command(BaseCommand):
             rows.append(row)
             if row.data.get('demo_namespace')==NAMESPACE and not row.data.get('source'):
                 row.data={**row.data,'source':'landing' if i%3==0 else 'panel'};row.save(update_fields=['data','updated_at'])
-            if row.data.get('demo_namespace')==NAMESPACE and not any(isinstance(x,str) and x.startswith(('https://','http://')) for x in row.data.get('images',[])):
-                row.data={**row.data,'images':[property_picture(i)]};row.save(update_fields=['data','updated_at'])
+            if row.data.get('demo_namespace')==NAMESPACE and (not row.data.get('images') or any('demo-house-' in str(x) for x in row.data.get('images',[]))):
+                row.data={**row.data,'images':list(dict.fromkeys(property_picture(i+j) for j in range(3)))};row.save(update_fields=['data','updated_at'])
             status='accepted' if row.publication_state in ('published','draft') else ['pending','rejected','expired','market'][(i//4)%4]
             ref,ref_created=PropertyReferral.objects.get_or_create(property=row,attempt=1,defaults={'expert':None if status=='market' else expert,'status':status,'expires_at':now+timedelta(minutes=20) if status=='pending' else now-timedelta(days=1)})
             if ref_created and status=='accepted' and not row.assigned_expert_id:
