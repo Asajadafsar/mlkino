@@ -1,3 +1,18 @@
-import {notFound} from 'next/navigation';
-import PublicPropertyDetails from '../../Components/Catalog/PublicPropertyDetails';
-export default async function PropertyPage({params}:{params:Promise<{id:string}>}){const {id}=await params;if(!/^\d+$/.test(id)||Number(id)<1)notFound();return <PublicPropertyDetails id={Number(id)}/>}
+import { notFound } from "next/navigation";
+import { PROPERTIES, REQUESTS, propertyTitle } from "@/app/Core/listings";
+import DetailExperience from "@/app/Components/PropertyDetail/DetailExperience";
+
+type Props = { params: Promise<{ id: string }> };
+export async function generateMetadata({ params }: Props) {
+  const { id } = await params;
+  const property = PROPERTIES.find(item => item.id === Number(id)) || (id === "1" ? PROPERTIES[0] : undefined);
+  return { title: property ? `${propertyTitle(property)} | ملکینو` : "جزئیات ملک | ملکینو" };
+}
+export default async function PropertyPage({ params }: Props) {
+  const { id } = await params;
+  const property = PROPERTIES.find(item => item.id === Number(id)) || (id === "1" ? PROPERTIES[0] : undefined);
+  if (property) return <DetailExperience data={property} />;
+  const request = REQUESTS.find(item => item.id === Number(id));
+  if (request) return <DetailExperience data={request} mode="request" />;
+  notFound();
+}

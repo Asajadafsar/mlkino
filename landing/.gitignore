@@ -39,10 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# Public configuration template contains no secrets.
-!.env.example
-
-node_modules
-.next
-*.tsbuildinfo

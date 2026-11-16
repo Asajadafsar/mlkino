@@ -1,0 +1,75 @@
+.bottom { display:none; }
+@media(max-width:1099px) {
+  .bottom {
+    display:block;
+    position:fixed;
+    inset-inline:0;
+    bottom:0;
+    z-index:1200;
+    padding:0 12px max(10px, env(safe-area-inset-bottom));
+    pointer-events:none;
+  }
+  .bottom .bar {
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    width:100%;
+    max-width:620px;
+    height:auto;
+    margin-inline:auto;
+    padding:4px;
+    border:1px solid #fff;
+    border-radius:25px;
+    background:#ffffffed;
+    backdrop-filter:blur(18px);
+    box-shadow:0 -4px 24px #213a7610;
+    pointer-events:auto;
+  }
+  .bar .action {
+    min-width:0;
+    max-width:none;
+    min-height:74px;
+    padding:5px 2px;
+    gap:4px;
+    border-radius:17px;
+    color:#65708d;
+    font-size:11px;
+    font-weight:650;
+    line-height:1.4;
+    overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .bar .action :global(.MuiBottomNavigationAction-label),
+  .bar .action :global(.MuiBottomNavigationAction-label.Mui-selected) {
+    font:inherit;
+    font-size:inherit;
+    line-height:1.4;
+    opacity:1;
+    white-space:nowrap;
+    transition:none;
+  }
+  .bar .action:global(.Mui-selected) {
+    color:#075bff;
+    font-weight:800;
+    background:#eff1ff;
+  }
+  .icon { display:grid;place-items:center;width:40px;height:32px;flex-shrink:0; }
+  .icon svg { font-size:25px; }
+  .bar .submitAction { color:#15234f;font-weight:800;background:transparent; }
+  .submitIcon {
+    display:grid;
+    place-items:center;
+    width:44px;
+    height:44px;
+    flex-shrink:0;
+    border-radius:14px;
+    background:linear-gradient(135deg,#ffce00,#ffa900);
+    color:#fff;
+    box-shadow:0 3px 9px #ffb00030;
+  }
+  .submitIcon svg {font-size:30px;transition:transform 180ms ease;}
+  .submitAction[aria-expanded=true] .submitIcon svg {transform:rotate(45deg);}
+  .bar .action:global(.Mui-focusVisible) {outline:3px solid #1667ff;outline-offset:-3px;}
+}
+@media(max-width:599px){.bottom{padding-inline:8px}.bottom .bar{border-radius:22px;padding:4px 2px}}
+@media(max-width:359px){.bar .action{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.submitIcon svg{transition:none}}

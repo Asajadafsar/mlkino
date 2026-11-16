@@ -1,5 +1,4 @@
 "use client";
-import {PANEL_LINKS,PANEL_ORIGIN} from "../../Core/panel";
 import { useState } from "react";
 import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
 import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
@@ -145,30 +144,36 @@ export default function CardFile({
   //   (data).virtualTourUrl;
 
   const handleBookmarkClick = (e: React.MouseEvent) => {
-    e.stopPropagation();window.location.assign(PANEL_ORIGIN+'/favorites?property='+data.id)
+    e.stopPropagation();
+    const next = !bookmarked;
+    setBookmarked(next);
+    onBookmarkToggle?.(next);
   };
 
   const handleDetails = () => {
     if (onDetailsClick) onDetailsClick(data);
-    else router.push(`/property/${data.id ?? 1}`);
+    else router.push(mode === "request" ? `/requests/${data.id ?? 202}` : `/property/${data.id ?? 1}`);
   };
 
   // const handleViewProperty = () => {
   //   if (virtualTourUrl) {
   //     window.open(virtualTourUrl, "_blank", "noopener,noreferrer");
   //   } else {
-  //     router.push(`/property/${data.id ?? 1}`);
+  //     router.push(mode === "request" ? `/requests/${data.id ?? 202}` : `/property/${data.id ?? 1}`);
   //   }
   // };
 
-  const handleVisitRequest = () => {window.location.assign(PANEL_ORIGIN+'/visits?property='+data.id)};
+  const handleVisitRequest = () => {
+    setVisitModalOpen(true);
+    onVisitRequest?.(data);
+  };
 
   if (appearance === "showcase") return <>
     <article className={showcase.card}>
       <div className={showcase.cover}>
         <button type="button" className={showcase.imageLink} onClick={handleDetails} aria-label={`جزئیات ${data.propertyType} در ${Array.isArray(data.neighborhood) ? data.neighborhood.join("، ") : data.neighborhood}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={coverImage ?? "/images/properties/hero.webp"} alt={`${data.propertyType} در ${data.city}`} />
+          <img src={coverImage ?? "/images/properties/hero.png"} alt={`${data.propertyType} در ${data.city}`} />
         </button>
         <span className={`${showcase.badge} ${data.contractType === "پیش‌فروش" ? showcase.presale : data.contractType === "رهن و اجاره" ? showcase.rent : ""}`}>{data.contractType === "رهن و اجاره" ? "اجاره" : data.contractType}</span>
         <button type="button" className={showcase.favorite} onClick={handleBookmarkClick} aria-label={bookmarked ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"} aria-pressed={bookmarked}>{bookmarked ? <FavoriteRoundedIcon /> : <FavoriteBorderRoundedIcon />}</button>
@@ -181,13 +186,13 @@ export default function CardFile({
           <button type="button" onClick={handleDetails} className={showcase.price}>{price.value} <span>تومان</span>{data.monthlyRent > 0 && <small> / {formatNumber(data.monthlyRent)} ماهانه</small>}</button>
           <div className={showcase.advisor}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/profile.webp" alt={personName} title={personName} />
+            <img src="/images/profile.png" alt={personName} title={personName} />
             <details className={showcase.more}><summary aria-label="عملیات ملک"><MoreHorizRoundedIcon /></summary><div className={showcase.menu}><button type="button" onClick={handleDetails}>مشاهده جزئیات</button><button type="button" onClick={handleViewProperty}>تور مجازی ملک</button><button type="button" onClick={handleVisitRequest}>ثبت درخواست بازدید</button></div></details>
           </div>
         </div>
       </div>
     </article>
-    <VisitRequestModal key={visitModalOpen ? "open" : "closed"} open={visitModalOpen} onClose={() => setVisitModalOpen(false)} property={data} onSubmit={async () => { window.location.assign(PANEL_ORIGIN+'/visits?property='+data.id); }} />
+    <VisitRequestModal key={visitModalOpen ? "open" : "closed"} open={visitModalOpen} onClose={() => setVisitModalOpen(false)} property={data} onSubmit={async payload => { console.log("Visit request:", { ...payload, propertyId: data.id }); }} />
     <VirtualTourModal open={virtualTourModalOpen} onClose={() => setVirtualTourModalOpen(false)} links={data.virtualTourUrl} />
   </>;
 
@@ -628,7 +633,7 @@ export default function CardFile({
               ) : (
                 <Button
                   fullWidth
-                  onClick={() => window.location.assign(PANEL_LINKS.createFile)}
+                  onClick={() => onIHave?.(data)}
                   variant="outlined"
                   color="secondary"
                   startIcon={<HandshakeRoundedIcon sx={{ fontSize: 16 }} />}
@@ -659,9 +664,9 @@ export default function CardFile({
         open={visitModalOpen}
         onClose={() => setVisitModalOpen(false)}
         property={data}
-        onSubmit={async () => {
+        onSubmit={async (payload) => {
           // اینجا به API وصل کن
-          window.location.assign(PANEL_ORIGIN+'/visits?property='+data.id);
+          console.log("Visit request:", { ...payload, propertyId: data.id });
         }}
       />
       <VirtualTourModal

@@ -1,4 +1,3 @@
-import {PANEL_LINKS} from "../../Core/panel";
 import type { SvgIconComponent } from '@mui/icons-material';
 
 import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
@@ -18,12 +17,12 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  { key: 'home', label: 'صفحه اصلی', href: '/', icon: HomeIcon, activeIcon: HomeIcon, group: 'main' },
+  { key: 'home', label: 'خانه', href: '/', icon: HomeIcon, activeIcon: HomeIcon, group: 'main' },
   { key: 'saved', label: 'علاقه‌مندی‌ها', href: '/saved', icon: FavoriteBorderRoundedIcon, activeIcon: FavoriteRoundedIcon, group: 'account' },
 
   { key: 'submit', label: 'ثبت', href: '/vip', icon: AddIcon, activeIcon: AddIcon, group: 'main' },
   { key: 'support', label: 'یادآوری‌ها', href: '/reminders', icon: NotificationsNoneRounded, activeIcon: NotificationsNoneRounded, group: 'main' },
-  { key: 'profile', label: 'پروفایل', href: PANEL_LINKS.dashboard, icon: PersonOutlineOutlinedIcon, activeIcon: PersonIcon, group: 'account' },
+  { key: 'profile', label: 'پروفایل', href: 'https://panel.mlkino.com', icon: PersonOutlineOutlinedIcon, activeIcon: PersonIcon, group: 'account' },
 ];
 
 export const MAIN_ITEMS = NAV_ITEMS.filter((i) => i.group === 'main');

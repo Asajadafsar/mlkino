@@ -1,7 +1,5 @@
 'use client'
 import React from 'react'
-import Link from 'next/link'
-import {PANEL_LINKS} from '../../Core/panel'
 import { Box, Button, Stack, Typography, Grid } from '@mui/material'
 import AddHomeWorkIcon from '@mui/icons-material/AddHomeWork'
 import PersonSearchIcon from '@mui/icons-material/PersonSearch'
@@ -12,7 +10,6 @@ type CardProps = {
   buttonText: string
   icon: React.ReactNode
   variant: 'primary' | 'light'
-  href: string
   onClick?: () => void
 }
 
@@ -60,7 +57,6 @@ function ActionCard({
   icon,
   variant,
   onClick,
-  href,
 }: CardProps) {
   const s = styles[variant]
 
@@ -133,8 +129,6 @@ function ActionCard({
 
       {/* دکمه (سمت چپ) */}
       <Button
-        component={Link}
-        href={href}
         variant="contained"
         disableElevation
         onClick={onClick}
@@ -180,7 +174,6 @@ export default function ActionCards() {
             title="مالک یا سازنده هستید؟"
             description="ملک خود را رایگان بسپارید و در کمتر از چند روز به خریداران معرفی کنید"
             buttonText="ثبت رایگان ملک"
-            href={PANEL_LINKS.createFile}
             icon={<AddHomeWorkIcon sx={{ fontSize: { xs: 28, md: 32 }, color: '#f7b23b' }} />}
           />
         </Grid>
@@ -191,7 +184,6 @@ export default function ActionCards() {
             title="ملک دلخواه‌تان را نیافتید؟"
             description="درخواست خرید یا رهن خود را ثبت کنید تا مالکان و مشاوران با شما تماس بگیرند"
             buttonText="ثبت درخواست ملک"
-            href={PANEL_LINKS.createRequest}
             icon={<PersonSearchIcon sx={{ fontSize: { xs: 28, md: 32 }, color: '#2563c9' }} />}
           />
         </Grid>

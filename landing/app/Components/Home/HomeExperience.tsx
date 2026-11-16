@@ -1,24 +1,75 @@
 "use client";
-import Link from 'next/link';
-import {useState} from 'react';
-import {usePublic} from '../Catalog/usePublic';
-import PublicCatalog from '../Catalog/PublicCatalog';
-import PropertySearch from './PropertySearch';
-import {PANEL_LINKS} from '../../Core/panel';
-import MapPreview from './MapPreview';
-import {CATEGORIES} from './categories';
-import {faNumber,safeExternal,type PublicConfig} from '../../Core/catalog';
-import styles from './home.module.css';
-import catalogStyles from '../Catalog/catalog.module.css';
-export default function HomeExperience(){const [deal,setDeal]=useState('buy');const [feed,setFeed]=useState(0);const {data:config,error,retry}=usePublic<PublicConfig>('config/');const hero=safeExternal(config?.hero_image)||'/images/properties/hero.webp';const sections=[{label:'فایل‌های ویژه ملکینو',href:'/vip',kind:'file' as const,featured:true},{label:'فایل‌های ملکینو',href:'/files',kind:'file' as const,featured:false},{label:'درخواست‌های ملکینو',href:'/requests',kind:'request' as const,featured:false}];return <div className={styles.page}>
- <section className={styles.hero}>{hero&&<picture>{hero==='/images/properties/hero.webp'&&<source type="image/webp" srcSet="/images/properties/hero-640.webp 640w, /images/properties/hero-1024.webp 1024w, /images/properties/hero-1600.webp 1600w" sizes="100vw"/>}<img src={hero} alt="" fetchPriority="high" loading="eager" decoding="async" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',zIndex:-1}}/></picture>}<div className={styles.heroCopy}><h1>ملکینو<br/><span>مدیریت</span> هوشمند املاک</h1><p>خانه دلخواه خود را پیدا کنید؛ فایل‌ها و درخواست‌های واقعی و به‌روز</p></div><div className={styles.desktopSearch}><PropertySearch compact dealValue={deal} onDealChange={setDeal}/></div></section>
- <div className={styles.mobileSearch}><PropertySearch compact mobile dealValue={deal} onDealChange={setDeal}/></div>
- <section className={styles.categorySection} aria-label="دسته‌بندی املاک"><div className={styles.categories}>{CATEGORIES.slice(0,8).map(({label,Icon})=><Link prefetch={false} key={label} href={'/files?propertyType='+encodeURIComponent(label)} className={styles.category}><Icon/><span>{label}</span></Link>)}</div></section>
- {config?.stats&&<section className={catalogStyles.homeStats} aria-label="آمار عمومی ملکینو">{[['files','فایل منتشرشده'],['requests','درخواست منتشرشده'],['offices','دفتر املاک'],['experts','کارشناس']].map(([key,label])=><div key={key}><span>{label}</span><strong>{faNumber(config.stats?.[key as keyof typeof config.stats])}</strong></div>)}</section>}
- {error&&<div className={catalogStyles.error} role="alert">دریافت تنظیمات عمومی انجام نشد. <button type="button" onClick={retry}>تلاش دوباره</button></div>}
 
- <nav className={styles.homeFeedTabs} aria-label="فهرست فایل‌ها و درخواست‌ها">{sections.map((section,index)=><button key={section.label} type="button" aria-pressed={feed===index} onClick={()=>setFeed(index)}>{index===0?'♛ ':index===1?'▥ ':'▤ '}{section.label}</button>)}</nav>
- <div className={catalogStyles.homeSections}>{sections.filter((_,index)=>index===feed).map(section=><section key={section.label}><header className={catalogStyles.sectionHeading}><h2>{section.label}</h2><Link prefetch={false} href={section.href}>مشاهده همه ←</Link></header><PublicCatalog kind={section.kind} featured={section.featured} embedded showFilters={false} showMap={false}/></section>)}</div>
- <MapPreview/>
- <section className={catalogStyles.support} aria-label="راه‌های ارتباطی ملکینو"><div><h2>همراه شما در ملکینو</h2><p>برای مدیریت درخواست‌ها و ارتباط امن، از پنل کاربری استفاده کنید.</p></div><nav aria-label="پشتیبانی">{config?.support?.phone&&<a href={'tel:'+config.support.phone.replace(/[^+0-9]/g,'')}>تماس با پشتیبانی: {config.support.phone}</a>}{Object.entries(config?.support||{}).filter(([key])=>key!=='phone').map(([key,url])=>{const safe=safeExternal(url);return safe?<a key={key} href={safe} target="_blank" rel="noopener noreferrer">{({instagram:'اینستاگرام',telegram:'تلگرام',eitaa:'ایتا'} as Record<string,string>)[key]||'شبکه اجتماعی'}</a>:null})}<Link prefetch={false} href={PANEL_LINKS.tickets}>پشتیبانی داخل پنل</Link></nav></section>
- </div>}
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import WorkspacePremiumOutlined from "@mui/icons-material/WorkspacePremiumOutlined";
+import ApartmentOutlined from "@mui/icons-material/ApartmentOutlined";
+import AssignmentOutlined from "@mui/icons-material/AssignmentOutlined";
+import ArrowBackRounded from "@mui/icons-material/ArrowBackRounded";
+import NotificationsNoneRounded from "@mui/icons-material/NotificationsNoneRounded";
+import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
+import PeopleOutlineRounded from "@mui/icons-material/PeopleOutlineRounded";
+import DescriptionOutlined from "@mui/icons-material/DescriptionOutlined";
+import { PROPERTIES, REQUESTS } from "@/app/Core/listings";
+import { formatNumber } from "../Card/cardFileUtils";
+import InfiniteListingFeed from "../Card/InfiniteListingFeed";
+import PropertySearch, { DealTabs } from "./PropertySearch";
+import SearchBox from "../Navbar/SearchBox";
+import { CATEGORIES } from "./categories";
+import styles from "./home.module.css";
+
+function requestBudget(value: number) {
+  return value >= 1_000_000_000 ? `${formatNumber(value / 1_000_000_000)} میلیارد` : `${formatNumber(value / 1_000_000)} میلیون`;
+}
+
+const SECTIONS = [
+  { key: "vip", label: "فایل‌های ویژه", Icon: WorkspacePremiumOutlined },
+  { key: "files", label: "فایل‌های ملکی", Icon: ApartmentOutlined },
+  { key: "requests", label: "درخواست‌های ملکی", Icon: AssignmentOutlined },
+];
+
+export default function HomeExperience() {
+  const router = useRouter();
+  const [deal, setDeal] = useState("buy");
+  const [active, setActive] = useState("vip");
+
+  return <div className={styles.page}>
+    <section className={styles.hero} aria-label="ملکینو، مدیریت هوشمند املاک">
+      <div className={styles.heroCopy}><h1><span>ملکینو</span>، مدیریت هوشمند املاک</h1><p>خرید، فروش، رهن و اجاره ملک در سراسر کشور</p></div>
+      <div className={styles.heroDeals}><DealTabs value={deal} onChange={setDeal} /></div>
+    </section>
+    <div className={styles.desktopSearch}><PropertySearch compact hideDeals dealValue={deal} onDealChange={setDeal} /></div>
+    <div className={styles.mobileSearch}><SearchBox placeholder="جستجوی ملک، محله یا کد آگهی…" onSearch={query => router.push(`/files?q=${encodeURIComponent(query)}`)} onFilterClick={() => router.push(`/search?deal=${deal}`)} /></div>
+
+    <section className={styles.categories} aria-label="دسته‌بندی‌های ملک">{CATEGORIES.map(({label,Icon},i) => <Link key={label} href={`/files?propertyType=${encodeURIComponent(label)}`} data-land={label === "زمین" || undefined} className={`${styles.category} ${i === 0 ? styles.activeCategory : ""}`}><Icon /><span>{label}</span></Link>)}</section>
+
+    <section className={styles.stats} aria-label="آمار ملکینو">{[
+      {Icon:DescriptionOutlined,value:"۳۴۰",label:"فایل فعال",color:"blue"},
+      {Icon:PeopleOutlineRounded,value:"۱۲۸",label:"مشتری فعال",color:"purple"},
+      {Icon:VisibilityOutlined,value:"۱.۲K",label:"بازدید امروز",color:"green"},
+      {Icon:NotificationsNoneRounded,value:"۴۸",label:"یادآوری",color:"orange"},
+    ].map(({Icon,value,label,color}) => <div className={`${styles.stat} ${styles[color]}`} key={label}><Icon /><div><strong>{value}</strong><span>{label}</span></div></div>)}</section>
+
+    <div className={styles.sectionTabs} role="group" aria-label="فایل‌ها و درخواست‌ها">{SECTIONS.map(({key,label,Icon}) => <button type="button" key={key} aria-pressed={active === key} onClick={() => setActive(key)}><Icon /><span>{label}</span></button>)}</div>
+
+    <div className={styles.sections}>
+      <section className={`${styles.panel} ${styles.featuredPanel}`} data-active={active === "vip"} aria-label="فایل‌های ویژه">
+        <h2><WorkspacePremiumOutlined />فایل‌های ویژه</h2>
+        <InfiniteListingFeed items={PROPERTIES} label="فهرست پیمایشی فایل‌های ویژه" />
+        <Link className={styles.viewAll} href="/vip">مشاهده همه فایل‌های ویژه <ArrowBackRounded /></Link>
+      </section>
+      <section className={styles.panel} data-active={active === "files"} aria-label="فایل‌های ملکی">
+        <h2><ApartmentOutlined />فایل‌های ملکی</h2>
+        <InfiniteListingFeed items={PROPERTIES} label="فهرست پیمایشی فایل‌های ملکی" />
+        <Link className={styles.viewAll} href="/files">مشاهده همه فایل‌های ملکی <ArrowBackRounded /></Link>
+      </section>
+      <section className={`${styles.panel} ${styles.requestsPanel}`} data-active={active === "requests"} aria-label="درخواست‌های ملکی">
+        <h2><AssignmentOutlined />درخواست‌های ملکی</h2>
+        <div className={styles.requests}>{REQUESTS.map(item => <Link key={item.id} href={`/requests/${item.id}`} className={styles.request}><AssignmentOutlined /><div><h3>درخواست {item.contractType === "خرید" ? "خرید" : "رهن"} {item.propertyType}</h3><p>{item.city} · {Array.isArray(item.neighborhood) ? item.neighborhood[0] : item.neighborhood}</p></div><span>تا {requestBudget(item.contractType === "خرید" ? item.totalPriceTo || item.totalPrice : item.mortgagePriceTo || item.mortgagePrice)}</span></Link>)}</div>
+        <Link className={styles.viewAll} href="/requests">مشاهده همه درخواست‌ها <ArrowBackRounded /></Link>
+      </section>
+    </div>
+    <Link className={styles.allCategories} href="/categories">مشاهده همه دسته‌بندی‌ها <ArrowBackRounded /></Link>
+  </div>;
+}

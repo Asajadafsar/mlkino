@@ -1,7 +1,5 @@
 "use client";
-import {PANEL_LINKS,PANEL_ORIGIN} from "../../Core/panel";
 
-import type {Theme} from "@mui/material/styles";
 import * as React from "react";
 import {
   Box,
@@ -47,7 +45,7 @@ import {
  * استایل مشترک دکمه‌های اکشن.
  * در موبایل فقط آیکون نمایش داده می‌شود و دکمه‌ها فضای موجود را مساوی تقسیم می‌کنند.
  */
-const actionButtonSx = (theme: Theme) => ({
+const actionButtonSx = (theme: any) => ({
   flex: { xs: "1 1 0", md: "0 0 auto" },
   minWidth: { xs: 0, sm: "auto" },
   height: { xs: 34, sm: 34 },
@@ -191,26 +189,32 @@ export default function CardFileHorizontal({
   const personName = getPersonName(data);
 
   const virtualTourUrl: string | undefined =
-    data.virtualTourUrl?.telegram || data.virtualTourUrl?.instagram || data.virtualTourUrl?.eitaa;
+    (data as any).virtualTourUrl || (data as any).tourUrl;
 
   const handleBookmarkClick = (e: React.MouseEvent) => {
-    e.stopPropagation();window.location.assign(PANEL_ORIGIN+'/favorites?property='+data.id)
+    e.stopPropagation();
+    const next = !bookmarked;
+    setBookmarked(next);
+    onBookmarkToggle?.(next);
   };
 
   const handleDetails = () => {
     if (onDetailsClick) onDetailsClick(data);
-    else router.push(`/property/${data.id ?? 1}`);
+    else router.push(mode === "request" ? `/requests/${data.id ?? 202}` : `/property/${data.id ?? 1}`);
   };
 
   const handleViewProperty = () => {
     if (virtualTourUrl) {
       window.open(virtualTourUrl, "_blank", "noopener,noreferrer");
     } else {
-      router.push(`/property/${data.id ?? 1}`);
+      router.push(mode === "request" ? `/requests/${data.id ?? 202}` : `/property/${data.id ?? 1}`);
     }
   };
 
-  const handleVisitRequest = () => {window.location.assign(PANEL_ORIGIN+'/visits?property='+data.id)};
+  const handleVisitRequest = () => {
+    setVisitModalOpen(true);
+    onVisitRequest?.(data);
+  };
 
   /* --------------------------- بج‌ها (قابل استفاده مجدد) -------------------------- */
   const badges = (
@@ -720,7 +724,7 @@ export default function CardFileHorizontal({
                 </>
               ) : (
                 <Button
-                  onClick={() => window.location.assign(PANEL_LINKS.createFile)}
+                  onClick={() => onIHave?.(data)}
                   variant="outlined"
                   size="small"
                   aria-label="من دارم"
@@ -764,8 +768,8 @@ export default function CardFileHorizontal({
         open={visitModalOpen}
         onClose={() => setVisitModalOpen(false)}
         property={data}
-        onSubmit={async () => {
-          window.location.assign(PANEL_ORIGIN+'/visits?property='+data.id);
+        onSubmit={async (payload) => {
+          console.log("Visit request:", { ...payload, propertyId: data.id });
         }}
       />
     </>

@@ -1,9 +1,3 @@
-# لندینگ اصلی ملکینو
-
-اجرای محلی روی `http://localhost:3001` با `npm run dev` است؛ پنل روی پورت ۳۰۰۰ باقی می‌ماند.
-
-راهنمای اتصال پنل، مسیرهای ورود/ثبت‌نام و تنظیم دامنه: [docs/PANEL-INTEGRATION.md](docs/PANEL-INTEGRATION.md).
-
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
@@ -20,11 +14,11 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-فونت Vazirmatn از بسته قفل‌شده `@fontsource-variable/vazirmatn` و با `next/font/local` بارگذاری می‌شود؛ بیلد به Google Fonts متصل نمی‌شود.
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
 

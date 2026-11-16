@@ -1,5 +1,4 @@
 "use client";
-import {PANEL_LINKS} from "../../Core/panel";
 import React, { useState } from "react";
 import {
   Box,
@@ -695,7 +694,7 @@ export default function PropertyDetails(props: PropertyDetailsProps) {
                     fullWidth
                     variant="contained"
                     startIcon={<Chat />}
-                    onClick={() => window.location.assign(PANEL_LINKS.chats)}
+                    onClick={() => setMessageOpen(true)}
                     sx={{
                       py: 1.2,
                       borderRadius: 2.5,

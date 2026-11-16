@@ -226,6 +226,18 @@ export default function VisitRequestModal({
 
   const closeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /** هر بار که مودال باز می‌شود، فرم از نو شروع شود */
+  React.useEffect(() => {
+    if (!open) return;
+    setForm(initialForm);
+    setErrors({});
+    setSubmitError("");
+    setSuccess(false);
+    setSubmitting(false);
+    setSelectedVisitDate(null);
+    setSelectedVisitTime(null);
+  }, [open]);
+
   React.useEffect(
     () => () => {
       if (closeTimer.current) clearTimeout(closeTimer.current);

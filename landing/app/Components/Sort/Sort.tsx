@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Stack,
@@ -6,6 +6,8 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   ButtonBase,
+  TextField,
+  MenuItem,
 } from "@mui/material";
 import SortIcon from "@mui/icons-material/Sort";
 import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
@@ -50,9 +52,17 @@ export default function FileToolbar({
   onSortChange,
   onViewChange,
 }: FileToolbarProps): React.JSX.Element {
-  const [internalSort,setSort]=useState<SortValue>(defaultSort);
-  const [internalView,setView]=useState<ViewValue>(defaultView);
-  const sort=sortValue??internalSort,view=viewValue??internalView;
+  // Controlled + Uncontrolled support
+  const [sort, setSort] = useState<SortValue>(sortValue ?? defaultSort);
+  const [view, setView] = useState<ViewValue>(viewValue ?? defaultView);
+
+  useEffect(() => {
+    if (sortValue !== undefined) setSort(sortValue);
+  }, [sortValue]);
+
+  useEffect(() => {
+    if (viewValue !== undefined) setView(viewValue);
+  }, [viewValue]);
 
   const handleSortChange = (newSort: SortValue): void => {
     if (sortValue === undefined) setSort(newSort);
@@ -89,9 +99,9 @@ export default function FileToolbar({
         bgcolor: "background.paper",
       }}
     >
-      <Box component="select" aria-label="مرتب‌سازی فایل‌ها" value={sort} onChange={(event) => handleSortChange(event.target.value as SortValue)} sx={{ display: {xs: 'block', md: 'none'}, fontFamily: 'inherit', color: 'text.primary', bgcolor: '#fff', border: '1px solid #e2e7f0', borderRadius: '10px', p: 1.2, minWidth: 0, fontSize: 12 }}>
-        {SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </Box>
+      <TextField select label="مرتب‌سازی" value={sort} onChange={event => handleSortChange(event.target.value as SortValue)} size="small" slotProps={{select:{inputProps:{"aria-label":"مرتب‌سازی فایل‌ها"}}}} sx={{display:{xs:"inline-flex",md:"none"},minWidth:150,"& .MuiOutlinedInput-root":{borderRadius:2,fontSize:12}}}>
+        {SORT_OPTIONS.map(option => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
+      </TextField>
       {/* Right side (RTL start): sort */}
       <Stack
         sx={{

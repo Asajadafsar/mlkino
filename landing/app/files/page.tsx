@@ -3,9 +3,7 @@ import TitleHeader from '../Components/PropertyDetail/TitleHeader'
 import { Container } from '@mui/material'
 import FilesList from './FilesList'
 
-export default async function FilesPage({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}) {
-  const params=await searchParams;const query=new URLSearchParams();for(const [key,value] of Object.entries(params))if(typeof value==='string')query.set(key,value);
-
+export default function FilesPage() {
   return (
      <Container
       maxWidth={false}
@@ -24,7 +22,7 @@ export default async function FilesPage({searchParams}:{searchParams:Promise<Rec
       }}
     >
         <TitleHeader title='لیست فایل های ملکی' />
-       <FilesList query={query.toString()}/>
+       <FilesList/>
     </Container>
   )
 }

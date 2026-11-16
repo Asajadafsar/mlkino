@@ -1,7 +1,5 @@
 "use client";
 import React from "react";
-import Link from "next/link";
-import {PANEL_LINKS} from "../../Core/panel";
 import { Box, Typography, Button, Stack } from "@mui/material";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 
@@ -99,8 +97,6 @@ export default function RequestPropertyBanner() {
         }}
       >
         <Button
-          component={Link}
-          href={PANEL_LINKS.createRequest}
           variant="contained"
           color="secondary"
           sx={{
