@@ -22,7 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
 
   { key: 'submit', label: 'ثبت', href: '/vip', icon: AddIcon, activeIcon: AddIcon, group: 'main' },
   { key: 'support', label: 'یادآوری‌ها', href: '/reminders', icon: NotificationsNoneRounded, activeIcon: NotificationsNoneRounded, group: 'main' },
-  { key: 'profile', label: 'پروفایل', href: 'https://panel.mlkino.com', icon: PersonOutlineOutlinedIcon, activeIcon: PersonIcon, group: 'account' },
+  { key: 'profile', label: 'پروفایل', href: 'https://mlkino.com/panel', icon: PersonOutlineOutlinedIcon, activeIcon: PersonIcon, group: 'account' },
 ];
 
 export const MAIN_ITEMS = NAV_ITEMS.filter((i) => i.group === 'main');

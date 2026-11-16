@@ -23,7 +23,7 @@ function App() {
     return (
         <RTL>
             <LocalizationProvider dateAdapter={AdapterMoment}>
-                <BrowserRouter>
+                <BrowserRouter basename={process.env.PUBLIC_URL}>
                     <ThemeProvider theme={AppTheme}>
                         <GlobalStyles
                             styles={{

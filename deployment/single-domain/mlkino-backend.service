@@ -1,0 +1,25 @@
+[Unit]
+Description=Melkino Django ASGI application
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=mlkino
+Group=www-data
+WorkingDirectory=/opt/mlkino/current
+EnvironmentFile=/etc/mlkino/mlkino.env
+Environment=DJANGO_SETTINGS_MODULE=mlkino.production_settings
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/mlkino/venv/bin/daphne -b 127.0.0.1 -p 8001 mlkino.asgi:application
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/mlkino /var/www/mlkino
+
+[Install]
+WantedBy=multi-user.target

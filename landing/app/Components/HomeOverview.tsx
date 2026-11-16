@@ -20,7 +20,7 @@ export function HomeOverview() {
       <Box className="home-banner-copy">
         <Typography component="h1">خانه رو راحت‌تر پیدا کن</Typography>
         <Typography component="p">آگهی‌های به‌روز، واقعی و مطمئن</Typography>
-        <Button component={Link} href="https://panel.mlkino.com/files/create" variant="contained" disableElevation startIcon={<AddRounded />}>ثبت فایل جدید</Button>
+        <Button component={Link} href="https://mlkino.com/panel/files/create" variant="contained" disableElevation startIcon={<AddRounded />}>ثبت فایل جدید</Button>
       </Box>
       <Box className="home-banner-image" role="img" aria-label="خانه مدرن در فضای سبز" />
     </Box>

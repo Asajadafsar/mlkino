@@ -44,16 +44,16 @@ export default function DesktopNavbar() {
         <nav className={styles.desktopLinks} aria-label="منوی اصلی سایت">{links.map(({ href, label }) => <Link key={href} href={href} aria-current={isNavActive(pathname, href) ? "page" : undefined}>{label}</Link>)}</nav>
         <div className={styles.actions}>
           <button type="button" className={styles.submitDesktop} onClick={event => setSubmitAnchor(event.currentTarget)} aria-haspopup="menu" aria-expanded={Boolean(submitAnchor)} aria-controls={submitAnchor ? "header-submit-menu" : undefined}><AddRounded /> ثبت ملک / درخواست</button>
-          <Link href="https://panel.mlkino.com/support" className={styles.iconLink} aria-label="چت و تماس"><ChatBubbleOutlineRounded /></Link>
+          <Link href="https://mlkino.com/panel/support" className={styles.iconLink} aria-label="چت و تماس"><ChatBubbleOutlineRounded /></Link>
           <Link href="/reminders" className={styles.iconLink} aria-label="یادآوری‌ها"><NotificationsNoneRounded /><span className={styles.notificationDot} /></Link>
-          <Link href="https://panel.mlkino.com" className={styles.account} aria-label="ملکینوی من"><Image src="/images/profile.png" alt="" width={38} height={38} /><span><strong>ملکینوی من</strong><small>{cityLabel}</small></span><KeyboardArrowDownRounded /></Link>
+          <Link href="https://mlkino.com/panel" className={styles.account} aria-label="ملکینوی من"><Image src="/images/profile.png" alt="" width={38} height={38} /><span><strong>ملکینوی من</strong><small>{cityLabel}</small></span><KeyboardArrowDownRounded /></Link>
         </div>
       </div>
     </header>
     <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)} slotProps={{ paper: { sx: { width: 320, maxWidth: "calc(100vw - 32px)", bgcolor:"#f9f9ff" } } }}>
       <div id="main-navigation-drawer" className={styles.drawer}>
         <div className={styles.drawerTitle}><strong>منوی ملکینو</strong><IconButton aria-label="بستن منو" onClick={() => setDrawerOpen(false)}><CloseRounded /></IconButton></div>
-        <nav aria-label="منوی اصلی موبایل">{[...links, {href:"/categories",label:"همه دسته‌بندی‌ها"}, {href:"https://panel.mlkino.com/support",label:"چت و تماس"}, {href:"https://panel.mlkino.com",label:"ملکینوی من"}].map(({ href, label }) => <Link key={href} href={href} onClick={() => setDrawerOpen(false)} aria-current={isNavActive(pathname, href) ? "page" : undefined}>{label}</Link>)}</nav>
+        <nav aria-label="منوی اصلی موبایل">{[...links, {href:"/categories",label:"همه دسته‌بندی‌ها"}, {href:"https://mlkino.com/panel/support",label:"چت و تماس"}, {href:"https://mlkino.com/panel",label:"ملکینوی من"}].map(({ href, label }) => <Link key={href} href={href} onClick={() => setDrawerOpen(false)} aria-current={isNavActive(pathname, href) ? "page" : undefined}>{label}</Link>)}</nav>
       </div>
     </Drawer>
     <LocationPickerModal open={cityOpen} onClose={() => setCityOpen(false)} value={location} onApply={setLocation} />

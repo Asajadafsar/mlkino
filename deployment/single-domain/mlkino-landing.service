@@ -1,0 +1,24 @@
+[Unit]
+Description=Melkino Next.js landing page
+After=network.target
+
+[Service]
+Type=simple
+User=mlkino
+Group=www-data
+WorkingDirectory=/opt/mlkino/current/landing
+Environment=NODE_ENV=production
+Environment=NEXT_TELEMETRY_DISABLED=1
+Environment=PORT=3101
+ExecStart=/usr/local/bin/npm run start -- --hostname 127.0.0.1 --port 3101
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/mlkino/current/landing/.next
+
+[Install]
+WantedBy=multi-user.target

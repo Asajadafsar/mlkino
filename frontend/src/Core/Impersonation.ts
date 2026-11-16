@@ -75,5 +75,5 @@ export function reloadIdentity() {
         // Broadcast only an invalidation timestamp; never persist session data or credentials.
         localStorage.setItem('mlkino:identity-change', String(Date.now()))
     } catch { /* Reload still works when storage is unavailable. */ }
-    window.location.replace('/dashboard')
+    window.location.replace('/panel/dashboard')
 }

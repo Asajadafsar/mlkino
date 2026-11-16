@@ -15,10 +15,12 @@ urlpatterns = [
     path("admin/", admin.site.urls),
 
     # اپ panel
-    path("panel/", include("panel.urls")),
+    # The public React panel is served by Nginx at /panel/. Keep its API
+    # separate from that SPA route on the single mlkino.com origin.
+    path("api/panel/", include("panel.urls")),
 
     # API
-    path("accounts/", include("accounts.urls")),
+    path("api/accounts/", include("accounts.urls")),
 
     # مستندات
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
