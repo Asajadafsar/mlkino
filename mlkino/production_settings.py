@@ -15,7 +15,7 @@ def required(name: str) -> str:
 
 DEBUG = False
 SECRET_KEY = required("DJANGO_SECRET_KEY")
-ALLOWED_HOSTS = ["mlkino.com"]
+ALLOWED_HOSTS = ["mlkino.com", "api.mlkino.com"]
 
 DATABASES = {
     "default": {
