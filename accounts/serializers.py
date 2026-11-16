@@ -255,34 +255,6 @@ class PasswordLoginSerializer(serializers.Serializer):
 
 
 # ==================================================================
-# تغییر رمز
-# ==================================================================
-class ChangePasswordSerializer(serializers.Serializer):
-    old_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True, min_length=8)
-    new_password_confirm = serializers.CharField(write_only=True, min_length=8)
-
-    def validate_old_password(self, value):
-        user = self.context["request"].user
-        if not user.check_password(value):
-            raise serializers.ValidationError("رمز عبور فعلی اشتباه است.")
-        return value
-
-    def validate(self, attrs):
-        if attrs["new_password"] != attrs["new_password_confirm"]:
-            raise serializers.ValidationError(
-                {"new_password_confirm": "رمز جدید و تکرار آن یکسان نیستند."}
-            )
-        return attrs
-
-    def save(self, **kwargs):
-        user = self.context["request"].user
-        user.set_password(self.validated_data["new_password"])
-        user.save()
-        return user
-
-
-# ==================================================================
 # فراموشی رمز — مرحله ۱: ارسال OTP
 # ==================================================================
 class PasswordResetSendOtpSerializer(serializers.Serializer):

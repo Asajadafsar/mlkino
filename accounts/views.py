@@ -48,7 +48,6 @@ from accounts.models import (
 )
 
 from accounts.serializers import (
-    ChangePasswordSerializer,
     CompleteRegisterSerializer,
     LoginOtpSerializer,
     PasswordLoginSerializer,
@@ -154,11 +153,11 @@ def _issue_login_response(user, message="ورود موفق.", request=None):
 
 
 
-def _find_valid_otp(phone, code):
+def _find_valid_otp(phone, code, purpose=OtpToken.Purpose.LOGIN):
     otp = (
         OtpToken.objects.filter(
             phone=phone,
-            purpose=OtpToken.Purpose.LOGIN,
+            purpose=purpose,
             is_used=False,
         )
         .order_by("-created_at")
@@ -211,10 +210,11 @@ def _find_valid_otp(phone, code):
     return otp, None
 
 
-def _send_otp(phone):
+def _send_otp(phone, purpose=OtpToken.Purpose.LOGIN):
     recent = (
         OtpToken.objects.filter(
             phone=phone,
+            purpose=purpose,
             is_used=False,
         )
         .order_by("-created_at")
@@ -247,7 +247,7 @@ def _send_otp(phone):
     otp = OtpToken.objects.create(
         phone=phone,
         code=code,
-        purpose=OtpToken.Purpose.LOGIN,
+        purpose=purpose,
         expires_at=timezone.now() + timedelta(
             seconds=OTP_EXPIRY_SECONDS
         ),
@@ -617,31 +617,49 @@ class PasswordLoginView(APIView):
 # ============================================================
 
 class ChangePasswordView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
+    authentication_classes = []
 
     @extend_schema(
         tags=["احراز هویت"],
-        summary="تغییر رمز عبور",
-        request=ChangePasswordSerializer,
+        summary="مسدودسازی مسیر قدیمی تغییر رمز با رمز فعلی",
+        request=None,
+        responses={410: OpenApiResponse(description="تغییر رمز فقط پس از تأیید OTP امکان‌پذیر است.")},
     )
     def post(self, request):
-        serializer = ChangePasswordSerializer(
-            data=request.data,
-            context={
-                "request": request,
-            },
-        )
+        return error_response(message='تغییر رمز با رمز فعلی غیرفعال است؛ ابتدا کد پیامکی را تأیید کنید و سپس رمز جدید را ثبت کنید.',status_code=410)
 
+
+class PasswordChangeSendOtpView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.data and (not isinstance(request.data, dict) or set(request.data)):
+            return error_response(message='درخواست ارسال کد معتبر نیست.',status_code=400)
+        user=request.user
+        if _user_is_blocked(user):
+            return error_response(message='حساب کاربری غیرفعال است.',status_code=403)
+        return _send_otp(user.phone,purpose=OtpToken.Purpose.PASSWORD_CHANGE)
+
+
+class PasswordChangeVerifyOtpView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not isinstance(request.data, dict) or set(request.data) != {'code'}:
+            return error_response(message='فقط کد پیامکی لازم است.',status_code=400)
+        user=request.user
+        serializer=PasswordResetVerifyOtpSerializer(data={'phone':user.phone,'code':request.data.get('code')})
         if not serializer.is_valid():
             return _validation_error(serializer)
-
-        serializer.save()
-        from accounts.models import DeviceSession
-        DeviceSession.objects.filter(user=request.user, revoked_at__isnull=True).update(revoked_at=timezone.now())
-        from panel.views import record_activity
-        record_activity(request, event='password.change', description='رمز حساب تغییر کرد و نشست‌های قبلی بسته شدند.')
-        tokens = build_tokens_for_user(request.user, request)
-        return set_auth_cookies(success_response(message="رمز عبور با موفقیت تغییر کرد."), tokens['access'], tokens['refresh'])
+        with transaction.atomic():
+            otp,error=_find_valid_otp(user.phone,serializer.validated_data['code'],purpose=OtpToken.Purpose.PASSWORD_CHANGE)
+            if error is not None:return error
+            otp.is_used=True
+            otp.save(update_fields=['is_used'])
+            PasswordResetToken.objects.filter(user=user,is_used=False).update(is_used=True)
+            reset_token=PasswordResetToken.objects.create(user=user,expires_at=timezone.now()+timedelta(seconds=RESET_TOKEN_EXPIRY_SECONDS))
+        return success_response(message='کد پیامکی تأیید شد.',data={'reset_token':str(reset_token.token),'expires_in':RESET_TOKEN_EXPIRY_SECONDS,'phone':user.phone})
 
 
 # ============================================================
@@ -678,7 +696,7 @@ class PasswordResetSendOtpView(APIView):
                 status_code=404,
             )
 
-        return _send_otp(phone)
+        return _send_otp(phone,purpose=OtpToken.Purpose.PASSWORD_RESET)
 
 
 # ============================================================
@@ -706,7 +724,7 @@ class PasswordResetVerifyOtpView(APIView):
         code = serializer.validated_data["code"]
 
         with transaction.atomic():
-            otp, error = _find_valid_otp(phone, code)
+            otp, error = _find_valid_otp(phone, code,purpose=OtpToken.Purpose.PASSWORD_RESET)
 
             if error is not None:
                 return error
@@ -814,6 +832,9 @@ class PasswordResetCompleteView(APIView):
             user.set_password(new_password)
             user.save(update_fields=["password"])
 
+            from accounts.models import DeviceSession
+            DeviceSession.objects.filter(user=user,revoked_at__isnull=True).update(revoked_at=timezone.now())
+
             reset_token.is_used = True
             reset_token.save(
                 update_fields=["is_used"]
@@ -824,12 +845,8 @@ class PasswordResetCompleteView(APIView):
                 is_used=False,
             ).update(is_used=True)
 
-        return success_response(
-            message="رمز عبور با موفقیت تغییر کرد.",
-            data={
-                "phone": user.phone,
-            },
-        )
+        response=success_response(message="رمز عبور با موفقیت تغییر کرد. برای امنیت، دوباره وارد حساب شوید.",data={"phone":user.phone})
+        return clear_auth_cookies(response)
 
 
 # ============================================================

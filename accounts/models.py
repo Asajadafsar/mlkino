@@ -413,6 +413,8 @@ class OtpToken(models.Model):
     class Purpose(models.TextChoices):
         LOGIN = "login", "ورود/ثبت‌نام"
         PHONE_VERIFY = "phone_verify", "تایید شماره موبایل"
+        PASSWORD_RESET = "password_reset", "بازیابی رمز عبور"
+        PASSWORD_CHANGE = "password_change", "تغییر رمز عبور"
 
     phone = models.CharField(
         max_length=11,

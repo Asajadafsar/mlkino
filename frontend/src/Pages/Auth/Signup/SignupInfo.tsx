@@ -1,8 +1,8 @@
 import {authDestination} from '../../../Core/AuthDestination'
 import {useLocation} from 'react-router-dom'
 import {ACCOUNTS_URL} from '../../../Core/APP_URL'
-import {Alert,CircularProgress, Box, Button, IconButton, InputAdornment, Stack, TextField, Typography} from '@mui/material'
-import {useState, type Dispatch, type SetStateAction} from 'react'
+import {Alert,Avatar,CircularProgress, Box, Button, IconButton, InputAdornment, Stack, TextField, Typography} from '@mui/material'
+import {useEffect,useState, type Dispatch, type SetStateAction} from 'react'
 import {Controller, useForm} from 'react-hook-form'
 import {useDispatch} from 'react-redux'
 
@@ -13,13 +13,14 @@ import {setUtil} from '../../../redux/UtilSlice'
 import {registerUser} from './authApi'
 import {useNavigate} from 'react-router-dom'
 import SearchIcon from '@mui/icons-material/Search'
+import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined'
 import axios from 'axios'
 type SignupInfoForm = {
     first_name: string
     last_name: string
     national_code: string
     birth_date: string
-    avatar: FileList | null
+    avatar: File | null
     province: string
     city: string
     postal_code: string
@@ -61,6 +62,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
     const [canManual,setCanManual]=useState(false)
     const [postalBusy,setPostalBusy]=useState(false)
     const [postalError,setPostalError]=useState('')
+    const [avatarPreview,setAvatarPreview]=useState('')
     const digits=(s:string)=>s.replace(/[۰-۹٠-٩]/g,c=>String(c.charCodeAt(0)-(c>='۰'?1776:1632)))
     const {
         register,
@@ -91,6 +93,8 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
     })
 
     const password = watch('password')
+    const avatar = watch('avatar')
+    useEffect(()=>{if(!avatar){setAvatarPreview('');return}const url=URL.createObjectURL(avatar);setAvatarPreview(url);return()=>URL.revokeObjectURL(url)},[avatar])
     const location = useLocation()
     const navigate = useNavigate()
     // CustomSelectField uses a state setter; forward its value to react-hook-form.
@@ -128,7 +132,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
             last_name: data.last_name,
             national_code: data.national_code,
             birth_date: data.birth_date,
-            avatar: data.avatar?.[0] ?? undefined,
+            avatar: data.avatar ?? undefined,
             province: data.province,
             city: data.city,
             postal_code: data.postal_code,
@@ -218,6 +222,8 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                             fullWidth
                         />
                     </Stack>
+
+                    <Controller name="avatar" control={control} render={({field})=><Stack direction="row" alignItems="center" spacing={1.5}><Avatar src={avatarPreview||undefined} sx={{width:54,height:54,bgcolor:'#edf3ff',color:'primary.main'}}>{!avatarPreview&&'م'}</Avatar><Box><Button component="label" variant="outlined" size="small" startIcon={<PhotoCameraOutlinedIcon/>}>{field.value?'تغییر تصویر پروفایل':'افزودن تصویر پروفایل'}<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={event=>{const file=event.target.files?.[0];if(file&&file.size<=5*1024*1024)field.onChange(file);else if(file)dispatch(setUtil({open:true,message:'عکس باید PNG، JPG یا WebP و کمتر از ۵ مگابایت باشد.',severity:'error'}));event.target.value=''}}/></Button>{field.value&&<Button size="small" onClick={()=>field.onChange(null)}>حذف تصویر</Button>}<Typography display="block" variant="caption" color="text.secondary">اختیاری · JPG، PNG یا WebP تا ۵ مگابایت</Typography></Box></Stack>}/>
 
                     <Stack direction={{xs: 'column', sm: 'row'}} spacing={2}>
                         <Controller

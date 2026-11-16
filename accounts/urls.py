@@ -16,6 +16,11 @@ urlpatterns = [
     path("complete-register/", views.CompleteRegisterView.as_view(), name="complete-register"),
     path("login/password/", views.PasswordLoginView.as_view(), name="login-password"),
     path("change-password/", views.ChangePasswordView.as_view(), name="change-password"),
+    path("password/change/send-otp/", views.PasswordChangeSendOtpView.as_view(), name="password-change-send-otp"),
+    path("password/change/verify-otp/", views.PasswordChangeVerifyOtpView.as_view(), name="password-change-verify-otp"),
+    path("password/reset/send-otp/", views.PasswordResetSendOtpView.as_view(), name="password-reset-send-otp"),
+    path("password/reset/verify-otp/", views.PasswordResetVerifyOtpView.as_view(), name="password-reset-verify-otp"),
+    path("password/reset/complete/", views.PasswordResetCompleteView.as_view(), name="password-reset-complete"),
     path("login/otp/", views.LoginWithOtpView.as_view(), name="login-otp"),
     # پروفایل
     path("profile/", views.ProfileView.as_view(), name="profile"),

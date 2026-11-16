@@ -56,12 +56,12 @@ export default function HomeExperience() {
     <div className={styles.sections}>
       <section className={`${styles.panel} ${styles.featuredPanel}`} data-active={active === "vip"} aria-label="فایل‌های ویژه">
         <h2><WorkspacePremiumOutlined />فایل‌های ویژه</h2>
-        <InfiniteListingFeed items={PROPERTIES} label="فهرست پیمایشی فایل‌های ویژه" />
+        {active === "vip" && <InfiniteListingFeed items={PROPERTIES} label="فهرست پیمایشی فایل‌های ویژه" />}
         <Link className={styles.viewAll} href="/vip">مشاهده همه فایل‌های ویژه <ArrowBackRounded /></Link>
       </section>
       <section className={styles.panel} data-active={active === "files"} aria-label="فایل‌های ملکی">
         <h2><ApartmentOutlined />فایل‌های ملکی</h2>
-        <InfiniteListingFeed items={PROPERTIES} label="فهرست پیمایشی فایل‌های ملکی" />
+        {active === "files" && <InfiniteListingFeed items={PROPERTIES} label="فهرست پیمایشی فایل‌های ملکی" />}
         <Link className={styles.viewAll} href="/files">مشاهده همه فایل‌های ملکی <ArrowBackRounded /></Link>
       </section>
       <section className={`${styles.panel} ${styles.requestsPanel}`} data-active={active === "requests"} aria-label="درخواست‌های ملکی">

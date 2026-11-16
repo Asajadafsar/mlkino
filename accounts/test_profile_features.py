@@ -67,18 +67,11 @@ class ProfileFeaturesTests(TestCase):
         events=[row['event'] for row in self.client.get('/accounts/activity/').data['data']['results']]
         self.assertIn('test.mine',events);self.assertNotIn('test.other',events)
 
-    def test_password_change_revokes_previous_devices_and_keeps_new_login(self):
-        second=build_tokens_for_user(self.user)
+    def test_password_change_requires_sms_reset_token(self):
         response=self.client.post('/accounts/change-password/',{'old_password':'test-password','new_password':'new-test-password','new_password_confirm':'new-test-password'},format='json')
-        self.assertEqual(response.status_code,200,response.data)
-        self.user.refresh_from_db();self.assertTrue(self.user.check_password('new-test-password'))
+        self.assertEqual(response.status_code,410,response.data)
+        self.user.refresh_from_db();self.assertTrue(self.user.check_password('test-password'))
         self.assertEqual(DeviceSession.objects.filter(user=self.user,revoked_at__isnull=True).count(),1)
-        access=response.cookies['accessToken'].value
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+access)
-        self.assertEqual(self.client.get('/accounts/profile/').status_code,200)
-        self.client.cookies.clear()
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+second['access'])
-        self.assertEqual(self.client.get('/accounts/profile/').status_code,401)
 
     def test_privacy_controls_contacts_and_new_conversations(self):
         from accounts.models import AccountPreferences
