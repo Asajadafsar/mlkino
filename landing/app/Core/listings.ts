@@ -13,13 +13,13 @@ export const PROPERTIES: PropertyType[] = [
     buildYear: "۱۴۰۱",
     advisorName: "علی رضایی",
     assignedTo: "علی رضایی",
-    images: ["/images/properties/apartment.png", "/images/properties/interior.png", "/images/properties/hero.png"],
+    images: ["/images/properties/apartment.webp", "/images/properties/interior.webp", "/images/properties/hero.webp"],
     description: "آپارتمان لوکس و خوش‌نقشه با نورگیری عالی، در یکی از محله‌های آرام و خوش‌دسترسی تهران. فضای پذیرایی دلباز، آشپزخانه مدرن و امکانات کامل، این خانه را به گزینه‌ای مناسب برای زندگی تبدیل کرده‌اند.",
   },
-  { ...propertyItem, id: 102, propertyType: "ویلا", neighborhood: "لواسان", area: 500, roomCount: 5, totalPrice: 78000000000, images: ["/images/properties/hero.png", "/images/properties/interior.png"], buildYear: "۱۴۰۰" },
-  { ...propertyItem, id: 103, neighborhood: "فرمانیه", area: 240, roomCount: 4, totalPrice: 49000000000, images: ["/images/properties/apartment.png", "/images/properties/interior.png"], buildYear: "۱۴۰۲" },
-  { ...propertyItem, id: 104, propertyType: "اداری", neighborhood: "میرداماد", area: 220, roomCount: 3, totalPrice: 35000000000, images: ["/images/properties/apartment.png", "/images/properties/interior.png"], buildYear: "۱۴۰۱" },
-  { ...propertyItem, id: 105, neighborhood: "شهرک غرب", area: 155, roomCount: 3, totalPrice: 42800000000, images: ["/images/properties/apartment.png", "/images/properties/interior.png"], buildYear: "۱۴۰۲" },
+  { ...propertyItem, id: 102, propertyType: "ویلا", neighborhood: "لواسان", area: 500, roomCount: 5, totalPrice: 78000000000, images: ["/images/properties/hero.webp", "/images/properties/interior.webp"], buildYear: "۱۴۰۰" },
+  { ...propertyItem, id: 103, neighborhood: "فرمانیه", area: 240, roomCount: 4, totalPrice: 49000000000, images: ["/images/properties/apartment.webp", "/images/properties/interior.webp"], buildYear: "۱۴۰۲" },
+  { ...propertyItem, id: 104, propertyType: "اداری", neighborhood: "میرداماد", area: 220, roomCount: 3, totalPrice: 35000000000, images: ["/images/properties/apartment.webp", "/images/properties/interior.webp"], buildYear: "۱۴۰۱" },
+  { ...propertyItem, id: 105, neighborhood: "شهرک غرب", area: 155, roomCount: 3, totalPrice: 42800000000, images: ["/images/properties/apartment.webp", "/images/properties/interior.webp"], buildYear: "۱۴۰۲" },
 ];
 
 export const REQUESTS: PropertyType[] = [

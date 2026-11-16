@@ -1,5 +1,5 @@
 .page{max-width:var(--page-max-width);width:100%;margin-inline:auto;padding:12px 36px 36px;color:#101746;}
-.hero{position:relative;isolation:isolate;min-height:330px;border-radius:30px;background:linear-gradient(270deg,#073075d9,transparent 70%),url('/images/properties/hero.png') center 55% / cover;padding:34px 38px 90px;}
+.hero{position:relative;isolation:isolate;min-height:330px;border-radius:30px;background:linear-gradient(270deg,#073075d9,transparent 70%),url('/images/properties/hero.webp') center 55% / cover;padding:34px 38px 90px;}
 .heroCopy{text-align:start;padding-inline-end:35%;}
 .hero h1{font-size:clamp(27px,2.8vw,40px);font-weight:900;line-height:1.6;color:#fff;}
 .hero h1 span{color:#ffc600;}

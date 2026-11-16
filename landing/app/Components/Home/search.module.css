@@ -22,6 +22,7 @@
 .range :global(.MuiOutlinedInput-notchedOutline) { border-color:#dce1f3; }
 .range :global(.MuiInputLabel-root) { font-size:13px; }
 .range :global(input) { min-width:0; }
+.priceRange :global(input) { text-align:right; }
 .rooms { margin-top:16px; }
 .rooms .roomChoices { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; width:100%; }
 .roomChoices :global(.MuiToggleButton-root) { min-width:0; min-height:44px; margin:0; border:1px solid #dce1f3; border-radius:10px; padding:8px 4px; color:#1e2e59; font-size:14px; font-weight:700; }
@@ -46,6 +47,12 @@
 .compact .field :global(.MuiOutlinedInput-notchedOutline) { border-color:#e6e8f8; }
 .compact .field :global(.MuiSelect-select) { font-size:13px; padding-block:16px; }
 .compact .field :global(.MuiInputLabel-root) { font-size:13px; }
+.compact .priceRange { min-width:0; padding:7px 8px; gap:7px; border-radius:15px; }
+.compact .priceRange legend { gap:5px; padding-inline:4px; font-size:10px; white-space:nowrap; }
+.compact .priceRange legend svg { width:16px; height:16px; }
+.compact .priceRange :global(.MuiOutlinedInput-root) { min-height:58px; border-radius:12px; background:#fafaff; font-size:12px; }
+.compact .priceRange :global(.MuiInputLabel-root) { font-size:11px; }
+.compact .priceRange :global(input) { padding-inline:7px; }
 .compact .searchButton { width:126px; height:58px; margin:0; border-radius:17px; font-size:15px; color:#fff; box-shadow:0 7px 16px #ff9b0040; }
 .compact .searchButton svg { font-size:24px; }
 @media(max-width:899px){.compact form{grid-template-columns:minmax(0,1fr) 96px;gap:12px}.compact .fields{gap:10px}.compact .searchButton{width:96px;font-size:13px}.compact .field :global(.MuiSelect-select){font-size:11px;padding-inline-start:10px}.compact .field :global(.MuiInputLabel-root){font-size:11px}}

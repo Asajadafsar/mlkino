@@ -105,16 +105,17 @@ export default function PropertySearch({ compact = false, initialDeal = "buy", d
         {property === "زمین" && <SearchSelect label="کاربری زمین" value={landSubtype} onChange={setLandSubtype} options={[{value:"",label:"همه کاربری‌ها"},...LAND_SUBTYPES.map(value => ({value,label:value}))]} Icon={LandscapeOutlined} compact={compact} />}
         <SearchSelect label="استان" value={province} onChange={value => {setProvince(value);setCity("");}} options={[{value:"",label:"همه استان‌ها"},...PROVINCES.map(({name}) => ({value:name,label:name}))]} Icon={LocationOnOutlined} compact={compact} />
         <SearchSelect label="شهر" value={city} onChange={setCity} options={[{value:"",label:province ? "همه شهرها" : "ابتدا استان را انتخاب کنید"},...(PROVINCES.find(item => item.name === province) ? CITIES_BY_PROVINCE.get(PROVINCES.find(item => item.name === province)!.id) ?? [] : []).map(({name}) => ({value:name,label:name}))]} Icon={LocationOnOutlined} compact={compact} disabled={!province} />
-        {compact ? <SearchSelect label="بازه قیمت" value={`${priceFrom}:${priceTo}`} onChange={value => {const [from,to] = value.split(":");setPriceFrom(from);setPriceTo(to);}} Icon={PaymentsOutlined} compact options={[
-          {value:":",label:"همه قیمت‌ها"},{value:"0:5000000000",label:"تا ۵ میلیارد"},{value:"5000000000:10000000000",label:"۵ تا ۱۰ میلیارد"},{value:"10000000000:20000000000",label:"۱۰ تا ۲۰ میلیارد"},{value:"20000000000:",label:"بیش از ۲۰ میلیارد"},
-        ]} /> : <>
+        {compact ? <fieldset className={`${styles.range} ${styles.priceRange}`}><legend><PaymentsOutlined /> بازه قیمت (تومان)</legend>
+          <TextField label="از" size="small" fullWidth type="number" value={priceFrom} onChange={event => setPriceFrom(event.target.value)} placeholder="حداقل" error={invalidPrice} slotProps={{inputLabel:{shrink:true},htmlInput:{"aria-label":"حداقل قیمت",inputMode:"numeric",min:0,max:priceTo || undefined,step:1}}} />
+          <TextField label="تا" size="small" fullWidth type="number" value={priceTo} onChange={event => setPriceTo(event.target.value)} placeholder="حداکثر" error={invalidPrice} slotProps={{inputLabel:{shrink:true},htmlInput:{"aria-label":"حداکثر قیمت",inputMode:"numeric",min:priceFrom || 0,step:1}}} />
+        </fieldset> : <>
           <fieldset className={styles.range}><legend><OpenInFullRounded /> متراژ (متر)</legend>
             <TextField label="از" size="small" fullWidth type="number" value={areaFrom} onChange={event => setAreaFrom(event.target.value)} placeholder="۸۰" error={invalidArea} slotProps={{inputLabel:{shrink:true},htmlInput:{"aria-label":"حداقل متراژ",inputMode:"numeric",min:0,max:areaTo || undefined}}} />
             <TextField label="تا" size="small" fullWidth type="number" value={areaTo} onChange={event => setAreaTo(event.target.value)} placeholder="۳۰۰" error={invalidArea} slotProps={{inputLabel:{shrink:true},htmlInput:{"aria-label":"حداکثر متراژ",inputMode:"numeric",min:areaFrom || 0}}} />
           </fieldset>
-          <fieldset className={styles.range}><legend><PaymentsOutlined /> محدوده قیمت (تومان)</legend>
-            <TextField label="از" size="small" fullWidth type="number" value={priceFrom} onChange={event => setPriceFrom(event.target.value)} placeholder="بدون حداقل" error={invalidPrice} slotProps={{inputLabel:{shrink:true},htmlInput:{"aria-label":"حداقل قیمت",inputMode:"numeric",min:0,max:priceTo || undefined,step:"any"}}} />
-            <TextField label="تا" size="small" fullWidth type="number" value={priceTo} onChange={event => setPriceTo(event.target.value)} placeholder="بدون حداکثر" error={invalidPrice} slotProps={{inputLabel:{shrink:true},htmlInput:{"aria-label":"حداکثر قیمت",inputMode:"numeric",min:priceFrom || 0,step:"any"}}} />
+          <fieldset className={`${styles.range} ${styles.priceRange}`}><legend><PaymentsOutlined /> محدوده قیمت (تومان)</legend>
+            <TextField label="از" size="small" fullWidth type="number" value={priceFrom} onChange={event => setPriceFrom(event.target.value)} placeholder="بدون حداقل" error={invalidPrice} slotProps={{inputLabel:{shrink:true},htmlInput:{"aria-label":"حداقل قیمت",inputMode:"numeric",min:0,max:priceTo || undefined,step:1}}} />
+            <TextField label="تا" size="small" fullWidth type="number" value={priceTo} onChange={event => setPriceTo(event.target.value)} placeholder="بدون حداکثر" error={invalidPrice} slotProps={{inputLabel:{shrink:true},htmlInput:{"aria-label":"حداکثر قیمت",inputMode:"numeric",min:priceFrom || 0,step:1}}} />
           </fieldset>
         </>}
       </div>

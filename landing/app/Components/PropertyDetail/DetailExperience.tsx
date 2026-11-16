@@ -150,7 +150,7 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
         </div>
       </div>
       <aside className={styles.sidebar}>
-        <div className={styles.advisor}><div className={styles.advisorHeading}><img src="/images/profile.png" alt="" /><div><h2>{name}</h2><p>{isRequest ? "متقاضی ملک" : "کارشناس املاک"}</p></div></div><div className={styles.advisorMeta}><span><VerifiedUserOutlined />{isRequest ? "درخواست ثبت‌شده" : data.agencyName || "مشاور ملکینو"}</span><span>کد {formatNumber(data.id)}</span></div><a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined />{isRequest ? "تماس با متقاضی" : "تماس با کارشناس"}</a><button type="button" className={styles.softButton} onClick={() => setMessageOpen(true)}><ChatOutlined />گفتگو در ملکینو</button>{!isRequest && socialLinks}</div>
+        <div className={styles.advisor}><div className={styles.advisorHeading}><img src="/images/profile.webp" alt="" loading="lazy" decoding="async" /><div><h2>{name}</h2><p>{isRequest ? "متقاضی ملک" : "کارشناس املاک"}</p></div></div><div className={styles.advisorMeta}><span><VerifiedUserOutlined />{isRequest ? "درخواست ثبت‌شده" : data.agencyName || "مشاور ملکینو"}</span><span>کد {formatNumber(data.id)}</span></div><a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined />{isRequest ? "تماس با متقاضی" : "تماس با کارشناس"}</a><button type="button" className={styles.softButton} onClick={() => setMessageOpen(true)}><ChatOutlined />گفتگو در ملکینو</button>{!isRequest && socialLinks}</div>
         <section id="sidebar-address" className={styles.sidebarAddress}><h2><LocationOnOutlined />{isRequest ? "محدوده درخواستی" : "موقعیت و آدرس"}</h2>{addressView}</section>
       </aside>
     </div>

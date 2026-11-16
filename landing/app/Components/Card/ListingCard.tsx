@@ -22,13 +22,13 @@ export default function ListingCard({ data, variant = "featured" }: { data: Prop
   const [favorite, setFavorite] = useState(false);
   const [visitOpen, setVisitOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
-  const image = typeof data.images[0] === "string" ? data.images[0] : "/images/properties/apartment.png";
+  const image = typeof data.images[0] === "string" ? data.images[0] : "/images/properties/apartment.webp";
   const href = `/property/${data.id}`;
 
   return <>
     <article className={`${styles.card} ${styles[variant]}`}>
       <div className={styles.cover}>
-        <Link href={href} aria-label={propertyTitle(data)}><img src={image} alt={propertyTitle(data)} loading="lazy" /></Link>
+        <Link href={href} aria-label={propertyTitle(data)}><img src={image} alt={propertyTitle(data)} loading="lazy" decoding="async" /></Link>
         {variant !== "compact" && <>
           <span className={styles.badge}><WorkspacePremiumOutlined /> ویژه</span>
           <button type="button" className={styles.favorite} aria-label="علاقه‌مندی ملک" aria-pressed={favorite} onClick={() => setFavorite(value => !value)}>{favorite ? <FavoriteRounded /> : <FavoriteBorderRounded />}</button>

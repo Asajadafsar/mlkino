@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import TitleHeader from '../Components/PropertyDetail/TitleHeader'
 import { Container } from '@mui/material'
 import FilesList from './FilesList'
@@ -22,7 +22,7 @@ export default function FilesPage() {
       }}
     >
         <TitleHeader title='لیست فایل های ملکی' />
-       <FilesList/>
+        <Suspense fallback={null}><FilesList/></Suspense>
     </Container>
   )
 }

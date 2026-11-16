@@ -173,7 +173,7 @@ export default function CardFile({
       <div className={showcase.cover}>
         <button type="button" className={showcase.imageLink} onClick={handleDetails} aria-label={`جزئیات ${data.propertyType} در ${Array.isArray(data.neighborhood) ? data.neighborhood.join("، ") : data.neighborhood}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={coverImage ?? "/images/properties/hero.png"} alt={`${data.propertyType} در ${data.city}`} />
+          <img src={coverImage ?? "/images/properties/hero.webp"} alt={`${data.propertyType} در ${data.city}`} loading="lazy" decoding="async" />
         </button>
         <span className={`${showcase.badge} ${data.contractType === "پیش‌فروش" ? showcase.presale : data.contractType === "رهن و اجاره" ? showcase.rent : ""}`}>{data.contractType === "رهن و اجاره" ? "اجاره" : data.contractType}</span>
         <button type="button" className={showcase.favorite} onClick={handleBookmarkClick} aria-label={bookmarked ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"} aria-pressed={bookmarked}>{bookmarked ? <FavoriteRoundedIcon /> : <FavoriteBorderRoundedIcon />}</button>
@@ -186,7 +186,7 @@ export default function CardFile({
           <button type="button" onClick={handleDetails} className={showcase.price}>{price.value} <span>تومان</span>{data.monthlyRent > 0 && <small> / {formatNumber(data.monthlyRent)} ماهانه</small>}</button>
           <div className={showcase.advisor}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/profile.png" alt={personName} title={personName} />
+            <img src="/images/profile.webp" alt={personName} title={personName} loading="lazy" decoding="async" />
             <details className={showcase.more}><summary aria-label="عملیات ملک"><MoreHorizRoundedIcon /></summary><div className={showcase.menu}><button type="button" onClick={handleDetails}>مشاهده جزئیات</button><button type="button" onClick={handleViewProperty}>تور مجازی ملک</button><button type="button" onClick={handleVisitRequest}>ثبت درخواست بازدید</button></div></details>
           </div>
         </div>
@@ -239,8 +239,10 @@ export default function CardFile({
           {hasImages ? (
             <Box
               component="img"
-              src={coverImage ?? "/images/placeholder.jpg"}
+              src={coverImage ?? "/images/properties/hero.webp"}
               alt={data.propertyType || "ملک"}
+              loading="lazy"
+              decoding="async"
               sx={{
                 width: "100%",
                 height: "100%",

@@ -305,8 +305,10 @@ export default function CardFileHorizontal({
             <Box
               component="img"
               className="card-cover-img"
-              src={coverImage ?? "/images/placeholder.jpg"}
+              src={coverImage ?? "/images/properties/hero.webp"}
               alt={data.propertyType || "ملک"}
+              loading="lazy"
+              decoding="async"
               sx={{
                 position: "absolute",
                 inset: 0,

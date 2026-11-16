@@ -17,7 +17,7 @@ import "swiper/css";
 import "swiper/css/zoom";
 import styles from "./detail.module.css";
 
-const DEFAULT_IMAGES = ["/images/properties/apartment.png", "/images/properties/interior.png", "/images/properties/hero.png"];
+const DEFAULT_IMAGES = ["/images/properties/apartment.webp", "/images/properties/interior.webp", "/images/properties/hero.webp"];
 
 export default function PropertyGallery({ images = DEFAULT_IMAGES, title = "تصاویر ملک", favorite = false, onFavorite, onShare }: { images?: string[]; title?: string; favorite?: boolean; onFavorite?: () => void; onShare?: () => void }) {
   const [active, setActive] = useState(0);
@@ -27,7 +27,7 @@ export default function PropertyGallery({ images = DEFAULT_IMAGES, title = "تص
 
   return <div className={styles.gallery}>
     <div className={styles.galleryStage}>
-      <button type="button" className={styles.galleryImage} onClick={() => setFullscreen(true)} aria-label="باز کردن گالری تمام‌صفحه"><img src={photos[active]} alt={`${title}؛ تصویر ${(active + 1).toLocaleString("fa-IR")}`} /></button>
+      <button type="button" className={styles.galleryImage} onClick={() => setFullscreen(true)} aria-label="باز کردن گالری تمام‌صفحه"><img src={photos[active]} alt={`${title}؛ تصویر ${(active + 1).toLocaleString("fa-IR")}`} fetchPriority="high" decoding="async" /></button>
       <span className={styles.vipBadge}><WorkspacePremiumOutlined /> فایل ویژه</span>
       <div className={styles.galleryTools}>
         <button type="button" aria-label="علاقه‌مندی ملک" aria-pressed={favorite} onClick={onFavorite}>{favorite ? <FavoriteRounded /> : <FavoriteBorderRounded />}</button>
@@ -38,10 +38,10 @@ export default function PropertyGallery({ images = DEFAULT_IMAGES, title = "تص
       <button type="button" className={`${styles.galleryArrow} ${styles.galleryNext}`} aria-label="تصویر بعدی" onClick={() => go(1)}><ChevronRightRounded /></button>
       <span className={styles.imageCounter} aria-live="polite"><PhotoLibraryOutlined /><b>{(active + 1).toLocaleString("fa-IR")} / {photos.length.toLocaleString("fa-IR")}</b></span>
     </div>
-    <div className={styles.thumbnails} style={{gridTemplateColumns:`repeat(${Math.min(photos.length,6)}, minmax(0,1fr))`}} aria-label="تصاویر گالری">{photos.map((src, index) => <button key={`${src}-${index}`} type="button" aria-label={`نمایش تصویر ${(index + 1).toLocaleString("fa-IR")}`} aria-pressed={active === index} onClick={() => setActive(index)}><img src={src} alt="" /></button>)}</div>
+    <div className={styles.thumbnails} style={{gridTemplateColumns:`repeat(${Math.min(photos.length,6)}, minmax(0,1fr))`}} aria-label="تصاویر گالری">{photos.map((src, index) => <button key={`${src}-${index}`} type="button" aria-label={`نمایش تصویر ${(index + 1).toLocaleString("fa-IR")}`} aria-pressed={active === index} onClick={() => setActive(index)}><img src={src} alt="" loading="lazy" decoding="async" /></button>)}</div>
     <Dialog open={fullscreen} onClose={() => setFullscreen(false)} fullScreen slotProps={{paper:{sx:{bgcolor:"#060c1d",color:"white"}}}}>
       <div className={styles.lightboxHeader}><p>{title}</p><IconButton aria-label="بستن گالری" onClick={() => setFullscreen(false)} sx={{color:"white"}}><CloseRounded /></IconButton></div>
-      <Swiper className={styles.lightbox} dir="rtl" modules={[Keyboard, Zoom]} keyboard={{enabled:true}} zoom={{maxRatio:3}} initialSlide={active} onSlideChange={swiper => setActive(swiper.activeIndex)}>{photos.map((src,index) => <SwiperSlide key={`${src}-${index}`}><div className="swiper-zoom-container"><img src={src} alt={`${title}؛ تصویر ${index + 1}`} /></div></SwiperSlide>)}</Swiper>
+      <Swiper className={styles.lightbox} dir="rtl" modules={[Keyboard, Zoom]} keyboard={{enabled:true}} zoom={{maxRatio:3}} initialSlide={active} onSlideChange={swiper => setActive(swiper.activeIndex)}>{photos.map((src,index) => <SwiperSlide key={`${src}-${index}`}><div className="swiper-zoom-container"><img src={src} alt={`${title}؛ تصویر ${index + 1}`} loading="lazy" decoding="async" /></div></SwiperSlide>)}</Swiper>
       <p className={styles.lightboxHint}>برای جابه‌جایی بکشید یا از کلیدهای جهت‌دار استفاده کنید؛ برای بزرگ‌نمایی دوبار لمس کنید.</p>
     </Dialog>
   </div>;
