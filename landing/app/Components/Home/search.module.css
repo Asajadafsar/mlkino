@@ -41,19 +41,21 @@
 .compact { width:100%; }
 .compact form { display:grid; grid-template-columns:minmax(0,1fr) 126px; align-items:end; gap:20px; }
 .compact .deals { grid-column:1 / -1; }
-.compact .fields { grid-template-columns:repeat(4,minmax(0,1fr)); gap:20px; margin:0; }
-.compact .withLand { grid-template-columns:repeat(5,minmax(0,1fr)); }
+.compact .fields { grid-template-columns:repeat(3,minmax(0,1fr)) minmax(260px,2fr); gap:20px; margin:0; }
+.compact .withLand { grid-template-columns:repeat(4,minmax(0,1fr)) minmax(260px,2fr); }
 .compact .field :global(.MuiOutlinedInput-root) { background:#fafaff; min-height:58px; box-shadow:0 4px 8px #686bd520; border-radius:15px; }
 .compact .field :global(.MuiOutlinedInput-notchedOutline) { border-color:#e6e8f8; }
 .compact .field :global(.MuiSelect-select) { font-size:13px; padding-block:16px; }
 .compact .field :global(.MuiInputLabel-root) { font-size:13px; }
-.compact .priceRange { min-width:0; padding:7px 8px; gap:7px; border-radius:15px; }
+.compact .priceRange { box-sizing:border-box; width:100%; max-width:100%; min-width:0; padding:7px 8px; gap:7px; border-radius:15px; }
 .compact .priceRange legend { gap:5px; padding-inline:4px; font-size:10px; white-space:nowrap; }
 .compact .priceRange legend svg { width:16px; height:16px; }
 .compact .priceRange :global(.MuiOutlinedInput-root) { min-height:58px; border-radius:12px; background:#fafaff; font-size:12px; }
 .compact .priceRange :global(.MuiInputLabel-root) { font-size:11px; }
-.compact .priceRange :global(input) { padding-inline:7px; }
+.compact .priceRange :global(.MuiFormControl-root), .compact .priceRange :global(.MuiInputBase-root) { box-sizing:border-box; width:100%; min-width:0; max-width:100%; }
+.compact .priceRange :global(input) { box-sizing:border-box; width:100%; min-width:0; max-width:100%; padding-inline:7px; }
 .compact .searchButton { width:126px; height:58px; margin:0; border-radius:17px; font-size:15px; color:#fff; box-shadow:0 7px 16px #ff9b0040; }
 .compact .searchButton svg { font-size:24px; }
-@media(max-width:899px){.compact form{grid-template-columns:minmax(0,1fr) 96px;gap:12px}.compact .fields{gap:10px}.compact .searchButton{width:96px;font-size:13px}.compact .field :global(.MuiSelect-select){font-size:11px;padding-inline-start:10px}.compact .field :global(.MuiInputLabel-root){font-size:11px}}
+@media(max-width:899px){.compact form{grid-template-columns:minmax(0,1fr);gap:12px}.compact .fields,.compact .withLand{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.compact .priceRange{grid-column:1 / -1}.compact .searchButton{width:100%;font-size:13px}.compact .field :global(.MuiSelect-select){font-size:11px;padding-inline-start:10px}.compact .field :global(.MuiInputLabel-root){font-size:11px}}
+@media(max-width:599px){.compact .fields,.compact .withLand{grid-template-columns:minmax(0,1fr)}.compact .priceRange{grid-column:auto}}
 @media(max-width:599px){.page{margin-top:8px;padding-inline:20px}.heading{margin-bottom:24px}.heading p{font-size:12px}.deals{gap:2px;padding:6px;border-radius:20px}.deals button{font-size:12px;min-height:62px}.range{gap:10px;padding-inline:10px}.range :global(input){font-size:13px}}

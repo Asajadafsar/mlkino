@@ -1,7 +1,7 @@
 import {authDestination} from '../../../Core/AuthDestination'
 import {useLocation} from 'react-router-dom'
 import {ACCOUNTS_URL} from '../../../Core/APP_URL'
-import {Alert,CircularProgress, Box, Button, IconButton, InputAdornment, Stack, Typography} from '@mui/material'
+import {Alert,CircularProgress, Box, Button, IconButton, InputAdornment, Stack, TextField, Typography} from '@mui/material'
 import {useState, type Dispatch, type SetStateAction} from 'react'
 import {Controller, useForm} from 'react-hook-form'
 import {useDispatch} from 'react-redux'
@@ -220,24 +220,25 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                     </Stack>
 
                     <Stack direction={{xs: 'column', sm: 'row'}} spacing={2}>
-                        <CustomTextField
-                            label="کد ملی"
+                        <Controller
                             name="national_code"
-                            inputMode="numeric"
-                            register={{
-                                ...register('national_code', {
-                                    required: 'کد ملی الزامی است',
-                                    setValueAs:(v:string)=>digits(v).replace(/\s|-/g,''),
-                                    pattern: {
-                                        value: /^\d{10}$/,
-                                        message: 'کد ملی باید ۱۰ رقم باشد',
-                                    },
-                                }),
+                            control={control}
+                            rules={{
+                                required: 'کد ملی الزامی است',
+                                validate: value => digits(value || '').replace(/\D/g, '').length === 10 || 'کد ملی باید ۱۰ رقم باشد',
                             }}
-                            error={!!errors.national_code}
-                            helperText={errors.national_code?.message}
-                            sx={{'& input': {direction: 'ltr', textAlign: 'right'}}}
-                            fullWidth
+                            render={({field}) => <TextField
+                                {...field}
+                                inputRef={field.ref}
+                                fullWidth
+                                label="کد ملی"
+                                value={field.value || ''}
+                                onChange={event => field.onChange(digits(event.target.value).replace(/\D/g, '').slice(0, 10))}
+                                error={!!errors.national_code}
+                                helperText={errors.national_code?.message}
+                                inputProps={{inputMode: 'numeric', maxLength: 10, dir: 'ltr', pattern: '[0-9]*', 'aria-label': 'کد ملی'}}
+                                sx={{'& input': {direction: 'ltr', textAlign: 'right'}}}
+                            />}
                         />
                         <Controller
                             name="birth_date"

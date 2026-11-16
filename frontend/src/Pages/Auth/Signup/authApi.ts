@@ -40,12 +40,13 @@ export const verifyOtp = (phone: string, code: string) =>
 
 export const registerUser = (payload: RegisterPayload) => {
     const formData = new FormData()
+    const nationalCode = payload.national_code.replace(/[۰-۹٠-٩]/g, digit => String(digit.charCodeAt(0) - (digit >= '۰' ? 1776 : 1632))).replace(/\D/g, '').slice(0, 10)
 
     if(payload.postal_manual)formData.append('postal_manual','true')
     formData.append('phone', payload.phone)
     formData.append('first_name', payload.first_name)
     formData.append('last_name', payload.last_name)
-    formData.append('national_code', payload.national_code)
+    formData.append('national_code', nationalCode)
     formData.append('birth_date', payload.birth_date)
     formData.append('province', payload.province)
     formData.append('city', payload.city)

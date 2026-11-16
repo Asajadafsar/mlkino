@@ -8,22 +8,22 @@ from django.core.exceptions import ImproperlyConfigured
 
 import os as _os
 _legacy_key = SECRET_KEY
-_release_key = _os.environ.get('MLKINO_DJANGO_SECRET_KEY')
-if _release_key:
-    # Preserve existing JWT sessions while moving Django signing to a strong key.
-    SIMPLE_JWT = {**globals().get('SIMPLE_JWT', {}), 'SIGNING_KEY': globals().get('SIMPLE_JWT', {}).get('SIGNING_KEY', _legacy_key)}
-    SECRET_KEY_FALLBACKS = list(dict.fromkeys([_legacy_key, *globals().get('SECRET_KEY_FALLBACKS', [])]))
-    SECRET_KEY = _release_key
+_release_key = _os.environ.get('MLKINO_DJANGO_SECRET_KEY', '').strip()
+if not _release_key:
+    raise ImproperlyConfigured('MLKINO_DJANGO_SECRET_KEY must be provided by the root-private production environment.')
+# Never let the development key shipped in settings.py become a production key,
+# a JWT signing key, or a fallback that keeps accepting signatures made with it.
+if _legacy_key.startswith('django-insecure-'):
+    raise ImproperlyConfigured('Production settings.py must contain a server-managed signing key.')
+# Preserve valid existing JWT sessions while moving Django signing to a strong key.
+SIMPLE_JWT = {**globals().get('SIMPLE_JWT', {}), 'SIGNING_KEY': globals().get('SIMPLE_JWT', {}).get('SIGNING_KEY', _legacy_key)}
+SECRET_KEY_FALLBACKS = list(dict.fromkeys([_legacy_key, *globals().get('SECRET_KEY_FALLBACKS', [])]))
+SECRET_KEY = _release_key
 DEBUG = False
-ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, 'api.mlkino.com']))  # noqa: F405
-CORS_ALLOWED_ORIGINS = list(dict.fromkeys([
-    *[origin for origin in CORS_ALLOWED_ORIGINS if origin.startswith('https://')],  # noqa: F405
-    'https://panel.mlkino.com',
-    'https://mlkino.com',
-    'https://www.mlkino.com',
-]))
+ALLOWED_HOSTS = ['mlkino.com', 'api.mlkino.com']
+CORS_ALLOWED_ORIGINS = ['https://mlkino.com']
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = list(dict.fromkeys([*CORS_ALLOWED_ORIGINS, 'https://api.mlkino.com']))
+CSRF_TRUSTED_ORIGINS = ['https://mlkino.com']
 MLKINO_WS_ALLOWED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 AUTH_COOKIE_SECURE = True

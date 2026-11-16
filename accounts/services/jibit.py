@@ -1,5 +1,6 @@
 
 import logging
+import os
 import re
 import time
 
@@ -15,8 +16,8 @@ logger = logging.getLogger(__name__)
 # JIBIT CONFIGURATION
 # ============================================================
 
-JIBIT_API_KEY = "zxjeqihcnF"
-JIBIT_SECRET_KEY = "tKB5SP63MrXVArRDw2w0DTy38"
+JIBIT_API_KEY = os.environ.get("JIBIT_API_KEY", "").strip()
+JIBIT_SECRET_KEY = os.environ.get("JIBIT_SECRET_KEY", "").strip()
 
 JIBIT_BASE_URL = "https://napi.jibit.ir/ide"
 
@@ -160,6 +161,14 @@ def get_access_token(force_refresh=False):
     """
     Get Jibit access token and cache it.
     """
+
+    if not JIBIT_API_KEY or not JIBIT_SECRET_KEY:
+        logger.error("Jibit credentials are not configured in the service environment.")
+        raise JibitError(
+            "تنظیمات امن سرویس احراز هویت کامل نیست؛ پشتیبانی باید کلیدهای جیبیت را در محیط امن سرور تنظیم کند.",
+            code="credentials_missing",
+            status_code=503,
+        )
 
     if not force_refresh:
         cached_token = cache.get(

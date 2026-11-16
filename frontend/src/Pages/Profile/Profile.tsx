@@ -1,4 +1,4 @@
-import {useCallback,useContext,useEffect,useState} from 'react'
+import {useCallback,useContext,useEffect,useRef,useState} from 'react'
 import {Alert, Box, Button, Chip, CircularProgress, Divider, Grid, ListItemButton, ListItemIcon, Paper, Stack, Switch, TextField, Typography} from '@mui/material'
 import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded'
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
@@ -20,8 +20,11 @@ import {ProfileDetailsForm,ProfileIdentityHero} from './ProfileDetailsForm'
 
 const sections=[{id:'profile',label:'اطلاعات پروفایل',icon:<PersonOutlineRoundedIcon/>},{id:'security',label:'امنیت و ورود',icon:<ShieldOutlinedIcon/>},{id:'notifications',label:'اطلاع‌رسانی‌ها',icon:<NotificationsNoneRoundedIcon/>},{id:'password',label:'تغییر رمز عبور',icon:<LockOutlinedIcon/>},{id:'sessions',label:'دستگاه‌های متصل',icon:<DevicesOutlinedIcon/>},{id:'privacy',label:'حریم خصوصی',icon:<VisibilityOutlinedIcon/>},{id:'activity',label:'سوابق فعالیت',icon:<HistoryRoundedIcon/>}]
 const request=async(path:string)=>{const response=await api.get(`${ACCOUNTS_URL}/${path}/`);return response.data.data}
+const profileFromPayload=(payload:any)=>payload?.profile||payload?.user||payload
+const errorMessage=(error:any,fallback:string)=>error?.response?.data?.message||error?.message||fallback
 export default function Profile(){
  const {user,setUser}=useContext(CurrentUserContext),{session}=useSelector(selectImpersonation),{lastEvent}=useRealtime()
+ const userAtLoad=useRef(user)
  const readonly=Boolean(session?.active)
  const [params,setParams]=useSearchParams(),tab=sections.some(section=>section.id===params.get('tab'))?params.get('tab')!:'profile'
  const [profile,setProfile]=useState<any>(user),[initial,setInitial]=useState<any>(user),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('')
@@ -36,7 +39,7 @@ export default function Profile(){
    if(tab==='activity'){const data=await request('activity');setActivities(data.results)}
   }catch(error:any){setError(error.message||'دریافت اطلاعات انجام نشد.')}finally{setSectionBusy(false)}
  },[readonly,tab])
- useEffect(()=>{let active=true;request('profile').then(data=>{if(active){setProfile(data);setInitial(data);setUser(data)}}).catch(error=>{if(active)setError(error.message)}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[setUser])
+ useEffect(()=>{let active=true;request('profile').then(payload=>{if(active){const data=profileFromPayload(payload);if(!data||typeof data!=='object'||!data.id)throw Error('پاسخ پروفایل از سرور کامل نیست.');const merged={...userAtLoad.current,...data};setProfile(merged);setInitial(merged);setUser(merged)}}).catch(error=>{if(active)setError(errorMessage(error,'دریافت پروفایل انجام نشد.'))}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[setUser])
  useEffect(()=>{loadSection()},[loadSection])
  useEffect(()=>{if(lastEvent?.event==='account.notification'&&tab==='notifications')loadSection()},[lastEvent,tab,loadSection])
  const run=async(action:()=>Promise<void>)=>{setSaving(true);setError('');setMessage('');try{await action()}catch(error:any){setError(error.message||'ذخیره انجام نشد.')}finally{setSaving(false)}}
@@ -48,7 +51,9 @@ export default function Profile(){
   let data:any=changed
   if(changed.avatar instanceof File){data=new FormData();Object.entries(changed).forEach(([key,value])=>data.append(key,value instanceof File?value:value===null?'':String(value)))}
   const response=await api.patch(`${ACCOUNTS_URL}/profile/`,data)
-  setProfile(response.data.data);setInitial(response.data.data);setUser(response.data.data);setMessage('اطلاعات پروفایل ذخیره شد.')
+  const updated=profileFromPayload(response.data?.data)
+  if(!updated||typeof updated!=='object'||!updated.id)throw Error('پاسخ ذخیره پروفایل از سرور کامل نیست.')
+  const merged={...profile,...updated};setProfile(merged);setInitial(merged);setUser(merged);setMessage('اطلاعات پروفایل ذخیره شد.')
  })
  const savePreferences=(group:string)=>run(async()=>{const response=await api.patch(`${ACCOUNTS_URL}/preferences/`,{[group]:preferences[group]});setPreferences(response.data.data);setMessage('تنظیمات شخصی ذخیره شد.')})
  const togglePreference=async(group:string,key:string,value:boolean)=>{

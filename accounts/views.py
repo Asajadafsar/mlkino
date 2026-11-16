@@ -8,6 +8,7 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth import logout as django_logout
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
 from accounts.services.jibit import (
@@ -60,6 +61,7 @@ from accounts.serializers import (
     VerifyOtpSerializer,
     build_tokens_for_user,
 )
+from accounts.validators import validate_iranian_national_code
 
 from accounts.services.jibit import JibitError, shahkar_match
 from accounts.services.sms import MeliPayamakError, send_otp_sms
@@ -1265,13 +1267,37 @@ class IdentityRetryView(APIView):
     permission_classes=[IsAuthenticated]
     def post(self,request):
         user=request.user
-        if request.data:return error_response(message='این استعلام فقط برای اطلاعات حساب خودتان است.',status_code=400)
-        if not user.national_code:return error_response(message='ابتدا کد ملی را در تکمیل حساب ثبت کنید.',status_code=400)
+        if not isinstance(request.data, dict) or set(request.data) - {'national_code'}:
+            return error_response(message='فقط کد ملی حساب خودتان قابل ثبت و استعلام است.',status_code=400)
+        raw_code=request.data.get('national_code',user.national_code)
+        try:
+            national_code=validate_iranian_national_code(raw_code)
+        except (DjangoValidationError, TypeError) as exc:
+            message='کد ملی معتبر وارد کنید.'
+            if isinstance(exc,DjangoValidationError) and exc.messages:message=exc.messages[0]
+            return error_response(message=message,errors=[{'field':'national_code','message':message}],status_code=400)
+        changed=national_code != user.national_code
+        if user.national_code_verified and changed:
+            return error_response(message='کد ملیِ تأییدشده قابل تغییر نیست؛ برای اصلاح آن با پشتیبانی تماس بگیرید.',status_code=403)
+        if User.objects.filter(national_code=national_code).exclude(pk=user.pk).exists():
+            return error_response(message='این کد ملی قبلاً برای حساب دیگری ثبت شده است.',errors=[{'field':'national_code','message':'این کد ملی قبلاً ثبت شده است.'}],status_code=400)
         if not user.national_code_verified:
-            try:identity_lookup(user.national_code,user.phone,shahkar_match)
-            except JibitError as exc:return error_response(message=str(exc),status_code=exc.status_code)
-            user.national_code_verified=True;user.verification_status=User.VerificationStatus.VERIFIED;user.profile_updated_at=timezone.now();user.save(update_fields=['national_code_verified','verification_status','profile_updated_at'])
-        return success_response(message='تطبیق هویت با موفقیت انجام شد.',data={'national_code_verified':user.national_code_verified,'verification_status':user.verification_status})
+            try:
+                identity_lookup(national_code,user.phone,shahkar_match)
+            except JibitError as exc:
+                if outage(exc):
+                    user.national_code=national_code
+                    user.verification_status=User.VerificationStatus.PENDING
+                    user.profile_updated_at=timezone.now()
+                    user.save(update_fields=['national_code','verification_status','profile_updated_at'])
+                    return success_response(message='کد ملی ثبت شد؛ سرویس احراز هویت موقتاً در دسترس نیست و حساب در انتظار استعلام قرار گرفت.',data={'national_code':user.national_code,'national_code_verified':False,'verification_status':user.verification_status})
+                return error_response(message=str(exc),errors=[{'field':'national_code','message':str(exc)}],status_code=exc.status_code)
+            user.national_code=national_code
+            user.national_code_verified=True
+            user.verification_status=User.VerificationStatus.VERIFIED
+            user.profile_updated_at=timezone.now()
+            user.save(update_fields=['national_code','national_code_verified','verification_status','profile_updated_at'])
+        return success_response(message='تطبیق هویت با موفقیت انجام شد.',data={'national_code':user.national_code,'national_code_verified':user.national_code_verified,'verification_status':user.verification_status})
 
 
 class LandingSessionView(APIView):
