@@ -276,18 +276,20 @@ class User(AbstractUser):
     @property
     def has_profile(self):
         return bool(
-            self.national_code
+            self.first_name and self.last_name and self.email and self.birth_date and self.avatar
+            and self.national_code
+            and self.national_code_verified
             and self.province
             and self.city
+            and self.postal_code
+            and self.address
+            and self.has_usable_password()
         )
 
     @property
     def registration_required(self):
-        # OTP-created drafts have no usable password. Existing accounts with
-        # missing optional/legacy profile fields must retain panel access.
         return (self.role == self.Role.USER and not self.is_staff
-                and not self.is_superuser and not self.has_profile
-                and not self.has_usable_password())
+                and not self.is_superuser and not self.has_profile)
 
     @property
     def is_agency(self):

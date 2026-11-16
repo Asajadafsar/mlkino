@@ -1,4 +1,5 @@
 "use client";
+import {useLandingSession} from "../../Core/Session";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -13,6 +14,7 @@ type SubmitAnchor = { element: HTMLElement; pathname: string };
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const {user}=useLandingSession();
   const [menu, setMenu] = useState<SubmitAnchor | null>(null);
   const anchorEl = menu?.pathname === pathname ? menu.element : null;
   const selected = NAV_ITEMS.find(item => item.key !== "submit" && isNavActive(pathname, item.href))?.key ?? false;
@@ -60,7 +62,7 @@ export default function MobileBottomNav() {
             label={label}
             aria-current={active ? "page" : undefined}
             onClick={() => setMenu(null)}
-            icon={<span className={styles.icon}>{active ? <ActiveIcon /> : <Icon />}</span>}
+            icon={<span className={styles.icon}>{key==="profile"&&user?.avatar?<img src={user.avatar} alt="عکس پروفایل" width={28} height={28} style={{borderRadius:"50%",objectFit:"cover"}}/>:active ? <ActiveIcon /> : <Icon />}</span>}
           />;
         })}
       </BottomNavigation>

@@ -18,6 +18,7 @@ import axios from 'axios'
 type SignupInfoForm = {
     first_name: string
     last_name: string
+    email: string
     national_code: string
     birth_date: string
     avatar: File | null
@@ -44,7 +45,7 @@ interface Props {
 type InfoSubStep = 0 | 1
 
 const SUB_STEP_FIELDS: Record<InfoSubStep, (keyof SignupInfoForm)[]> = {
-    0: ['first_name', 'last_name', 'national_code', 'birth_date'],
+    0: ['first_name', 'last_name', 'email', 'avatar', 'national_code', 'birth_date'],
     1: ['province', 'city', 'postal_code', 'address', 'password', 'password_confirm', 'user_type'],
 }
 
@@ -58,8 +59,7 @@ const subStepLabels = ['اطلاعات شخصی', 'آدرس و رمز عبور']
 const SignupInfo = ({phone, onBack, initialValues}: Props) => {
     const dispatch = useDispatch()
     const [subStep, setSubStep] = useState<InfoSubStep>(0)
-    const [manual,setManual]=useState(false)
-    const [canManual,setCanManual]=useState(false)
+    const manual = false
     const [postalBusy,setPostalBusy]=useState(false)
     const [postalError,setPostalError]=useState('')
     const [avatarPreview,setAvatarPreview]=useState('')
@@ -78,6 +78,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
         defaultValues: {
             first_name: '',
             last_name: '',
+            email: '',
             national_code: '',
             birth_date: '',
             avatar: null,
@@ -130,6 +131,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
             postal_manual:manual,
             first_name: data.first_name,
             last_name: data.last_name,
+            email: data.email,
             national_code: data.national_code,
             birth_date: data.birth_date,
             avatar: data.avatar ?? undefined,
@@ -164,13 +166,13 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
     const postalLookup = async () => {
         const postal=digits(getValues('postal_code')||'').replace(/\s|-/g,'')
         if(!/^\d{10}$/.test(postal)){setPostalError('کد پستی باید دقیقاً ۱۰ رقم باشد.');return}
-        setValue('postal_code',postal);setPostalBusy(true);setPostalError('');setCanManual(false)
+        setValue('postal_code',postal);setPostalBusy(true);setPostalError('')
         try {
             const response=await axios.get<{data:AddressType}>(`${ACCOUNTS_URL}/postal/lookup/`,{params:{postal_code:postal},withCredentials:true,timeout:45000})
             if(digits(getValues('postal_code')||'').replace(/\s|-/g,'')!==postal)return
-            setManual(false);setCanManual(false);
+
             for(const key of ['province','city','address'] as const)setValue(key,response.data.data[key],{shouldDirty:true,shouldValidate:true})
-        } catch(error:any) {setPostalError(error.response?.data?.message||'ارتباط با سرویس استعلام برقرار نشد؛ دوباره تلاش کنید.');setCanManual(!!error.response?.data?.manual_address_allowed||!error.response||error.response?.status>=500||error.response?.status===429)}
+        } catch(error:any) {setPostalError(error.response?.data?.message||'ارتباط با سرویس استعلام برقرار نشد؛ دوباره تلاش کنید.')}
         finally {setPostalBusy(false)}
     }
 
@@ -223,7 +225,8 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                         />
                     </Stack>
 
-                    <Controller name="avatar" control={control} render={({field})=><Stack direction="row" alignItems="center" spacing={1.5}><Avatar src={avatarPreview||undefined} sx={{width:54,height:54,bgcolor:'#edf3ff',color:'primary.main'}}>{!avatarPreview&&'م'}</Avatar><Box><Button component="label" variant="outlined" size="small" startIcon={<PhotoCameraOutlinedIcon/>}>{field.value?'تغییر تصویر پروفایل':'افزودن تصویر پروفایل'}<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={event=>{const file=event.target.files?.[0];if(file&&file.size<=5*1024*1024)field.onChange(file);else if(file)dispatch(setUtil({open:true,message:'عکس باید PNG، JPG یا WebP و کمتر از ۵ مگابایت باشد.',severity:'error'}));event.target.value=''}}/></Button>{field.value&&<Button size="small" onClick={()=>field.onChange(null)}>حذف تصویر</Button>}<Typography display="block" variant="caption" color="text.secondary">اختیاری · JPG، PNG یا WebP تا ۵ مگابایت</Typography></Box></Stack>}/>
+                    <TextField fullWidth required label="ایمیل" type="email" autoComplete="email" {...register('email', {required:'ایمیل الزامی است',pattern:{value:/^[^\s@]+@[^\s@]+\.[^\s@]+$/,message:'ایمیل معتبر وارد کنید'}})} error={!!errors.email} helperText={errors.email?.message}/>
+                    <Controller name="avatar" control={control} rules={{required:'عکس پروفایل الزامی است'}} render={({field})=><Stack direction="row" alignItems="center" spacing={1.5}><Avatar src={avatarPreview||undefined} sx={{width:54,height:54,bgcolor:'#edf3ff',color:'primary.main'}}>{!avatarPreview&&'م'}</Avatar><Box><Button component="label" variant="outlined" size="small" startIcon={<PhotoCameraOutlinedIcon/>}>{field.value?'تغییر تصویر پروفایل':'افزودن تصویر پروفایل'}<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={event=>{const file=event.target.files?.[0];if(file&&file.size<=5*1024*1024&&['image/png','image/jpeg','image/webp'].includes(file.type))field.onChange(file);else if(file)dispatch(setUtil({open:true,message:'عکس باید PNG، JPG یا WebP و کمتر از ۵ مگابایت باشد.',severity:'error'}));event.target.value=''}}/></Button>{field.value&&<Button size="small" onClick={()=>field.onChange(null)}>حذف تصویر</Button>}<Typography display="block" variant="caption" color="text.secondary">الزامی · JPG، PNG یا WebP تا ۵ مگابایت</Typography></Box></Stack>}/>
 
                     <Stack direction={{xs: 'column', sm: 'row'}} spacing={2}>
                         <Controller
@@ -260,6 +263,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                             )}
                         />
                     </Stack>
+                    {errors.avatar&&<Typography color="error" variant="caption">{errors.avatar.message}</Typography>}
                     {errors.birth_date && (
                         <Typography color="error" variant="caption">
                             {errors.birth_date.message}
@@ -314,7 +318,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                             ...register('postal_code', {
                                 required: 'کد پستی الزامی است',
                                 setValueAs:(value:string)=>digits(value).replace(/\s|-/g,''),
-                                onChange:()=>{setManual(false);setCanManual(false);for(const key of ['province','city','address'] as const)setValue(key,'')},
+                                onChange:()=>{for(const key of ['province','city','address'] as const)setValue(key,'')},
                                 pattern: {
                                     value: /^\d{10}$/,
                                     message: 'کد پستی باید ۱۰ رقم باشد',
@@ -346,8 +350,6 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                         }}
                     />
 
-                    {canManual&&!manual&&<Alert severity="warning" action={<Button onClick={()=>{setManual(true);setValue('province','');setValue('city','');setValue('address','');}}>ورود دستی نشانی</Button>}>استعلام در دسترس نیست؛ می‌توانید نشانی را خودتان وارد کنید.</Alert>}
-                    {manual&&<Alert severity="info">نشانی به صورت دستی ثبت می‌شود و تأیید پستی ندارد. نام استان، شهر و نشانی کامل را بنویسید.</Alert>}
                     <Stack direction={{xs:'column',sm:'row'}} spacing={2}>{(['province','city'] as const).map(key=><Controller key={key} name={key} control={control} rules={{required:manual?'این فیلد الزامی است':false}} render={({field,fieldState})=><CustomTextField label={key==='province'?'استان':'شهر'} name={key} value={field.value||''} fullWidth disabled={!manual} onChange={field.onChange} error={!!fieldState.error} helperText={fieldState.error?.message}/>}/>)}</Stack>
                     <Controller name="address" control={control} rules={{required:manual?'آدرس کامل را وارد کنید':false,minLength:manual?{value:10,message:'نشانی حداقل ۱۰ حرف باشد'}:undefined}} render={({field,fieldState})=><CustomTextField label="آدرس" name="address" value={field.value||''} disabled={!manual} fullWidth multiline minRows={2} onChange={field.onChange} error={!!fieldState.error} helperText={fieldState.error?.message}/>}/>
 

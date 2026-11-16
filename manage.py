@@ -7,6 +7,10 @@ import sys
 def main():
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mlkino.settings')
+    if os.environ['DJANGO_SETTINGS_MODULE'] == 'mlkino.settings':
+        from pathlib import Path
+        from dotenv import load_dotenv
+        load_dotenv(Path(__file__).resolve().parent / '.env.local', override=False)
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

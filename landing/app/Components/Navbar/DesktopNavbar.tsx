@@ -1,4 +1,6 @@
 "use client";
+import {useLandingSession} from "../../Core/Session";
+import PersonOutlineRounded from "@mui/icons-material/PersonOutlineRounded";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -27,6 +29,7 @@ const links = [
 
 export default function DesktopNavbar() {
   const pathname = usePathname();
+  const {user}=useLandingSession();
   const [cityOpen, setCityOpen] = useState(false);
   const [location, setLocation] = useState<LocationValue>({allIran:false,cities:[],provinces:[]});
   const count = location.cities.length + location.provinces.length;
@@ -46,7 +49,7 @@ export default function DesktopNavbar() {
           <button type="button" className={styles.submitDesktop} onClick={event => setSubmitAnchor(event.currentTarget)} aria-haspopup="menu" aria-expanded={Boolean(submitAnchor)} aria-controls={submitAnchor ? "header-submit-menu" : undefined}><AddRounded /> ثبت ملک / درخواست</button>
           <Link href="https://mlkino.com/panel/support" className={styles.iconLink} aria-label="چت و تماس"><ChatBubbleOutlineRounded /></Link>
           <Link href="/reminders" className={styles.iconLink} aria-label="یادآوری‌ها"><NotificationsNoneRounded /><span className={styles.notificationDot} /></Link>
-          <Link href="https://mlkino.com/panel" className={styles.account} aria-label="ملکینوی من"><Image src="/images/profile.webp" alt="" width={38} height={38} /><span><strong>ملکینوی من</strong><small>{cityLabel}</small></span><KeyboardArrowDownRounded /></Link>
+          <Link href="https://mlkino.com/panel" className={styles.account} aria-label="ملکینوی من">{user?.avatar?<img src={user.avatar} alt="عکس پروفایل" width={38} height={38} style={{borderRadius:"50%",objectFit:"cover"}}/>:<PersonOutlineRounded />}<span><strong>ملکینوی من</strong><small>{cityLabel}</small></span><KeyboardArrowDownRounded /></Link>
         </div>
       </div>
     </header>

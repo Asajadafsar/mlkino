@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+import ipaddress
+import socket
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,7 +28,29 @@ SECRET_KEY = 'django-insecure-wq*0fi=lpt0ygmnrf6c47q-_#gi5y9l%=j!8o+xja5k5mfp73#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+_dev_hosts = []
+for _candidate in os.environ.get('MLKINO_DEV_HOSTS', '').split(','):
+    _candidate = _candidate.strip()
+    try:
+        _ip = ipaddress.ip_address(_candidate)
+        if _ip.is_private and not _ip.is_loopback and not _ip.is_link_local:
+            _dev_hosts.append(_candidate)
+    except ValueError:
+        continue
+
+# Discover the active LAN address so a browser on a second device can use the
+# development server without adding that private address to Production CORS.
+try:
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as _route_probe:
+        _route_probe.connect(('8.8.8.8', 80))
+        _route_ip = ipaddress.ip_address(_route_probe.getsockname()[0])
+        if _route_ip.is_private and not _route_ip.is_loopback and not _route_ip.is_link_local:
+            _dev_hosts.append(str(_route_ip))
+except (OSError, ValueError):
+    pass
+_dev_hosts = list(dict.fromkeys(_dev_hosts))
+
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]', *_dev_hosts]
 
 # Local frontend origins; credentialed requests require explicit origins.
 CORS_ALLOWED_ORIGINS = [
@@ -35,8 +59,15 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3001',
     'http://127.0.0.1:3001',
 ]
+_dev_lan_origins = [
+    f'http://{host}:{port}'
+    for host in _dev_hosts
+    for port in (3000, 3001)
+]
+CORS_ALLOWED_ORIGINS.extend(_dev_lan_origins)
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
+MLKINO_DEV_ORIGIN_REGEXES = []
 
 AUTH_COOKIE_SECURE = not DEBUG
 AUTH_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'

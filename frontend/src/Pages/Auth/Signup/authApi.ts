@@ -1,8 +1,8 @@
-import APP_URL from '../../../Core/APP_URL'
+import {ACCOUNTS_URL} from '../../../Core/APP_URL'
 import axios from 'axios'
 
 const api = axios.create({
-    baseURL: APP_URL,
+    baseURL: ACCOUNTS_URL,
     withCredentials: true,
 })
 
@@ -11,6 +11,7 @@ export interface RegisterPayload {
     phone: string
     first_name: string
     last_name: string
+    email: string
     national_code: string
     birth_date: string
     avatar?: File
@@ -24,11 +25,11 @@ export interface RegisterPayload {
 }
 
 export const sendOtp = (phone: string) =>
-    api.post('/accounts/send-otp/', { phone })
+    api.post('/send-otp/', { phone })
 
 export const verifyOtp = (phone: string, code: string) =>
     api.post(
-        '/accounts/verify-otp/',
+        '/verify-otp/',
         { phone, code },
         {
             withCredentials: true,
@@ -46,6 +47,7 @@ export const registerUser = (payload: RegisterPayload) => {
     formData.append('phone', payload.phone)
     formData.append('first_name', payload.first_name)
     formData.append('last_name', payload.last_name)
+    formData.append('email', payload.email)
     formData.append('national_code', nationalCode)
     formData.append('birth_date', payload.birth_date)
     formData.append('province', payload.province)
@@ -60,7 +62,7 @@ export const registerUser = (payload: RegisterPayload) => {
         formData.append('avatar', payload.avatar)
     }
 
-    return api.post('/accounts/complete-register/', formData, {
+    return api.post('/complete-register/', formData, {
         timeout:60000,
         withCredentials: true,
     })

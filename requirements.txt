@@ -16,3 +16,4 @@ Pillow==13.0.0
 psycopg2-binary==2.9.13
 requests==2.34.2
 zeep==4.3.3
+python-dotenv==1.2.2

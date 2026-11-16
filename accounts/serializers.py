@@ -88,6 +88,13 @@ class VerifyOtpSerializer(serializers.Serializer):
 
 
 class CompleteRegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_birth_date(self, value):
+        from django.utils import timezone
+        if value >= timezone.localdate():
+            raise serializers.ValidationError('تاریخ تولد باید پیش از امروز باشد.')
+        return value
     def validate_avatar(self, value):
         from .media_processing import optimized_avatar
         return optimized_avatar(value)
@@ -105,13 +112,13 @@ class CompleteRegisterSerializer(serializers.Serializer):
     )
 
     birth_date = serializers.DateField(
-        required=False,
-        allow_null=True,
+        required=True,
+        allow_null=False,
     )
 
     avatar = serializers.ImageField(
-        required=False,
-        allow_null=True,
+        required=True,
+        allow_null=False,
     )
 
     postal_code = serializers.CharField(
@@ -121,11 +128,13 @@ class CompleteRegisterSerializer(serializers.Serializer):
     password = serializers.CharField(
         write_only=True,
         min_length=8,
+        trim_whitespace=False,
     )
 
     password_confirm = serializers.CharField(
         write_only=True,
         min_length=8,
+        trim_whitespace=False,
     )
 
     user_type = serializers.ChoiceField(
@@ -178,6 +187,7 @@ class CompleteRegisterSerializer(serializers.Serializer):
 
         user.first_name = data["first_name"]
         user.last_name = data["last_name"]
+        user.email = data["email"]
         user.national_code = data["national_code"]
         user.birth_date = data.get("birth_date")
 
@@ -283,8 +293,8 @@ class PasswordResetVerifyOtpSerializer(serializers.Serializer):
 # ==================================================================
 class PasswordResetCompleteSerializer(serializers.Serializer):
     token = serializers.UUIDField()
-    new_password = serializers.CharField(write_only=True, min_length=8)
-    new_password_confirm = serializers.CharField(write_only=True, min_length=8)
+    new_password = serializers.CharField(write_only=True, min_length=8, trim_whitespace=False)
+    new_password_confirm = serializers.CharField(write_only=True, min_length=8, trim_whitespace=False)
 
     def validate(self, attrs):
         if attrs["new_password"] != attrs["new_password_confirm"]:

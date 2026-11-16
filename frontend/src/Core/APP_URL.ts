@@ -4,8 +4,10 @@ export function resolveBackendUrl(backendUrl: string, frontendHostname: string):
     const url = new URL(backendUrl)
     const localHosts = ['localhost', '127.0.0.1']
 
-    // Keep local auth cookies on the same site as the frontend.
-    if (localHosts.includes(url.hostname) && localHosts.includes(frontendHostname)) {
+    // In development, a LAN browser must reach the API on the dev machine,
+    // not its own loopback interface. Production API origins stay untouched.
+    const privateFrontend = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(frontendHostname)
+    if (localHosts.includes(url.hostname) && (localHosts.includes(frontendHostname) || privateFrontend)) {
         url.hostname = frontendHostname
     }
 
@@ -13,6 +15,7 @@ export function resolveBackendUrl(backendUrl: string, frontendHostname: string):
 }
 
 const APP_URL = resolveBackendUrl(BACKEND_URL, window.location.hostname)
+const API_BASE_URL = APP_URL.endsWith('/api') ? APP_URL : `${APP_URL}/api`
 
 export function resolveWebSocketUrl(apiUrl: string, configured?: string): string {
     const url = new URL(configured || apiUrl)
@@ -21,7 +24,7 @@ export function resolveWebSocketUrl(apiUrl: string, configured?: string): string
 }
 export const WS_URL = resolveWebSocketUrl(APP_URL, process.env.REACT_APP_WS_URL)
 
-export const ACCOUNTS_URL = `${APP_URL}/accounts`
-export const PANEL_URL = `${APP_URL}/panel`
+export const ACCOUNTS_URL = `${API_BASE_URL}/accounts`
+export const PANEL_URL = `${API_BASE_URL}/panel`
 
 export default APP_URL

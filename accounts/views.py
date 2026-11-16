@@ -460,22 +460,19 @@ class CompleteRegisterView(APIView):
             "national_code"
         ]
 
-        identity_verified=True
-        identity_notice=""
         try:
             identity_lookup(national_code,user.phone,shahkar_match)
         except JibitError as exc:
-            if outage(exc):identity_verified=False;identity_notice=str(exc)
-            else:return error_response(message=str(exc),errors=[{"field":"national_code","message":str(exc)}],status_code=exc.status_code)
+            return error_response(message=str(exc),errors=[{"field":"national_code","message":str(exc)}],status_code=exc.status_code)
         try:
-            postal_address=resolve_postal(serializer.validated_data['postal_code'],serializer.validated_data,postal_lookup)
+            postal_address=resolve_postal(serializer.validated_data['postal_code'],{},postal_lookup)
         except JibitError as exc:
             result=error_response(message=str(exc),errors=[{"field":"postal_code","message":str(exc)}],status_code=exc.status_code)
-            result.data['manual_address_allowed']=outage(exc)
+            result.data['manual_address_allowed']=False
             result.data['error_code']=exc.code
             return result
         serializer.context['postal_address']=postal_address
-        serializer.context['identity_verified']=identity_verified
+        serializer.context['identity_verified']=True
 
         new_avatar = serializer.validated_data.get(
             "avatar"
@@ -502,7 +499,7 @@ class CompleteRegisterView(APIView):
                 )
 
         return success_response(
-            message="ثبت‌نام تکمیل شد." if identity_verified else "حساب شما ثبت شد و احراز هویت در انتظار بررسی است. "+identity_notice,
+            message="ثبت‌نام و استعلام هویت و نشانی تکمیل شد.",
             data={
                 "user": UserSerializer(user).data,
                 "next_step": "dashboard",

@@ -24,6 +24,8 @@ class CookieJWTAuthentication(SessionJWTAuthentication):
                 return None
         validated = self.get_validated_token(raw_token)
         actor = self.get_user(validated)
+        if actor.registration_required and request.path.startswith(('/panel/', '/api/panel/')):
+            raise PermissionDenied('ابتدا ثبت‌نام را با کد ملی و استعلام کد پستی تکمیل کنید.')
         if request.method not in ('GET','HEAD','OPTIONS') and request.path.startswith('/panel/') and not request.path.startswith('/panel/tickets') and not (actor.is_superuser or actor.role == actor.Role.SUPER_ADMIN):
             from panel.settings_runtime import system_settings
             if system_settings().get('general',{}).get('maintenanceMode',False):

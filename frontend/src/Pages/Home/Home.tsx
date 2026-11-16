@@ -132,6 +132,11 @@ export function Home(props) {
 
                 const user = response.data.data
 
+                if (user?.registration_required) {
+                    navigate('/signup'+location.search, {replace:true,state:{completion:{phone:user.phone,first_name:user.first_name,last_name:user.last_name}}})
+                    return
+                }
+
                 if (!user || !Object.values(UserRole).includes(user.role)) {
                     throw new Error('Invalid user role')
                 }
