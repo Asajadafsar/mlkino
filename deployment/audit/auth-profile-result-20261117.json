@@ -1,0 +1,25 @@
+{
+  "release": "20261117-c226a9c-auth-profile",
+  "revision": "c226a9c0bf8322665b69f91b173b3ff21a8374e6",
+  "status": "deployed",
+  "backup": "/var/backups/mlkino/20261117-c226a9c-auth-profile",
+  "previous": {
+    "frontend": "build-release-51f047a",
+    "landing": "standalone-release-51f047a"
+  },
+  "protected_unchanged": true,
+  "checks": {
+    "django_check": "passed",
+    "model_migration_consistency": "passed",
+    "pending_migrations": false,
+    "nginx_config": "passed",
+    "landing_https": 200,
+    "panel_login_https": 200,
+    "swagger_https": 200,
+    "guest_session_https": 401,
+    "served_js_css_hashes_match": true,
+    "jibit_token_generation": "passed",
+    "services_active_and_enabled": true,
+    "recent_service_errors": false
+  }
+}

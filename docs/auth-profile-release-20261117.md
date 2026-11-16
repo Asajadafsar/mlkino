@@ -31,5 +31,19 @@ Compare backend baseline hashes, back up the database and replaced files, check 
 then activate frontend and standalone landing and restart both services. Verify HTTPS,
 API session and static files after activation.
 
-At preparation time SSH stopped responding during banner exchange and public HTTPS
-timed out. This record does not claim a successful server deployment.
+Deployment completed after selecting the direct network interface (`en0`); the VPN
+route through `utun8` had stalled before the SSH banner. No system routing or VPN
+settings were changed.
+
+Active release: `20261117-c226a9c-auth-profile`, runtime revision `c226a9c`.
+PostgreSQL dump and previous backend files are in
+`/var/backups/mlkino/20261117-c226a9c-auth-profile`. Previous frontend and landing
+symlinks are recorded in the deployment receipt. Settings, provider source, database
+configuration and media were preserved; no database schema change was needed.
+
+Django checks, migration consistency and Nginx validation passed. Both application
+services and Nginx are active and enabled. Public landing, panel login and Swagger
+returned 200; the unauthenticated session endpoint returned 401. Served main JS/CSS
+and landing JS/CSS hashes match the tested build. Jibit token generation succeeded
+from the production environment without submitting personal identity information.
+The recent service error journal contained no entries.
