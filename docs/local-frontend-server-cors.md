@@ -5,7 +5,7 @@
 در پوشه `frontend` اجرا کنید:
 
 ```bash
-npm run start:server
+npm start
 ```
 
 فرانت روی `http://localhost:3000` اجرا می‌شود. در حالت توسعه، کلاینت این مخزن آدرس
@@ -14,6 +14,17 @@ dev server به `https://api.mlkino.com` می‌فرستد. بنابراین ک�
 است و مسدودبودن third-party cookies مانع ورود نمی‌شود. اگر فرانت جداگانه‌ای دارید،
 baseURL مرورگر باید `/api` و مقصد proxy سرور توسعه باید API واقعی باشد؛ hardcode کردن
 آدرس مستقیم API در مرورگر، proxy را دور می‌زند.
+
+این اجرا اکنون با Node انجام می‌شود و در Windows cmd/PowerShell نیز به دستور
+POSIX مثل `PORT=...` وابسته نیست. `npm run start:server` هم به عنوان alias باقی است.
+در صورت تنظیم API دیگر در فایل env، alias سرور مقصد ملکینو را صریح انتخاب می‌کند.
+
+نسخه‌ی اصلاح‌شده باید از شاخه‌ی `main` دریافت شود؛ قبلاً اصلاحات فقط روی شاخه‌ی
+feature منتشر شده بودند. پس از pull، dev server قدیمی را متوقف و دوباره اجرا کنید.
+در Network درخواست ورود باید به
+`http://localhost:3000/api/accounts/login/password/` برود؛ مشاهده‌ی درخواست مستقیم
+به `https://api.mlkino.com/accounts/login/password/` یعنی نسخه‌ی قدیمی یا یک client
+مستقل هنوز proxy را دور می‌زند. دیپلوی بک‌اند به‌تنهایی کد دستگاه دیگری را عوض نمی‌کند.
 
 این proxy فقط روی loopback و با Host/Origin متناظر کار می‌کند، به میزبان دلخواه
 متصل نمی‌شود و TLS مقصد را اعتبارسنجی می‌کند. برای HTTP لوکال فقط ویژگی Secure

@@ -57,6 +57,7 @@ class CorsCsrfTests(TestCase):
         self.assertEqual(response.status_code,403)
         self.assertEqual(response.json()['error_code'],'csrf_failed')
         self.assertIn('cookie',response.json()['reason'].lower())
+        self.assertEqual(response.json()['recovery'],'same_origin_proxy')
 
     def test_application_errors_keep_cors_headers(self):
         self.client.raise_request_exception=False

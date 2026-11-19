@@ -78,7 +78,11 @@ class TrustedBrowserOriginMiddleware:
         elif origin is not None or any(request.COOKIES.get(key) for key in ('accessToken', 'refreshToken', 'mlkinoImpersonation', settings.SESSION_COOKIE_NAME)):
             class ApiCsrfCheck(CsrfViewMiddleware):
                 def _reject(self, request, reason):
-                    return JsonResponse({'message': 'تأیید CSRF انجام نشد. ابتدا توکن CSRF را دریافت کنید.', 'error_code': 'csrf_failed', 'reason': str(reason)}, status=403)
+                    payload={'message': 'تأیید CSRF انجام نشد. ابتدا توکن CSRF را دریافت کنید.', 'error_code': 'csrf_failed', 'reason': str(reason)}
+                    if request.META.get('HTTP_ORIGIN') in ('http://localhost:3000','http://127.0.0.1:3000') and not request.COOKIES.get(settings.CSRF_COOKIE_NAME):
+                        payload['message']='کوکی API به مرورگر نرسیده است. نسخه جدید فرانت را از شاخه main بگیرید و با npm start اجرا کنید؛ آدرس درخواست ورود باید /api روی همان localhost باشد.'
+                        payload['recovery']='same_origin_proxy'
+                    return JsonResponse(payload,status=403)
             csrf = ApiCsrfCheck(self.get_response)
             csrf.process_request(request)
             response = csrf.process_view(request, lambda r: None, (), {})

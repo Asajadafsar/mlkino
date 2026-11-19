@@ -18,5 +18,6 @@ try{
  assert(received.length,'Login form should use the same-origin API proxy');assert.equal(received[0].response.status,400);
  const body=await command('Network.getResponseBody',{requestId:received[0].requestId});const data=JSON.parse(body.body);
  assert.notEqual(data.error_code,'csrf_failed');
+ console.log('Observed browser login URL:',received[0].response.url);
  console.log('PASS: real React login form sends invalid fixture credentials through the proxy and reaches API validation (400), without CSRF failure, with third-party cookies restricted');
 }finally{ws.close();await fetch('http://127.0.0.1:9227/json/close/'+tab.id)}
