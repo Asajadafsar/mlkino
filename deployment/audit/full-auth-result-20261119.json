@@ -1,0 +1,38 @@
+{
+  "release": "20261119-53887cc-verified",
+  "revision": "53887ccce304115082809fbe6531526439fc04e9",
+  "status": "deployed",
+  "backup": "/var/backups/mlkino/20261119-53887cc-verified",
+  "previous_frontend": "build-release-20261119-d83787e-cookie",
+  "production_security_settings_unchanged": true,
+  "verification": {
+    "backend_tests": 168,
+    "frontend_tests": 149,
+    "frontend_suites": 34,
+    "deployment_safety_tests": 6,
+    "total_automated_tests": 323,
+    "production_frontend_build": "passed",
+    "production_landing_build": "passed",
+    "browser_auth_lifecycle": [
+      "registration with OTP and required profile fields",
+      "avatar rendering and profile edit",
+      "password login",
+      "OTP login",
+      "authenticated OTP password change",
+      "incorrect OTP rejection",
+      "password recovery",
+      "login with changed/recovered password"
+    ],
+    "browser_landing": "desktop/mobile avatar, feed growth, scroll back passed",
+    "provider_test_mode": "isolated fake SMS/Jibit/postal, no production account changes",
+    "production_services": "active and enabled",
+    "production_error_journal": "no entries after restart",
+    "local_views_sha256": "591130a099b9a24a8f7a63f47c08dac4b9e225a6cffc026d10e3b0fabfd17c2c",
+    "live_cors_csrf_after_restart": "passed",
+    "public_https": {
+      "landing": 200,
+      "panel_login": 200,
+      "swagger": 200
+    }
+  }
+}

@@ -34,3 +34,20 @@ and `deployment/check-cors-production.py`.
 Existing React test `act` warnings and pre-existing lint/deprecation warnings were
 not treated as passing runtime checks; the isolated browser itself had no runtime
 exceptions or observed API 5xx responses.
+
+
+## Production rollout
+
+Release `20261119-53887cc-verified` is active on the server. It updates the profile
+view and activates the final verified frontend build. The previous frontend and
+backend file were retained; database/code backup:
+`/var/backups/mlkino/20261119-53887cc-verified`.
+Production security settings, middleware, environment, provider implementation and
+Nginx configuration were unchanged. Services are active and enabled, Django checks
+passed and the post-restart error journal had no entries.
+
+The initial live smoke overlapped the short backend restart and observed a temporary
+502 with correct gateway CORS headers. It was rerun after deployment health checks
+completed and passed. This was not counted as a passing API availability check.
+
+Machine-readable result: `deployment/audit/full-auth-result-20261119.json`.
