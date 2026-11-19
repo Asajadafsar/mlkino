@@ -1,8 +1,10 @@
 import api from './Request'
+import axios from 'axios'
 
 // Exercise Axios's real browser adapter, including JSON and multipart requests.
 test.each([false, true])('ticket requests include Django CSRF header (multipart=%s)', async multipart => {
     document.cookie = 'csrftoken=ticket-csrf-token; path=/'
+    const bootstrap=jest.spyOn(axios,'get').mockResolvedValue({data:{csrfToken:'bootstrap-csrf-token',csrfCookiePresent:true}})
     const headers: Record<string, string> = {}
     const xhr: any = {
         onloadend: null,
@@ -19,10 +21,11 @@ test.each([false, true])('ticket requests include Django CSRF header (multipart=
     try {
         const payload = multipart ? new FormData() : {subject: 'تیکت تست', category: 'other', message: 'درخواست تست'}
         await api.post('tickets/', payload)
-        expect(headers['X-CSRFToken']).toBe('ticket-csrf-token')
+        expect(headers['X-CSRFToken']).toBe('bootstrap-csrf-token')
         expect(xhr.withCredentials).toBe(true)
     } finally {
         mock.mockRestore()
+        bootstrap.mockRestore()
         document.cookie = 'csrftoken=; Max-Age=0; path=/'
     }
 })

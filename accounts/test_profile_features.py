@@ -4,23 +4,38 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from accounts.models import User, DeviceSession, AccountNotification, ActivityLog
 from accounts.serializers import build_tokens_for_user
+from unittest.mock import patch
 
 class ProfileFeaturesTests(TestCase):
     def setUp(self):
         cache.clear()
-        self.user=User.objects.create_user('09124444000','test-password',first_name='کاربر',last_name='آزمایشی')
+        self.user=User.objects.create_user('09124444000','test-password',first_name='کاربر',last_name='آزمایشی',
+            email='member@example.test',birth_date='1990-01-01',avatar='avatars/fixture.webp',
+            national_code='1234567891',national_code_verified=True,province='قم',city='قم',
+            postal_code='1234567890',address='نشانی کامل حساب آزمایشی')
         self.other=User.objects.create_user('09124444001','test-password')
         self.client=APIClient()
         self.tokens=build_tokens_for_user(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Bearer '+self.tokens['access'])
 
-    def test_profile_patch_only_supported_fields_and_clear_optional_data(self):
+    @patch('accounts.views.postal_lookup')
+    def test_profile_patch_only_supported_fields_and_clear_optional_data(self,lookup):
         response=self.client.patch('/accounts/profile/',{'first_name':'نام جدید','email':None,'postal_code':None},format='json')
         self.assertEqual(response.status_code,200,response.data)
         self.user.refresh_from_db()
         self.assertEqual(self.user.first_name,'نام جدید')
         self.assertIsNotNone(self.user.profile_updated_at)
         self.assertEqual(self.client.patch('/accounts/profile/',{'role':'superadmin'},format='json').status_code,400)
+        lookup.assert_not_called()
+
+    @patch('accounts.views.postal_lookup')
+    def test_unchanged_verified_postal_address_does_not_requery_provider(self,lookup):
+        self.user.address_source='postal';self.user.save(update_fields=['address_source'])
+        payload={field:getattr(self.user,field) for field in ('postal_code','province','city','address')}
+        payload['first_name']='نام تازه'
+        response=self.client.patch('/accounts/profile/',payload,format='json')
+        self.assertEqual(response.status_code,200,response.data)
+        lookup.assert_not_called()
 
     def test_preferences_roundtrip_and_reject_unknown_or_nonboolean(self):
         response=self.client.patch('/accounts/preferences/',{'privacy':{'listed_in_contacts':False},'notifications':{'browser':True}},format='json')

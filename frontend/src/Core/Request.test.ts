@@ -5,7 +5,7 @@ jest.mock('axios', () => ({
     __esModule: true,
     default: {
         create: jest.fn(() => Object.assign(jest.fn(), {
-            interceptors: {response: {use: jest.fn()}},
+            interceptors: {request: {use: jest.fn()}, response: {use: jest.fn()}},
         })),
         post: jest.fn(),
     },

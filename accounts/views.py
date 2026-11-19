@@ -1173,9 +1173,14 @@ class ProfileView(APIView):
             )
 
         location_fields={'postal_code','province','city','address','postal_manual'}
-        if location_fields.intersection(request.data) and (serializer.validated_data.get('postal_code') or user.postal_code):
-            code=serializer.validated_data.get('postal_code') or user.postal_code
-            try:serializer.context['postal_address']=resolve_postal(code,{**request.data,**serializer.validated_data},postal_lookup)
+        code=serializer.validated_data.get('postal_code',user.postal_code)
+        if location_fields.intersection(request.data) and code:
+            unchanged=(code==user.postal_code and user.address_source=='postal'
+                and not serializer.validated_data.get('postal_manual',False)
+                and all(serializer.validated_data.get(field,getattr(user,field))==getattr(user,field) for field in ('province','city','address')))
+            try:
+                serializer.context['postal_address']=({field:getattr(user,field) for field in ('postal_code','province','city','address','address_source')}
+                    if unchanged else resolve_postal(code,{**request.data,**serializer.validated_data},postal_lookup))
             except JibitError as exc:
                 result=error_response(message=str(exc),errors=[{'field':'postal_code','message':str(exc)}],status_code=exc.status_code)
                 result.data['manual_address_allowed']=outage(exc)
