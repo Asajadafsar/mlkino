@@ -1,0 +1,36 @@
+{
+  "release": "20261119-fb0a037-cors",
+  "revision": "fb0a037d1a2a1043451cdf44d04ec6e356748094",
+  "status": "deployed",
+  "backup": "/var/backups/mlkino/20261119-fb0a037-cors",
+  "previous": {
+    "frontend": "build-release-20261117-c226a9c-auth-profile",
+    "landing": "standalone-release-20261117-c226a9c-auth-profile"
+  },
+  "protected_environment_and_provider_unchanged": true,
+  "validation": {
+    "backend_tests": 21,
+    "frontend_tests": 16,
+    "frontend_build": "passed",
+    "landing_build": "passed",
+    "django_checks": "passed",
+    "migration_changes": false,
+    "nginx_config": "passed",
+    "live_preflight": {
+      "http://localhost:3000": "passed, four paths",
+      "http://127.0.0.1:3000": "passed, four paths",
+      "https://mlkino.com": "passed, four paths"
+    },
+    "live_csrf_cookie_and_masked_token": "passed",
+    "live_missing_token_or_cookie_rejected": true,
+    "live_untrusted_origin_rejected": true,
+    "live_error_cors_statuses": [
+      401,
+      403,
+      404,
+      413
+    ],
+    "duplicate_cors_headers": false,
+    "third_party_browser_cookie_policy": "not overridden; HTTP tests do not prove all-browser acceptance"
+  }
+}

@@ -113,4 +113,33 @@ Origin نامعتبر نباید Allow-Origin یا Allow-Credentials بگیرد.
 
 مراجع: [django-cors-headers](https://github.com/adamchainz/django-cors-headers)،
 [CSRF در Django](https://docs.djangoproject.com/en/6.0/howto/csrf/)،
-[تنظیمات CSRF](https://docs.djangoproject.com/en/6.0/ref/csrf/).
+[تنظیمات CSRF](https://docs.djangoproject.com/en/6.0/ref/csrf/)،
+[کوکی‌های third-party و CORS در MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS#third-party_cookies).
+
+
+## انتشار انجام‌شده — ۲۰۲۶/۱۱/۱۹
+
+نسخه‌ی `fb0a037` با شناسه‌ی `20261119-fb0a037-cors` روی سرور فعال شد.
+بکاپ PostgreSQL، فایل‌های قبلی و تنظیم Nginx در
+`/var/backups/mlkino/20261119-fb0a037-cors` است. هیچ migration جدیدی لازم نبود؛
+کلیدها، تنظیمات دیتابیس و کد provider جیبیت تغییر نکردند.
+
+مراحل اعمال‌شده:
+
+1. تطبیق هش فایل‌های قبلی، گرفتن dump دیتابیس و بکاپ تنظیم Nginx.
+2. نصب `accounts/csrf_api.py`، `accounts/middleware.py`، `accounts/urls.py`،
+   `mlkino/urls.py` و `mlkino/production_settings.py` از بسته‌ی تست‌شده.
+3. نصب دو فایل `api-cors-error-*.conf` با پیشوند `mlkino-` در `/etc/nginx/snippets/`؛
+   include فایل map در scope مربوط به http و include locationها در هر دو server HTTPS.
+4. اجرای `manage.py check`، بررسی سازگاری مدل/migration و `nginx -t`.
+5. فعال‌کردن اتمیک بیلد جدید پنل و standalone لندینگ؛ restart سرویس‌های
+   `mlkino-backend` و `mlkino-landing` و reload کردن Nginx.
+6. اجرای `python3 deployment/check-cors-production.py --interface en0` روی دامنه.
+   ۱۲ preflight، جریان توکن و کوکی، رد Origin نامعتبر و CORS خطاهای
+   ۴۰۱/۴۰۳/۴۰۴/۴۱۳ موفق بودند؛ هدر CORS تکراری مشاهده نشد.
+
+نتیجه‌ی آزمون‌های محلی: ۲۱ تست بک‌اند و ۱۶ تست فرانت پاس شد؛ هر دو بیلد موفق بودند
+(پنل چند هشدار lint قدیمی دارد). هر سه سرویس active و enabled هستند.
+رسید ماشین‌خوان: `deployment/audit/cors-result-20261119.json`.
+فرانت مستقلی که از این مخزن استفاده نمی‌کند باید bootstrap و interceptor نمونه‌ی بالا
+را اضافه کند؛ صرف افزودن withCredentials جای هدر CSRF را نمی‌گیرد.
