@@ -3,10 +3,12 @@ from django.urls import path
 from .profile_api import PreferencesView, SessionsView, NotificationsView, OwnActivityView
 
 from accounts import views
+from .csrf_api import csrf_token
 
 app_name = "accounts"
 
 urlpatterns = [
+    path('csrf/', csrf_token, name='csrf-token'),
     path("documents/<int:user_id>/<str:kind>/",PrivateDocumentView.as_view(),name="private-document"),
     path("session/", views.LandingSessionView.as_view(), name="landing-session"),
     path("identity/retry/", views.IdentityRetryView.as_view(),name="identity-retry"),

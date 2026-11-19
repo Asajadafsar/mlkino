@@ -21,6 +21,9 @@ urlpatterns = [
 
     # API
     path("api/accounts/", include("accounts.urls")),
+    # API-domain compatibility routes; Nginx still serves the main-domain SPA at /panel/.
+    path("accounts/", include("accounts.urls", namespace="accounts-compat")),
+    path("panel/", include("panel.urls", namespace="panel-compat")),
 
     # مستندات
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

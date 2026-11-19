@@ -1,6 +1,7 @@
 import axios from 'axios'
 import {installSessionRefresh} from './SessionRefresh'
 import {PANEL_URL} from './APP_URL'
+import {getCsrfToken,installCsrf} from './Csrf'
 import {UserRole} from '../redux/RoleSlice'
 
 export type ImpersonationStatus = {
@@ -17,6 +18,7 @@ export type ImpersonationStatus = {
 const client = axios.create({baseURL: PANEL_URL, timeout: 15000, withCredentials: true, headers: {'Accept-Language': 'fa'}})
 
 installSessionRefresh(client)
+installCsrf(client)
 
 function statusFromPayload(payload: ImpersonationStatus | {data: ImpersonationStatus}): ImpersonationStatus {
     if (!payload || typeof payload !== 'object') throw new Error('پاسخ وضعیت ورود مدیریتی معتبر نیست')
@@ -35,15 +37,7 @@ export async function getImpersonationStatus(): Promise<ImpersonationStatus> {
 }
 
 async function csrfHeaders() {
-    await client.get('impersonation/csrf/')
-    const cookieName = process.env.REACT_APP_CSRF_COOKIE_NAME || 'csrftoken'
-    const headerName = process.env.REACT_APP_CSRF_HEADER_NAME || 'X-CSRFToken'
-    // Read ONLY the configured readable CSRF cookie, never authentication or impersonation cookies.
-    const cookie = document.cookie.split(';').map((item) => item.trim())
-        .find((item) => item.startsWith(`${cookieName}=`))
-    const token = cookie ? decodeURIComponent(cookie.slice(cookieName.length + 1)) : ''
-    if (!token) throw new Error('ورود مدیریتی در حال حاضر امکان‌پذیر نیست. لطفاً دوباره تلاش کنید.')
-    return {[headerName]: token}
+    return {'X-CSRFToken': await getCsrfToken()}
 }
 
 export async function startImpersonation(userId: number) {

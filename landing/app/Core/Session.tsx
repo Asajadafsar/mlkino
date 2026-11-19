@@ -17,7 +17,10 @@ export function LandingSessionProvider({children}:{children:ReactNode}){
    const options:RequestInit={credentials:'include',cache:'no-store',signal};
    let response=await fetch(accounts+'/session/',options);
    if(response.status===401){
-    const refresh=await fetch(accounts+'/token/refresh/',{...options,method:'POST'});
+    const csrfResponse=await fetch(accounts+'/csrf/',options);
+    if(!csrfResponse.ok)throw Error('csrf unavailable');
+    const {csrfToken}=await csrfResponse.json();
+    const refresh=await fetch(accounts+'/token/refresh/',{...options,method:'POST',headers:{'X-CSRFToken':csrfToken}});
     if(signal.aborted)return;
     if(refresh.status===401||refresh.status===403){setSession({user:null,loading:false});return}
     if(!refresh.ok)throw Error('refresh unavailable');

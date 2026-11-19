@@ -1,10 +1,12 @@
 import {ACCOUNTS_URL} from '../../../Core/APP_URL'
 import axios from 'axios'
+import {installCsrf} from '../../../Core/Csrf'
 
 const api = axios.create({
     baseURL: ACCOUNTS_URL,
     withCredentials: true,
 })
+installCsrf(api)
 
 export interface RegisterPayload {
     postal_manual?: boolean

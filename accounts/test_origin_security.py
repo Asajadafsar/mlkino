@@ -18,10 +18,12 @@ class BrowserOriginSecurityTests(SimpleTestCase):
                 self.assertEqual(self.check(self.request(origin,path=path)).status_code,403)
     def test_official_landing_and_panel_support_cookie_mutations(self):
         for origin in ('https://mlkino.com','https://panel.mlkino.com'):
-            self.assertEqual(self.check(self.request(origin,cookies=True)).status_code,200)
+            request=self.request(origin,cookies=True)
+            token=get_token(request);request.COOKIES['csrftoken']=request.META['CSRF_COOKIE'];request.META['HTTP_X_CSRFTOKEN']=token
+            self.assertEqual(self.check(request).status_code,200)
     def test_cookie_without_browser_provenance_requires_csrf(self):
         self.assertEqual(self.check(self.request(cookies=True)).status_code,403)
-        self.assertEqual(self.check(self.request(cookies=True,referer='https://mlkino.com/')).status_code,200)
+        self.assertEqual(self.check(self.request(cookies=True,referer='https://mlkino.com/')).status_code,403)
         request=self.request(cookies=True,referer='https://api.mlkino.com/')
         token=get_token(request);request.COOKIES['csrftoken']=request.META['CSRF_COOKIE'];request.META['HTTP_X_CSRFTOKEN']=token
         self.assertEqual(self.check(request).status_code,200)

@@ -54,12 +54,11 @@ class ActivityFailureMiddleware:
         return response
 
 class TrustedBrowserOriginMiddleware:
-    """Reject cross-site browser mutations, including cookie refresh and login.
+    """Validate exact browser origins and Django CSRF on cookie/browser mutations.
 
-    CORS controls reading responses, not whether a forged POST reaches a view.
-    Accept only exact configured origins. Cookie clients without Origin must
-    provide a trusted Referer or a valid Django CSRF token; bearer-only clients
-    and non-browser anonymous clients retain their existing API behavior.
+    DRF exempts APIViews from the normal CSRF middleware. Check a non-exempt
+    callback here so login/refresh and cookie JWT endpoints receive protection.
+    Non-browser clients without cookies or Origin retain bearer/API behavior.
     """
     def __init__(self, get_response):
         self.get_response = get_response
@@ -67,25 +66,28 @@ class TrustedBrowserOriginMiddleware:
     def __call__(self, request):
         from django.conf import settings
         from urllib.parse import urlsplit
-        if request.method in ('GET', 'HEAD', 'OPTIONS') or not request.path.startswith(('/accounts/', '/panel/')):
+        from django.middleware.csrf import CsrfViewMiddleware
+        if request.method in ('GET', 'HEAD', 'OPTIONS') or not request.path.startswith(('/accounts/', '/panel/', '/api/accounts/', '/api/panel/')):
             return self.get_response(request)
         trusted = set(settings.CSRF_TRUSTED_ORIGINS) | set(settings.CORS_ALLOWED_ORIGINS)
         own = urlsplit(request.build_absolute_uri('/'))
         trusted.add(f'{own.scheme}://{own.netloc}')
         origin = request.META.get('HTTP_ORIGIN')
-        rejected = origin is not None and origin not in trusted
-        if origin is None and any(request.COOKIES.get(key) for key in ('accessToken', 'refreshToken', 'mlkinoImpersonation')):
-            referer = urlsplit(request.META.get('HTTP_REFERER', ''))
-            if f'{referer.scheme}://{referer.netloc}' not in trusted:
-                from django.middleware.csrf import CsrfViewMiddleware
-                csrf = CsrfViewMiddleware(self.get_response)
-                csrf.process_request(request)
-                rejected = csrf.process_view(request, lambda r: None, (), {}) is not None
-        if rejected:
-            response = JsonResponse({'message': 'مبدأ درخواست معتبر نیست. صفحه رسمی ملکینو را باز کنید و دوباره تلاش کنید.'}, status=403)
-            response['Cache-Control'] = 'no-store'
-            return response
-        return self.get_response(request)
+        if origin is not None and origin not in trusted:
+            response = JsonResponse({'message': 'مبدأ درخواست معتبر نیست.', 'error_code': 'untrusted_origin'}, status=403)
+        elif origin is not None or any(request.COOKIES.get(key) for key in ('accessToken', 'refreshToken', 'mlkinoImpersonation', settings.SESSION_COOKIE_NAME)):
+            class ApiCsrfCheck(CsrfViewMiddleware):
+                def _reject(self, request, reason):
+                    return JsonResponse({'message': 'تأیید CSRF انجام نشد. ابتدا توکن CSRF را دریافت کنید.', 'error_code': 'csrf_failed', 'reason': str(reason)}, status=403)
+            csrf = ApiCsrfCheck(self.get_response)
+            csrf.process_request(request)
+            response = csrf.process_view(request, lambda r: None, (), {})
+            if response is None:
+                return self.get_response(request)
+        else:
+            return self.get_response(request)
+        response['Cache-Control'] = 'no-store'
+        return response
 
 class FeatureAccessMiddleware:
     """Enforce persisted feature flags on API routes, independently of navigation.

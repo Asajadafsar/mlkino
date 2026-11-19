@@ -1,6 +1,7 @@
 import axios, { AxiosRequestConfig } from 'axios'
 import {installSessionRefresh} from './SessionRefresh'
 import {PANEL_URL} from './APP_URL'
+import {installCsrf} from './Csrf'
 
 export interface ApiResponse<DataType> {
     statusCode: string
@@ -18,6 +19,7 @@ const api = axios.create({
 })
 
 installSessionRefresh(api)
+installCsrf(api)
 
 export async function query<DataType>(
     options: AxiosRequestConfig,

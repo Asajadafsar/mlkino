@@ -1,5 +1,7 @@
 import axios from 'axios'
 import {PANEL_URL} from './APP_URL'
+import {getCsrfToken} from './Csrf'
+jest.mock('./Csrf',()=>({getCsrfToken:jest.fn(),installCsrf:jest.fn()}))
 import {exitImpersonation, getImpersonationStatus, startImpersonation} from './Impersonation'
 
 jest.mock('axios', () => ({
@@ -16,7 +18,7 @@ const active = {active: true, actor_id: 1, target_id: 12, target_role: 'user', s
 beforeEach(() => {
     client.get.mockReset()
     client.post.mockReset()
-    document.cookie = 'csrftoken=test-csrf-token; path=/'
+    ;(getCsrfToken as jest.Mock).mockReset().mockResolvedValue('test-csrf-token')
 })
 
 test('uses a credentialed client without changing authentication tokens', () => {
@@ -27,15 +29,15 @@ test('starts only after CSRF initialization and sends no POST body', async () =>
     client.get.mockResolvedValue({data: {}})
     client.post.mockResolvedValue({data: {data: active}})
     expect(await startImpersonation(12)).toEqual(active)
-    expect(client.get).toHaveBeenCalledWith('impersonation/csrf/')
+    expect(getCsrfToken).toHaveBeenCalled()
     expect(client.post).toHaveBeenCalledWith('users/12/impersonate/', undefined, {headers: {'X-CSRFToken': 'test-csrf-token'}})
-    expect(client.get.mock.invocationCallOrder[0]).toBeLessThan(client.post.mock.invocationCallOrder[0])
+    expect((getCsrfToken as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(client.post.mock.invocationCallOrder[0])
 })
 
-test('never sends a mutation if the CSRF cookie is unavailable', async () => {
-    document.cookie = 'csrftoken=; Max-Age=0; path=/'
+test('never sends a mutation if CSRF bootstrap fails', async () => {
+    ;(getCsrfToken as jest.Mock).mockRejectedValue(Error('دریافت CSRF انجام نشد'))
     client.get.mockResolvedValue({data: {}})
-    await expect(startImpersonation(12)).rejects.toThrow('ورود مدیریتی')
+    await expect(startImpersonation(12)).rejects.toThrow('دریافت CSRF')
     expect(client.post).not.toHaveBeenCalled()
 })
 
