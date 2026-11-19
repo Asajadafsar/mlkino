@@ -1,0 +1,19 @@
+{
+  "release": "20261119-fcdd9c2-main-delivery",
+  "revision": "fcdd9c22a78dfe74a6e66fd59edb316ced3a03a1",
+  "status": "deployed",
+  "backup": "/var/backups/mlkino/20261119-fcdd9c2-main-delivery",
+  "csrf_enforcement_retained": true,
+  "production_settings_unchanged": true,
+  "evidence": {
+    "previous_default_main": "4dfd04d",
+    "screenshot_request": "https://api.mlkino.com/accounts/login/password/",
+    "tested_npm_start_request": "http://localhost:3000/api/accounts/login/password/",
+    "main_and_feature_fast_forwarded_to": "fcdd9c2",
+    "backend_tests_passed": 168,
+    "frontend_tests_passed": 152,
+    "ordinary_npm_start_browser_test": "passed with third-party cookie restriction",
+    "actual_windows_machine_tested": false,
+    "other_machine_action_required": "pull main and restart the frontend; server deployment cannot replace a running frontend on another PC"
+  }
+}
