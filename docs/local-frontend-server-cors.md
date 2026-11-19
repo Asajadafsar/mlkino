@@ -181,3 +181,18 @@ Origin نامعتبر نباید Allow-Origin یا Allow-Credentials بگیرد.
 رسید ماشین‌خوان: `deployment/audit/cors-result-20261119.json`.
 فرانت مستقلی که از این مخزن استفاده نمی‌کند باید bootstrap و interceptor نمونه‌ی بالا
 را اضافه کند؛ صرف افزودن withCredentials جای هدر CSRF را نمی‌گیرد.
+
+
+## انتشار رفع cookie not set
+
+نسخه‌ی `d83787e` با شناسه‌ی `20261119-d83787e-cookie` روی سرور فعال شد؛ پنل تولید
+نیز بازیابی محدود CSRF و تشخیص برگشت کوکی را دارد. نسخه قبلی برای rollback حفظ شده
+و بکاپ در `/var/backups/mlkino/20261119-d83787e-cookie` قرار دارد.
+تنظیمات production مربوط به Secure، SameSite و اعتبارسنجی CSRF تغییر نکرده‌اند.
+
+فرم واقعی React روی پورت ۳۰۰۰ هم با Chrome و محدودیت third-party cookies فعال تست
+شد: با شماره نامعتبر `000` و رمز ساختگی، پاسخ ۴۰۰ اعتبارسنجی دریافت شد و خطای CSRF
+وجود نداشت. ورود موفق با رمز واقعی کاربر در این تست انجام نشده است.
+اسکریپت قابل تکرار: `deployment/check-local-login-browser.mjs`؛ به Chrome با پروفایل
+آزمایشی و پورت debugging ۹۲۲۷ نیاز دارد.
+نتیجه: `deployment/audit/cookie-result-20261119.json`.

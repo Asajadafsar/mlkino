@@ -1,0 +1,19 @@
+{
+  "release": "20261119-d83787e-cookie",
+  "revision": "d83787ea5f3fba878da94befa00a240e1b98f2c9",
+  "status": "deployed",
+  "backup": "/var/backups/mlkino/20261119-d83787e-cookie",
+  "previous_frontend": "build-release-20261119-fb0a037-cors",
+  "production_security_settings_unchanged": true,
+  "checks": {
+    "backend_tests": 21,
+    "frontend_tests": 29,
+    "production_panel_build": "passed",
+    "chrome_third_party_restriction": "enabled during test",
+    "real_local_react_login_form": "same-origin proxy request reached API validation, 400 not CSRF 403",
+    "real_passwords_or_users_used": false,
+    "csrf_cookie_returned_to_server": true,
+    "csrf_cookie_http_only": true,
+    "public_cors_regression_check": "passed"
+  }
+}
