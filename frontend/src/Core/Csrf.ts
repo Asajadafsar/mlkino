@@ -5,10 +5,15 @@ let token = ''
 let pending: Promise<string> | null = null
 const installed = new WeakSet<AxiosInstance>()
 
-export async function getCsrfToken(): Promise<string> {
+export async function getCsrfToken(force=false): Promise<string> {
+    if (force) token=''
     if (token) return token
     if (!pending) pending = axios.get(`${ACCOUNTS_URL}/csrf/`, {withCredentials:true, timeout:15000})
-        .then(response => {
+        .then(async response => {
+            if (response.data.csrfCookiePresent === false) {
+                response = await axios.get(`${ACCOUNTS_URL}/csrf/`, {withCredentials:true, timeout:15000})
+                if (response.data.csrfCookiePresent === false) throw Error('مرورگر کوکی API را ذخیره نکرده است. فرانت لوکال را با npm run start:server و proxy هم‌مبدأ اجرا کنید.')
+            }
             if (typeof response.data.csrfToken !== 'string') throw Error('پاسخ CSRF سرور معتبر نیست.')
             token = response.data.csrfToken
             return token
@@ -29,8 +34,17 @@ export function installCsrf(client: AxiosInstance) {
         config.headers = {...config.headers, 'X-CSRFToken':csrfToken}
         return config
     })
-    client.interceptors.response.use(response=>response, error=>{
-        if (error.response?.data?.error_code === 'csrf_failed') token=''
+    client.interceptors.response.use(response=>response, async error=>{
+        if (error.response?.data?.error_code === 'csrf_failed') {
+            token=''
+            const request=error.config
+            const own=request && new URL(request.url || '',request.baseURL || window.location.origin).origin===new URL(ACCOUNTS_URL).origin
+            if (own && !request._csrfRetried && error.response?.status===403) {
+                request._csrfRetried=true
+                await getCsrfToken(true)
+                return client(request)
+            }
+        }
         return Promise.reject(error)
     })
 }

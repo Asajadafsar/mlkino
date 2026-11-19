@@ -40,6 +40,8 @@ class CorsCsrfTests(TestCase):
         origin='http://localhost:3000'
         bootstrap=self.client.get('/accounts/csrf/',secure=True,HTTP_ORIGIN=origin)
         self.assertEqual(bootstrap.status_code,200)
+        self.assertFalse(bootstrap.json()['csrfCookiePresent'])
+        self.assertTrue(self.client.get('/accounts/csrf/',secure=True,HTTP_ORIGIN=origin).json()['csrfCookiePresent'])
         self.assertIn('no-store',bootstrap['Cache-Control'])
         self.assertIn('Cookie',bootstrap['Vary'])
         self.assertTrue(bootstrap.cookies['csrftoken']['secure'])

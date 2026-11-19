@@ -15,7 +15,14 @@ export function resolveBackendUrl(backendUrl: string, frontendHostname: string):
 }
 
 const APP_URL = resolveBackendUrl(BACKEND_URL, window.location.hostname)
-const API_BASE_URL = APP_URL.endsWith('/api') ? APP_URL : `${APP_URL}/api`
+export function resolveApiBaseUrl(backendUrl:string, frontendOrigin:string, development:boolean):string {
+    const backend=new URL(backendUrl)
+    const frontend=new URL(frontendOrigin)
+    const proxy=development && ['localhost','127.0.0.1'].includes(frontend.hostname) && backend.protocol==='https:' && ['api.mlkino.com','mlkino.com'].includes(backend.hostname)
+    const base=proxy?frontend.origin:backendUrl.replace(/\/$/,'')
+    return base.endsWith('/api')?base:`${base}/api`
+}
+const API_BASE_URL = resolveApiBaseUrl(APP_URL,window.location.origin,process.env.NODE_ENV==='development')
 
 export function resolveWebSocketUrl(apiUrl: string, configured?: string): string {
     const url = new URL(configured || apiUrl)

@@ -19,3 +19,46 @@ test('bootstraps cross-origin CSRF, shares it for concurrent writes and never le
  expect(requests[3].headers['X-CSRFToken']).toBeUndefined()
  bootstrap.mockRestore()
 })
+
+const fresh=()=>{
+ jest.resetModules()
+ return {axios:require('axios').default,...require('./Csrf')}
+}
+
+test('a missing cookie is detected before sending the password',async()=>{
+ const {axios,getCsrfToken,installCsrf}=fresh()
+ const bootstrap=jest.spyOn(axios,'get').mockResolvedValue({data:{csrfToken:'masked',csrfCookiePresent:false}})
+ const send=jest.fn()
+ const client=axios.create({adapter:send});installCsrf(client)
+ await expect(client.post(`${ACCOUNTS_URL}/login/password/`,{password:'test-only'})).rejects.toThrow('proxy')
+ expect(bootstrap).toHaveBeenCalledTimes(2)
+ expect(send).not.toHaveBeenCalled()
+ bootstrap.mockRestore()
+})
+
+test('first visit confirms that the newly set cookie survived before a write',async()=>{
+ const {axios,getCsrfToken}=fresh()
+ const bootstrap=jest.spyOn(axios,'get').mockResolvedValueOnce({data:{csrfToken:'first',csrfCookiePresent:false}}).mockResolvedValueOnce({data:{csrfToken:'confirmed',csrfCookiePresent:true}})
+ expect(await getCsrfToken()).toBe('confirmed')
+ expect(bootstrap).toHaveBeenCalledTimes(2)
+ bootstrap.mockRestore()
+})
+
+test.each([false,true])('CSRF rejection is retried at most once (always rejected=%s)',async alwaysRejected=>{
+ const {axios,installCsrf}=fresh()
+ const bootstrap=jest.spyOn(axios,'get').mockResolvedValueOnce({data:{csrfToken:'old'}}).mockResolvedValueOnce({data:{csrfToken:'fresh'}})
+ let sends=0
+ const client=axios.create({adapter:async(config:any)=>{
+  sends++
+  if(sends===1||alwaysRejected)throw {config,response:{status:403,data:{error_code:'csrf_failed'}}}
+  expect(config.headers['X-CSRFToken']).toBe('fresh')
+  return {data:{ok:true},status:200,statusText:'OK',headers:{},config}
+ }})
+ installCsrf(client)
+ const result=client.post(`${ACCOUNTS_URL}/login/password/`,{})
+ if(alwaysRejected)await expect(result).rejects.toMatchObject({response:{status:403}})
+ else expect((await result).status).toBe(200)
+ expect(sends).toBe(2)
+ expect(bootstrap).toHaveBeenCalledTimes(2)
+ bootstrap.mockRestore()
+})
