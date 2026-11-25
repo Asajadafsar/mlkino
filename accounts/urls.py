@@ -1,4 +1,4 @@
-from .onboarding_api import Applications, ApplicationDecision, OfficeLookup, OfficePromotions, DiamondAdCopy, GatewaySettings, DemoCheckout
+from .onboarding_api import Applications, ApplicationDecision, ApplicationPayment, ApplicationResume, OfficeLookup, OfficePromotions, DiamondAdCopy, GatewaySettings, DemoCheckout
 from .private_media import PrivateDocumentView
 from django.urls import path
 from .profile_api import PreferencesView, SessionsView, NotificationsView, OwnActivityView
@@ -11,6 +11,8 @@ app_name = "accounts"
 urlpatterns = [
     path("role-applications/", Applications.as_view()),
     path("role-applications/<int:pk>/decision/", ApplicationDecision.as_view()),
+    path("role-applications/<int:pk>/payment/", ApplicationPayment.as_view()),
+    path("role-applications/<int:pk>/resume/", ApplicationResume.as_view()),
     path("office-lookup/", OfficeLookup.as_view()),
     path("office-promotions/", OfficePromotions.as_view()),
     path("gateway-settings/", GatewaySettings.as_view()),

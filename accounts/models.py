@@ -1,5 +1,6 @@
 
 import os
+from .resume_storage import PrivateResumeStorage
 import uuid
 
 from django.contrib.auth.models import AbstractUser, BaseUserManager
@@ -646,6 +647,8 @@ class AgencyProfile(models.Model):
         MARRIED = "married", "متأهل"
     marital_status = models.CharField(max_length=10, choices=MaritalStatus.choices, blank=True)
     landline = models.CharField(max_length=20, blank=True)
+    office_province = models.CharField(max_length=100, blank=True)
+    office_city = models.CharField(max_length=100, blank=True)
     office_address = models.TextField()
     office_district = models.CharField(max_length=150, blank=True)
     office_neighborhood = models.CharField(max_length=150, blank=True)
@@ -740,6 +743,8 @@ class RoleApplication(models.Model):
 
     class Status(models.TextChoices):
         PENDING = "pending", "در انتظار"
+        AWAIT_PAY = "await_pay", "در انتظار پرداخت"
+        FIX = "fix", "نیاز به اصلاح"
         APPROVED = "approved", "تأیید شده"
         REJECTED = "rejected", "رد شده"
 
@@ -749,6 +754,7 @@ class RoleApplication(models.Model):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
     details = models.JSONField(default=dict)
     tier = models.CharField(max_length=10, choices=OfficeSubscription.Tier.choices, default=OfficeSubscription.Tier.FREE)
+    resume = models.FileField(storage=PrivateResumeStorage(), upload_to="applications/", blank=True)
     terms_accepted_at = models.DateTimeField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True)
@@ -757,7 +763,7 @@ class RoleApplication(models.Model):
     class Meta:
         ordering = ["-id"]
         constraints = [
-            models.UniqueConstraint(fields=["applicant"], condition=Q(status="pending"), name="one_pending_role_application")
+            models.UniqueConstraint(fields=["applicant"], condition=Q(status__in=["pending", "await_pay"]), name="one_pending_role_application")
         ]
 
 

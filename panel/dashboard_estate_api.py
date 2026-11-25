@@ -50,7 +50,8 @@ def matches(data, q, *, estate=True):
 
 def office_place(user):
     profile = getattr(user, 'agency_profile', None)
-    return {'province': user.province or '', 'city': user.city or '',
+    return {'province': getattr(profile, 'office_province', '') or user.province or '',
+            'city': getattr(profile, 'office_city', '') or user.city or '',
             'district': getattr(profile, 'office_district', ''), 'neighborhood': getattr(profile, 'office_neighborhood', ''),
             'latitude': getattr(profile, 'latitude', None), 'longitude': getattr(profile, 'longitude', None)}
 

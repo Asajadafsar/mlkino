@@ -6,7 +6,7 @@ import {GatewayOptions, Result, gatewayResults} from '../Settings/GatewaySetting
 
 type Payment = {result: Result; reference: string | null}
 
-export default function DemoCheckout({gateway, tier, label, amount}: {gateway: GatewayOptions; tier: string; label: string; amount: number}) {
+export default function DemoCheckout({gateway, tier, label, amount, onResult}: {gateway: GatewayOptions; tier: string; label: string; amount: number; onResult?: (result: Result) => void}) {
     const [open, setOpen] = useState(false)
     const [result, setResult] = useState<Result>(gateway.default_result)
     const [payment, setPayment] = useState<Payment>()
@@ -16,7 +16,9 @@ export default function DemoCheckout({gateway, tier, label, amount}: {gateway: G
         setBusy(true)
         setError('')
         try {
-            setPayment((await api.post<Payment>(ACCOUNTS_URL + '/demo-checkout/', {tier, result})).data)
+            const {data} = await api.post<Payment>(ACCOUNTS_URL + '/demo-checkout/', {tier, result})
+            setPayment(data)
+            onResult?.(data.result)
         } catch {
             setError('درگاه آزمایشی در دسترس نیست.')
         } finally {

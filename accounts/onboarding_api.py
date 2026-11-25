@@ -6,6 +6,8 @@ from datetime import timedelta
 from uuid import UUID
 
 from django.db import transaction
+from django.http import FileResponse
+from accounts.private_media import PrivateDocumentField
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -31,12 +33,15 @@ class ResumeSerializer(serializers.Serializer):
     specialties = serializers.ListField(child=serializers.CharField(max_length=100), max_length=15, allow_empty=False)
     experience_years = serializers.IntegerField(min_value=0, max_value=80)
     job_details = serializers.CharField(max_length=4000)
+    focus_areas = serializers.CharField(max_length=250, required=False, allow_blank=True)
+    property_types = serializers.CharField(max_length=250, required=False, allow_blank=True)
+    resume = PrivateDocumentField('expert-document', required=False)
 
 
 class OfficeApplicationSerializer(AgencyProfileSerializer):
     class Meta(AgencyProfileSerializer.Meta):
         fields = ['agency_name', 'occupancy_type', 'lease_end_date', 'logo', 'has_business_license',
-                  'license_number', 'license_expires_at', 'license_image', 'landline', 'office_address',
+                  'license_number', 'license_expires_at', 'license_image', 'landline', 'office_address', 'office_province', 'office_city',
                   'office_district', 'office_neighborhood', 'description']
 
     def validate(self, attrs):
@@ -71,16 +76,18 @@ def office_info(office, request):
     experts = AgencyExpertLink.objects.filter(agency=office, expert__role=User.Role.EXPERT,
                                              expert__is_active=True, expert__account_status=User.AccountStatus.ACTIVE)
     return {'name': profile.agency_name, 'logo': request.build_absolute_uri(profile.logo.url) if profile.logo else None,
-            'address': profile.office_address, 'active_experts': experts.count()}
+            'address': profile.office_address, 'active_experts': experts.count(), 'city': profile.office_city or office.city, 'district': profile.office_district}
 
 
 def application_data(row, request):
     result = {'id': row.id, 'kind': row.kind, 'status': row.status, 'tier': row.tier, 'details': row.details,
               'created_at': row.created_at, 'reviewed_at': row.reviewed_at, 'terms_accepted_at': row.terms_accepted_at,
               'name': row.applicant.full_name, 'phone': row.applicant.phone}
+    if row.resume:
+        result['resume_url'] = request.build_absolute_uri(f'/api/accounts/role-applications/{row.pk}/resume/')
     if row.office_id and hasattr(row.office, 'agency_profile'):
         result['office_name'] = row.office.agency_profile.agency_name
-    if row.kind == 'office' and row.status == 'pending' and hasattr(row.applicant, 'agency_profile'):
+    if row.kind == 'office' and row.status in ('pending', 'await_pay', 'fix') and hasattr(row.applicant, 'agency_profile'):
         result['profile'] = OfficeApplicationSerializer(row.applicant.agency_profile, context={'request': request}).data
     return result
 
@@ -109,17 +116,22 @@ class Applications(APIView):
         elif user.role == User.Role.AGENCY:
             incoming = records.filter(kind='expert', office=user)
             sub, _ = OfficeSubscription.objects.get_or_create(office=user)
-            subscription = {'code': sub.code, 'tier': sub.tier, 'active_tier': sub.active_tier, 'paid_until': sub.paid_until,
+            profile = getattr(user, 'agency_profile', None)
+            subscription = {'office_name': profile.agency_name if profile else user.full_name,
+                            'logo': request.build_absolute_uri(profile.logo.url) if profile and profile.logo else None,
+                            'code': sub.code, 'tier': sub.tier, 'active_tier': sub.active_tier, 'paid_until': sub.paid_until,
                             'promoted_files': list(sub.promoted_files.values_list('id', flat=True)),
                             'ai_available': bool(os.environ.get('OPENAI_API_KEY') and os.environ.get('MLKINO_AD_COPY_MODEL'))}
         return Response({
             'own': [application_data(row, request) for row in records.filter(applicant=user)[:30]],
-            'incoming': [application_data(row, request) for row in incoming.filter(status='pending')[:100]],
+            'incoming': [application_data(row, request) for row in incoming.filter(status__in=['pending', 'await_pay'])[:100]],
+            'reviewed': [application_data(row, request) for row in incoming.exclude(status__in=['pending', 'await_pay'])[:50]],
             'subscription': subscription,
             'plans': [{'id': key, 'label': label, 'price': PLANS[key][0], 'promotions': PLANS[key][1]}
                       for key, label in OfficeSubscription.Tier.choices],
             'terms': TERMS,
-            'demo_gateway': gateway_options(),
+            'demo_gateway': {key: value for key, value in gateway_options().items() if key != 'payment_instructions'
+                             or is_superadmin(user) or records.filter(applicant=user, status='await_pay').exists()},
         })
 
     @transaction.atomic
@@ -133,16 +145,20 @@ class Applications(APIView):
         required_role = {'expert': User.Role.USER, 'office': User.Role.USER, 'upgrade': User.Role.AGENCY}
         if not isinstance(kind, str) or required_role.get(kind) != user.role:
             raise PermissionDenied()
-        if RoleApplication.objects.filter(applicant=user, status='pending').exists():
+        if RoleApplication.objects.filter(applicant=user, status__in=['pending', 'await_pay']).exists():
             raise ValidationError('درخواست دیگری در انتظار بررسی است.')
         application = RoleApplication(applicant=user, kind=kind)
         if kind == 'expert':
-            if request.data.get('confirm_office') is not True:
+            if request.data.get('confirm_office') not in (True, 'true'):
                 raise ValidationError('ابتدا دفتر انتخاب‌شده را تأیید کنید.')
             application.office = find_office(request.data.get('code'))
-            resume = ResumeSerializer(data=request.data)
+            data = request.data.copy()
+            if isinstance(data.get('specialties'), str):
+                data.setlist('specialties', data['specialties'].split('|')) if hasattr(data, 'setlist') else data.update(specialties=data['specialties'].split('|'))
+            resume = ResumeSerializer(data=data)
             resume.is_valid(raise_exception=True)
             application.details = dict(resume.validated_data)
+            application.resume = application.details.pop('resume', None)
         else:
             tier = request.data.get('tier')
             if not isinstance(tier, str) or tier not in PLANS or (kind == 'upgrade' and tier == 'free'):
@@ -178,54 +194,101 @@ class ApplicationDecision(APIView):
             allowed = is_superadmin(reviewer)
         if not allowed or row.applicant_id == reviewer.pk:
             raise NotFound()
-        if row.status != 'pending':
-            raise ValidationError('این درخواست قبلاً بررسی شده است.')
         decision = request.data.get('decision')
-        if decision not in ('approve', 'reject'):
-            raise ValidationError('نتیجه بررسی را تعیین کنید.')
+        allowed_decisions = {'pending': ('approve', 'reject', 'fix'), 'await_pay': ('confirm_payment', 'reject', 'fix')}
+        if decision not in allowed_decisions.get(row.status, ()):
+            raise ValidationError('این اقدام با وضعیت درخواست سازگار نیست.')
         applicant = User.objects.select_for_update().get(pk=row.applicant_id)
         now = timezone.now()
-        if decision == 'approve':
+        next_status = {'approve':'approved', 'confirm_payment':'approved', 'reject':'rejected', 'fix':'fix'}[decision]
+        if decision == 'fix':
+            note = serializers.CharField(max_length=1000).run_validation(request.data.get('review_note'))
+            row.details = {**row.details, 'review_note': note}
+        if decision in ('approve', 'confirm_payment'):
             required_role = User.Role.AGENCY if row.kind == 'upgrade' else User.Role.USER
             if applicant.role != required_role or not applicant.is_active or applicant.account_status != User.AccountStatus.ACTIVE:
                 raise ValidationError('وضعیت حساب متقاضی تغییر کرده است.')
             if row.kind == 'expert':
                 applicant.role = User.Role.EXPERT
                 applicant.save(update_fields=['role'])
-                ExpertProfile.objects.update_or_create(user=applicant, defaults=row.details)
+                profile_fields = ('job_title', 'specialties', 'experience_years', 'job_details')
+                profile = {key: row.details[key] for key in profile_fields if key in row.details}
+                ExpertProfile.objects.update_or_create(user=applicant, defaults=profile)
                 AgencyExpert.objects.update_or_create(expert=applicant, defaults={'agency_id': row.office_id, 'is_active': True})
                 AgencyExpertLink.objects.filter(expert=applicant).exclude(agency_id=row.office_id).delete()
                 AgencyExpertLink.objects.get_or_create(expert=applicant, agency_id=row.office_id)
+            elif row.tier != 'free' and decision == 'approve':
+                next_status = 'await_pay'
             else:
                 subscription, _ = OfficeSubscription.objects.select_for_update().get_or_create(office=applicant)
-                if row.tier != 'free':
-                    reference = request.data.get('payment_reference')
-                    if not isinstance(reference, str) or not 1 <= len(reference.strip()) <= 100:
-                        raise ValidationError('شناسه پرداخت تأییدشده را وارد کنید.')
-                    reference = reference.strip()
-                    if reference.upper().startswith('DEMO-'):
-                        raise ValidationError('شناسه آزمایشی برای پرداخت واقعی معتبر نیست.')
+                if decision == 'confirm_payment':
+                    reference = row.details.get('payment_reference')
+                    if not reference:
+                        raise ValidationError('متقاضی هنوز شناسه پرداخت ثبت نکرده است.')
+                    if request.data.get('payment_reference') != reference:
+                        raise ValidationError('شناسه پرداخت تغییر کرده است. صفحه را تازه کنید.')
                     if PLANS[row.tier][1] < PLANS[subscription.active_tier][1]:
                         raise ValidationError('در زمان اعتبار اشتراک، پلن فعلی یا پلن بالاتر را انتخاب کنید.')
                     subscription.tier = row.tier
                     subscription.paid_until = max(now, subscription.paid_until or now) + timedelta(days=30)
-                    payment, created = OfficePayment.objects.get_or_create(reference=reference, defaults={
+                    _, created = OfficePayment.objects.get_or_create(reference=reference, defaults={
                         'subscription': subscription, 'application': row, 'paid_until': subscription.paid_until,
                         'amount': row.details['monthly_price'],
                     })
                     if not created:
                         raise ValidationError('این شناسه پرداخت قبلاً ثبت شده است.')
                     subscription.save(update_fields=['tier', 'paid_until'])
-                    keep = list(subscription.promoted_files.filter(office=applicant, publication_state='published',
-                                archived_at=None).order_by('-id').values_list('pk', flat=True)[:PLANS[row.tier][1]])
-                    subscription.promoted_files.set(keep)
                 if row.kind == 'office':
                     applicant.role = User.Role.AGENCY
                     applicant.save(update_fields=['role'])
-        row.status = 'approved' if decision == 'approve' else 'rejected'
+        row.status = next_status
         row.reviewer = reviewer
         row.reviewed_at = now
-        row.save(update_fields=['status', 'reviewer', 'reviewed_at'])
+        row.save(update_fields=['status', 'reviewer', 'reviewed_at', 'details'])
+        return Response(application_data(row, request))
+
+
+class ApplicationResume(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        row = RoleApplication.objects.filter(pk=pk, kind='expert').first()
+        if not row or not row.resume:
+            raise NotFound()
+        if row.applicant_id != request.user.pk and not (
+            row.office_id == request.user.pk and active_offices().filter(pk=request.user.pk).exists()
+        ):
+            raise NotFound()
+        try:
+            document = row.resume.open('rb')
+        except OSError:
+            raise NotFound()
+        pdf = row.resume.name.endswith('.pdf')
+        response = FileResponse(document, as_attachment=True,
+                                filename='resume.pdf' if pdf else 'resume.webp',
+                                content_type='application/pdf' if pdf else 'image/webp')
+        response['Cache-Control'] = 'private, no-store'
+        response['X-Content-Type-Options'] = 'nosniff'
+        response['Content-Security-Policy'] = "sandbox; default-src 'none'"
+        return response
+
+
+class ApplicationPayment(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        user = request.user
+        if active_impersonation(request) or not user.is_active or user.account_status != User.AccountStatus.ACTIVE:
+            raise PermissionDenied()
+        row = RoleApplication.objects.select_for_update().filter(pk=pk, applicant=user, status='await_pay').first()
+        if not row:
+            raise NotFound()
+        reference = serializers.CharField(max_length=100).run_validation(request.data.get('payment_reference'))
+        if reference.upper().startswith('DEMO-') or OfficePayment.objects.filter(reference=reference).exists():
+            raise ValidationError('شناسه پرداخت معتبر و استفاده‌نشده وارد کنید.')
+        row.details = {**row.details, 'payment_reference': reference}
+        row.save(update_fields=['details'])
         return Response(application_data(row, request))
 
 
@@ -302,10 +365,11 @@ class DiamondAdCopy(APIView):
 class GatewayOptions(serializers.Serializer):
     enabled = serializers.BooleanField()
     title = serializers.CharField(max_length=60)
+    payment_instructions = serializers.CharField(max_length=500, required=False, allow_blank=True)
     default_result = serializers.ChoiceField(choices=['success', 'failure', 'cancelled'])
 
 
-GATEWAY_DEFAULTS = {'enabled': True, 'title': 'درگاه آزمایشی ملکینو', 'default_result': 'success'}
+GATEWAY_DEFAULTS = {'enabled': True, 'title': 'درگاه آزمایشی ملکینو', 'default_result': 'success', 'payment_instructions': ''}
 
 
 def gateway_options():

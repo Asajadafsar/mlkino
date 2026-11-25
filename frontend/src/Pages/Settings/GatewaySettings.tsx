@@ -3,7 +3,7 @@ import {Alert, Button, FormControlLabel, MenuItem, Stack, Switch, TextField, Typ
 import {ACCOUNTS_URL} from '../../Core/APP_URL'
 import api from '../../Core/Request'
 
-export type GatewayOptions = {enabled: boolean; title: string; default_result: Result}
+export type GatewayOptions = {enabled: boolean; title: string; default_result: Result; payment_instructions?: string}
 export type Result = 'success' | 'failure' | 'cancelled'
 export const gatewayResults = {success: 'موفق', failure: 'ناموفق', cancelled: 'لغو شده'}
 const url = ACCOUNTS_URL + '/gateway-settings/'
@@ -44,6 +44,7 @@ export default function GatewaySettings() {
             <TextField select label="نتیجهٔ پیش‌فرض پرداخت آزمایشی" value={value.default_result} onChange={event => setValue({...value, default_result: event.target.value as Result})}>
                 {Object.entries(gatewayResults).map(([key, label]) => <MenuItem key={key} value={key}>{label}</MenuItem>)}
             </TextField>
+            <TextField label="راهنمای پرداخت اشتراک" helperText="پس از تأیید درخواست به متقاضی نشان داده می‌شود." value={value.payment_instructions || ''} multiline minRows={2} inputProps={{maxLength: 500}} onChange={event => setValue({...value, payment_instructions: event.target.value})}/>
             <Button variant="contained" type="submit" disabled={busy}>ذخیرهٔ تنظیمات درگاه</Button>
         </>}
     </Stack>

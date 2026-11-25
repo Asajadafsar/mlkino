@@ -8,7 +8,7 @@ from django.utils import timezone
 from PIL import Image
 from rest_framework.test import APIClient
 
-from accounts.models import AgencyExpert, AgencyProfile, OfficePayment, OfficeSubscription, User
+from accounts.models import AgencyExpert, AgencyProfile, OfficePayment, OfficeSubscription, RoleApplication, User
 from panel.models import AgencyExpertLink, PropertyRecord
 from panel.public_api import public_rows
 
@@ -83,8 +83,12 @@ class OfficeOnboardingTests(TestCase):
         response = self.client.post(self.url, {'kind': 'upgrade', 'tier': 'pro', 'accept_terms': True}, format='json')
         application = response.data['id']
         self.as_user(self.admin)
-        self.assertEqual(self.decision(application).status_code, 400)
-        self.assertEqual(self.decision(application, payment_reference='bank-id-001').status_code, 200)
+        self.assertEqual(self.decision(application).data['status'], 'await_pay')
+        self.assertEqual(self.decision(application, decision='confirm_payment').status_code, 400)
+        self.as_user(self.office)
+        self.assertEqual(self.client.post(f'{self.url}{application}/payment/', {'payment_reference': 'bank-id-001'}).status_code, 200)
+        self.as_user(self.admin)
+        self.assertEqual(self.decision(application, decision='confirm_payment', payment_reference='bank-id-001').status_code, 200)
         self.assertEqual(OfficePayment.objects.get().amount, 299_000)
         self.subscription.refresh_from_db()
         self.assertEqual(self.subscription.active_tier, 'pro')
@@ -99,7 +103,13 @@ class OfficeOnboardingTests(TestCase):
         self.assertEqual(self.client.post('/accounts/diamond-ad-copy/', {'facts': 'آپارتمان دو خوابه'}).status_code, 403)
         response = self.client.post(self.url, {'kind': 'upgrade', 'tier': 'pro', 'accept_terms': True}, format='json')
         self.as_user(self.admin)
-        self.assertEqual(self.decision(response.data['id'], payment_reference='bank-id-001').status_code, 400)
+        renewal = response.data['id']
+        self.assertEqual(self.decision(renewal).data['status'], 'await_pay')
+        self.as_user(self.office)
+        self.assertEqual(self.client.post(f'{self.url}{renewal}/payment/', {'payment_reference': 'bank-id-001'}).status_code, 400)
+        self.assertEqual(self.subscription.promoted_files.count(), 1)
+        self.office.refresh_from_db()
+        self.assertEqual(self.office.role, 'agency')
 
     def test_demo_gateway_is_configurable_only_by_admin_and_cannot_activate_subscription(self):
         options = {'enabled': True, 'title': 'درگاه نمونه', 'default_result': 'failure'}
@@ -115,9 +125,67 @@ class OfficeOnboardingTests(TestCase):
         self.assertTrue(receipt['reference'].startswith('DEMO-'))
         response = self.client.post(self.url, {'kind': 'upgrade', 'tier': 'pro', 'accept_terms': True}, format='json')
         self.as_user(self.admin)
-        self.assertEqual(self.decision(response.data['id'], payment_reference=receipt['reference']).status_code, 400)
+        application = response.data['id']
+        self.assertEqual(self.decision(application).data['status'], 'await_pay')
+        self.as_user(self.office)
+        self.assertEqual(self.client.post(f'{self.url}{application}/payment/', {'payment_reference': receipt['reference']}).status_code, 400)
+        self.as_user(self.admin)
         self.assertFalse(OfficePayment.objects.exists())
         self.subscription.refresh_from_db()
         self.assertEqual(self.subscription.active_tier, 'free')
         self.client.put(config, {**options, 'enabled': False}, format='json')
         self.assertEqual(self.client.post(checkout, {'tier': 'pro'}, format='json').status_code, 403)
+
+    def test_paid_office_stays_ordinary_until_receipt_is_confirmed(self):
+        profile = AgencyProfile.objects.create(manager=self.user, agency_name='دفتر اشتراکی', occupancy_type='owner', office_address='قم')
+        row = RoleApplication.objects.create(applicant=self.user, kind='office', tier='diamond', details={'monthly_price': 999_000})
+        self.as_user(self.user)
+        url = f'{self.url}{row.pk}/payment/'
+        self.assertEqual(self.client.post(url, {'payment_reference': 'receipt-office'}).status_code, 404)
+        self.as_user(self.admin)
+        self.assertEqual(self.decision(row.pk).data['status'], 'await_pay')
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, 'user')
+        self.assertFalse(OfficeSubscription.objects.filter(office=self.user).exists())
+        self.as_user(self.other)
+        self.assertEqual(self.client.post(url, {'payment_reference': 'receipt-office'}).status_code, 404)
+        self.as_user(self.user)
+        self.assertEqual(self.client.post(url, {'payment_reference': 'receipt-office'}).status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, 'user')
+        self.as_user(self.admin)
+        self.assertEqual(self.decision(row.pk, decision='confirm_payment', payment_reference='wrong').status_code, 400)
+        self.assertEqual(self.decision(row.pk, decision='confirm_payment', payment_reference='receipt-office').data['status'], 'approved')
+        self.assertEqual(self.decision(row.pk, decision='confirm_payment', payment_reference='receipt-office').status_code, 400)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, 'agency')
+        subscription = self.user.office_subscription
+        self.assertEqual(subscription.active_tier, 'diamond')
+        subscription.paid_until = timezone.now() - timedelta(days=1)
+        subscription.save(update_fields=['paid_until'])
+        self.assertEqual(subscription.active_tier, 'free')
+        self.assertEqual(AgencyProfile.objects.get(manager=self.user).id, profile.id)
+
+    def test_resume_download_is_limited_to_applicant_and_selected_office(self):
+        from unittest.mock import patch
+
+        storage = RoleApplication._meta.get_field('resume').storage
+        self.as_user(self.user)
+        with tempfile.TemporaryDirectory() as root, patch.object(storage, 'base_location', root), patch.object(storage, 'location', root):
+            resume = SimpleUploadedFile('cv.pdf', b'%PDF-1.4\n%%EOF\n', content_type='application/pdf')
+            response = self.client.post(self.url, {
+                'kind': 'expert', 'code': str(self.subscription.code), 'confirm_office': 'true',
+                'job_title': 'مشاور', 'specialties': 'فروش|مذاکره', 'experience_years': 2,
+                'job_details': 'مشاور فروش ملک', 'resume': resume,
+            })
+            self.assertEqual(response.status_code, 201, response.data)
+            self.assertEqual(response.data['details']['specialties'], ['فروش', 'مذاکره'])
+            url = f"{self.url}{response.data['id']}/resume/"
+            self.as_user(self.other)
+            self.assertEqual(self.client.get(url).status_code, 404)
+            self.as_user(self.office)
+            download = self.client.get(url)
+            self.assertEqual(download.status_code, 200)
+            self.assertIn('attachment', download['Content-Disposition'])
+            self.assertEqual(b''.join(download.streaming_content), b'%PDF-1.4\n%%EOF\n')
+            download.close()

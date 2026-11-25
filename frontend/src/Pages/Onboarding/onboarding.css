@@ -1,0 +1,52 @@
+.onboarding-page .onboarding-identity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px;
+    border-radius: 16px;
+    background: linear-gradient(125deg, #f3f6ff, #fff);
+}
+.onboarding-choices, .onboarding-plans {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr));
+    gap: 14px;
+}
+.onboarding-page .onboarding-choice {
+    padding: 22px;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+}
+.onboarding-choice.expert {background: linear-gradient(145deg, #edf3ff, #fff)}
+.onboarding-choice.office {background: linear-gradient(145deg, #fff0f6, #fff)}
+.onboarding-choice.expert > svg {color: #246bfd; font-size: 32px}
+.onboarding-choice.office > svg {color: #c92d70; font-size: 32px}
+.onboarding-page .onboarding-plan {
+    border-radius: 16px;
+    padding: 16px;
+    min-height: 100px;
+}
+.onboarding-review {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+.onboarding-page .onboarding-review-list, .onboarding-page .onboarding-review-detail {
+    padding: 16px;
+    border-radius: 16px;
+}
+.onboarding-review-list > button {
+    justify-content: space-between;
+    margin-block-start: 8px;
+}
+@media (max-width: 780px) {
+    .onboarding-review {grid-template-columns: minmax(0, 1fr)}
+}
+.onboarding-location {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+    gap: 12px;
+}
