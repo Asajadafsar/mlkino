@@ -75,7 +75,10 @@
     "routing-settings": true,
     "financial-settings": true,
     "workspace-roles": true,
-    "reports": true
+    "reports": true,
+    "role-applications": true,
+    "plans": true,
+    "plan-capabilities": true
   },
   "fields": {
     "file.monthlyCharge": true,

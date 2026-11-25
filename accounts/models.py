@@ -709,3 +709,62 @@ class AccountNotification(models.Model):
 
     class Meta:
         ordering = ['-created_at', '-id']
+
+
+class OfficeSubscription(models.Model):
+    class Tier(models.TextChoices):
+        FREE = "free", "رایگان"
+        PRO = "pro", "حرفه‌ای"
+        PRO_PLUS = "pro-plus", "حرفه‌ای پلاس"
+        PRO_MAX = "pro-max", "حرفه‌ای مکس"
+        DIAMOND = "diamond", "الماس"
+
+    office = models.OneToOneField(User, on_delete=models.CASCADE, related_name="office_subscription")
+    code = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    tier = models.CharField(max_length=10, choices=Tier.choices, default=Tier.FREE)
+    paid_until = models.DateTimeField(null=True, blank=True)
+    promoted_files = models.ManyToManyField("panel.PropertyRecord", blank=True, related_name="office_promotions")
+
+    @property
+    def active_tier(self):
+        if self.paid_until and self.paid_until > timezone.now():
+            return self.tier
+        return self.Tier.FREE
+
+
+class RoleApplication(models.Model):
+    class Kind(models.TextChoices):
+        EXPERT = "expert", "کارشناس"
+        OFFICE = "office", "دفتر املاک"
+        UPGRADE = "upgrade", "تمدید یا ارتقا"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "در انتظار"
+        APPROVED = "approved", "تأیید شده"
+        REJECTED = "rejected", "رد شده"
+
+    applicant = models.ForeignKey(User, on_delete=models.CASCADE, related_name="role_applications")
+    office = models.ForeignKey(User, null=True, blank=True, on_delete=models.PROTECT, related_name="collaboration_requests")
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    details = models.JSONField(default=dict)
+    tier = models.CharField(max_length=10, choices=OfficeSubscription.Tier.choices, default=OfficeSubscription.Tier.FREE)
+    terms_accepted_at = models.DateTimeField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True)
+    reviewer = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="reviewed_role_applications")
+
+    class Meta:
+        ordering = ["-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["applicant"], condition=Q(status="pending"), name="one_pending_role_application")
+        ]
+
+
+class OfficePayment(models.Model):
+    subscription = models.ForeignKey(OfficeSubscription, on_delete=models.PROTECT)
+    application = models.OneToOneField(RoleApplication, on_delete=models.PROTECT)
+    reference = models.CharField(max_length=100, unique=True)
+    amount = models.PositiveBigIntegerField()
+    paid_until = models.DateTimeField()
+    recorded_at = models.DateTimeField(auto_now_add=True)

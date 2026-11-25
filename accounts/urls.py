@@ -1,3 +1,4 @@
+from .onboarding_api import Applications, ApplicationDecision, OfficeLookup, OfficePromotions, DiamondAdCopy
 from .private_media import PrivateDocumentView
 from django.urls import path
 from .profile_api import PreferencesView, SessionsView, NotificationsView, OwnActivityView
@@ -8,6 +9,11 @@ from .csrf_api import csrf_token
 app_name = "accounts"
 
 urlpatterns = [
+    path("role-applications/", Applications.as_view()),
+    path("role-applications/<int:pk>/decision/", ApplicationDecision.as_view()),
+    path("office-lookup/", OfficeLookup.as_view()),
+    path("office-promotions/", OfficePromotions.as_view()),
+    path("diamond-ad-copy/", DiamondAdCopy.as_view()),
     path('csrf/', csrf_token, name='csrf-token'),
     path("documents/<int:user_id>/<str:kind>/",PrivateDocumentView.as_view(),name="private-document"),
     path("session/", views.LandingSessionView.as_view(), name="landing-session"),

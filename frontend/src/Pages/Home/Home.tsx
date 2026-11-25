@@ -88,6 +88,7 @@ import {useDispatch, useStore} from 'react-redux'
 import axios from 'axios'
 import { LogsEdit } from '../Logs/Edit/LogsEdit'
 
+const Onboarding=lazy(()=>import('../Onboarding/Onboarding'))
 const PlansList=lazy(()=>import('../Plans/PlansList'))
 const PlanEditor=lazy(()=>import('../Plans/PlanEditor'))
 const CapabilitiesList=lazy(()=>import('../Plans/CapabilitiesList'))
@@ -103,6 +104,8 @@ function FeatureRouteGuard({children}:{children:React.ReactNode}){
  if(loading)return <Stack alignItems="center" p={5}><CircularProgress aria-label="دریافت تنظیمات دسترسی"/></Stack>
  if(key==='advertisements')return <ComingSoon/>
  const feature=({views:'visits','landlord-tenant':'landlordTenant'} as Record<string,string>)[key]||key
+ if(location.pathname === '/users/expert/collaboration' && settings.features['role-applications'] === false)
+  return <Alert severity="info">درخواست همکاری موقتاً غیرفعال است.</Alert>
  if(key!=='settings'&&settings.features[feature]===false)return <Alert severity="info">این قابلیت توسط مدیر سامانه غیرفعال شده است. اطلاعات قبلی محفوظ است.</Alert>
  return <>{children}</>
 }
@@ -237,6 +240,8 @@ export function Home(props) {
                     sx={{minWidth: 0}}
                 >
                     <Suspense fallback={<Stack alignItems="center" p={5}><CircularProgress aria-label="بارگذاری صفحه"/></Stack>}><Routes>
+                        <Route path="role-applications" element={<Onboarding/>}/>
+                        <Route path="users/expert/collaboration" element={<Onboarding/>}/>
                         <Route path="plans" element={<PlansList/>}/>
                         <Route path="plans/create" element={<PlanEditor/>}/>
                         <Route path="plans/:id" element={<PlanEditor/>}/>
@@ -256,7 +261,13 @@ export function Home(props) {
                         <Route path="workspace-roles" element={<WorkspaceRoles/>}/>
 
                         <Route path="chats" element={<ChatPage />} />
-                        <Route path="dashboard" element={<DashboardLayout />} />
+                        <Route path="dashboard" element={<Stack spacing={2}>
+                            {user.role === UserRole.USER && <Stack direction="row" gap={1} flexWrap="wrap">
+                                <Button variant="outlined" onClick={() => navigate('/role-applications?request=expert')}>درخواست تبدیل به کارشناس</Button>
+                                <Button variant="outlined" onClick={() => navigate('/role-applications?request=office')}>درخواست تبدیل به املاکی</Button>
+                            </Stack>}
+                            <DashboardLayout />
+                        </Stack>} />
                         <Route path="/profile" element={<Profile />} />
                         {/* ...........super users.......... */}
                         <Route
@@ -292,7 +303,10 @@ export function Home(props) {
                         />
                         <Route
                             path="users/expert"
-                            element={<ExpertList title="لیست کارشناسان" />}
+                            element={<Stack spacing={1} alignItems="stretch">
+                                {user.role === UserRole.AGENCY && <Button sx={{alignSelf: 'flex-start'}} onClick={() => navigate('/users/expert/collaboration')} variant="outlined">درخواست‌های همکاری</Button>}
+                                <ExpertList title="لیست کارشناسان" />
+                            </Stack>}
                         />
                         <Route
                             path="users/expert/:id"

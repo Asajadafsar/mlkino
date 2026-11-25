@@ -661,7 +661,7 @@ class AgencyProfileSerializer(serializers.ModelSerializer):
     def get_fields(self):
         fields = super().get_fields()
         request = self.context.get('request')
-        if request and (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
+        if 'office_verification_status' in fields and request and (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
             fields['office_verification_status'].read_only = False
         return fields
 

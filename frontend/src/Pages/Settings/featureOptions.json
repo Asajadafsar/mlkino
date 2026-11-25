@@ -220,5 +220,6 @@
     "link": "plan-capabilities",
     "label": "امکانات پلن‌ها",
     "default": true
-  }
+  },
+  {"key":"role-applications","link":"role-applications","label":"درخواست نقش و اشتراک","default":true}
 ]

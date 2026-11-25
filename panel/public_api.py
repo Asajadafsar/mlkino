@@ -1,5 +1,7 @@
 """Anonymous catalog intentionally excludes owner/contact/internal and draft data."""
 from decimal import Decimal,InvalidOperation
+from django.utils import timezone
+from accounts.models import OfficeSubscription
 from django.shortcuts import get_object_or_404
 from django.db.models import Q,Exists,OuterRef,F
 from rest_framework.permissions import AllowAny
@@ -15,7 +17,10 @@ from .workflow_services import feature
 SAFE_FIELDS=('title','propertyType','contractType','province','city','district','neighborhood','area','totalPrice','mortgagePrice','monthlyRent','roomCount','images','latitude','longitude','description','documentType','amenities','buildYear','totalFloor','floor','external_links','image_variants','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','floorPreferences')
 def public_rows():
     membership=AgencyExpertLink.objects.filter(agency_id=OuterRef('office_id'),expert_id=OuterRef('assigned_expert_id'))
-    return PropertyRecord.objects.filter(publication_state='published',archived_at=None).annotate(_expert_membership=Exists(membership)).filter(Q(assigned_expert__isnull=True)|Q(assigned_expert__role='expert',assigned_expert__is_active=True,assigned_expert__account_status='active')&(Q(office__isnull=True)|Q(office_id=F('assigned_expert_id'))|Q(_expert_membership=True))).select_related('assigned_expert','office__agency_profile','created_by')
+    promotions = OfficeSubscription.objects.filter(promoted_files=OuterRef('pk'), office_id=OuterRef('office_id'),
+        paid_until__gt=timezone.now(), office__role='agency', office__is_active=True,
+        office__account_status='active').exclude(tier='free')
+    return PropertyRecord.objects.annotate(paid_promotion=Exists(promotions)).filter(publication_state='published',archived_at=None).annotate(_expert_membership=Exists(membership)).filter(Q(assigned_expert__isnull=True)|Q(assigned_expert__role='expert',assigned_expert__is_active=True,assigned_expert__account_status='active')&(Q(office__isnull=True)|Q(office_id=F('assigned_expert_id'))|Q(_expert_membership=True))).select_related('assigned_expert','office__agency_profile','created_by')
 
 def public_serialize(row):
     result={k:row.data[k] for k in SAFE_FIELDS if k in row.data}
@@ -24,7 +29,7 @@ def public_serialize(row):
     # Internal notes, precise postal/address and owner details are never projected.
     if not isinstance(result.get('images',[]),list):result['images']=[]
     result['images']=[x for x in result.get('images',[]) if isinstance(x,str) and x.startswith(('https://','http://'))][:15]
-    result.update(id=row.pk,kind=row.kind,featured=row.featured,created_at=row.created_at.isoformat(),title=row.data.get('title') or f'{row.data.get("propertyType", "ملک")} {row.data.get("city", "")}')
+    result.update(id=row.pk,kind=row.kind,featured=row.featured or getattr(row, "paid_promotion", False),created_at=row.created_at.isoformat(),title=row.data.get('title') or f'{row.data.get("propertyType", "ملک")} {row.data.get("city", "")}')
     expert=row.assigned_expert or (row.created_by if row.created_by.role=='expert' else None)
     result['expert']={'id':expert.pk,'name':expert.full_name,'work_phone':None} if expert else None
     office=row.office
@@ -100,7 +105,7 @@ class PublicCatalogView(APIView):
         if pk:
             row=get_object_or_404(public_rows(),pk=pk);feature('files' if row.kind=='file' else 'requests');return envelope(public_serialize(row))
         qs=public_rows().filter(kind=kind)
-        if request.query_params.get('featured') in ('true','1'):qs=qs.filter(featured=True)
+        if request.query_params.get('featured') in ('true','1'):qs=qs.filter(Q(featured=True) | Q(paid_promotion=True))
         try:page=max(1,int(request.query_params.get('page',1)));size=min(60,max(1,int(request.query_params.get('page_size',24))))
         except ValueError:raise ValidationError('صفحه معتبر نیست.')
         filters={k:v for k,v in request.query_params.items() if k not in ('kind','featured','page','page_size') and v}
