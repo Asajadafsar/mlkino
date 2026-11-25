@@ -30,3 +30,8 @@ requested the exact complete design behavior. 116 of 120 changed source frontend
 files match byte-for-byte; the four differences are the root auth destination,
 Home registration gate, Profile OTP security integration and its API-call test.
 All new design modules/routes are included.
+
+Superseding complete release: `20261125-254289c-redesign`. All 56 served build
+files (including lazy chunks) were verified against SHA256; ten feature routes
+returned the new HTML. All 205 tests passed. The source preview feature defaults
+are now active. The earlier live-data-default substitution was removed.
