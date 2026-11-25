@@ -10,8 +10,7 @@ export function useViewMode(resource: string, defaultMode: ViewMode = 'list') {
 
     const [viewMode, setViewModeState] = useState<ViewMode>(() => {
         if (typeof window === 'undefined') return defaultMode
-        const stored = window.localStorage.getItem(storageKey)
-        return stored === 'card' || stored === 'list' ? stored : defaultMode
+        try {const stored = window.localStorage.getItem(storageKey); return stored === 'card' || stored === 'list' ? stored : defaultMode} catch {return defaultMode}
     })
 
     const setViewMode = (mode: ViewMode) => {

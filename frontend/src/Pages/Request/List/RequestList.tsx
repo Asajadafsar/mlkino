@@ -1,2 +1,2 @@
-import {RecordList} from '../../Files/RecordList'
-export function RequestList(){return <RecordList mode="request"/>}
+import RequestsWorkspace from '../Workspace/RequestsWorkspace'
+export function RequestList(){return <RequestsWorkspace/>}

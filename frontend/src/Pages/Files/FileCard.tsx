@@ -1,0 +1,30 @@
+import FileImage from './FileImage'
+import {useEffect,useState} from 'react'
+import {Avatar,Button,IconButton,Menu,MenuItem,Tooltip} from '@mui/material'
+import ApartmentOutlined from '@mui/icons-material/ApartmentOutlined'
+import FavoriteBorder from '@mui/icons-material/FavoriteBorder'
+import Favorite from '@mui/icons-material/Favorite'
+import PushPinOutlined from '@mui/icons-material/PushPinOutlined'
+import PushPin from '@mui/icons-material/PushPin'
+import MoreHoriz from '@mui/icons-material/MoreHoriz'
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
+import EditOutlined from '@mui/icons-material/EditOutlined'
+import ShareOutlined from '@mui/icons-material/ShareOutlined'
+import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined'
+import PlaceOutlined from '@mui/icons-material/PlaceOutlined'
+import BedOutlined from '@mui/icons-material/BedOutlined'
+import SquareFoot from '@mui/icons-material/SquareFoot'
+import LayersOutlined from '@mui/icons-material/LayersOutlined'
+import {useFileFavorites,pinFile} from './fileData'
+import {useDerivedPropertyInfo} from './PropertyCard/propertyCardUtils'
+import {errorText,FileRecord,fileTitle,fileCode,fileStatus,fileTone} from './filePresentation'
+export type FileHandlers={onView:(file:FileRecord)=>void;onEdit:(file:FileRecord)=>void;onShare:(files:FileRecord[])=>void;onArchive:(files:FileRecord[])=>void;onError:(message:string)=>void;canManage:boolean}
+export function FileOperations({file,handlers,compact=false}:{file:FileRecord;handlers:FileHandlers;compact?:boolean}){return <div className={`file-operations${compact?' is-compact':''}`}><Tooltip title="مشاهده جزئیات"><Button className="file-view-button" aria-label={`مشاهده ${fileTitle(file)}`} onClick={()=>handlers.onView(file)}><VisibilityOutlined/>{!compact&&'مشاهده'}</Button></Tooltip>{handlers.canManage&&<Tooltip title="ویرایش فایل"><Button aria-label={`ویرایش ${fileTitle(file)}`} onClick={()=>handlers.onEdit(file)}><EditOutlined/>{!compact&&'ویرایش'}</Button></Tooltip>}<Tooltip title="اشتراک‌گذاری"><Button aria-label={`اشتراک ${fileTitle(file)}`} onClick={()=>handlers.onShare([file])}><ShareOutlined/>{!compact&&'اشتراک'}</Button></Tooltip>{handlers.canManage&&<Tooltip title={file.archived?'بازیابی از آرشیو':'بایگانی فایل'}><Button aria-label={`${file.archived?'بازیابی':'آرشیو'} ${fileTitle(file)}`} onClick={()=>handlers.onArchive([file])}><Inventory2Outlined/>{!compact&&(file.archived?'بازیابی':'آرشیو')}</Button></Tooltip>}</div>}
+export function FileQuickActions({file,onError,onView}:{file:FileRecord;onError:(m:string)=>void;onView:()=>void}){
+ const {ids,toggle,loading}=useFileFavorites(!!file.demo),[busy,setBusy]=useState(false),[pinned,setPinned]=useState(!!file.pinned),[anchor,setAnchor]=useState<HTMLElement|null>(null)
+ useEffect(()=>setPinned(!!file.pinned),[file.id,file.pinned])
+ const pin=async()=>{if(busy)return;setBusy(true);try{await pinFile(file,!pinned);setPinned(!pinned)}catch(e){onError(errorText(e))}finally{setBusy(false)}}
+ const favorite=async()=>{if(busy)return;setBusy(true);try{await toggle(file.id)}catch(e){onError(errorText(e))}finally{setBusy(false)}}
+ return <div className="file-quick-actions"><span><Tooltip title={pinned?'برداشتن پین':'پین فایل'}><IconButton disabled={busy} aria-label={`پین ${fileCode(file)}`} aria-pressed={pinned} onClick={pin}>{pinned?<PushPin color="primary"/>:<PushPinOutlined/>}</IconButton></Tooltip><Tooltip title="علاقه‌مندی"><IconButton disabled={busy||loading} aria-label={`علاقه‌مندی ${fileCode(file)}`} aria-pressed={ids.has(file.id)} onClick={favorite}>{ids.has(file.id)?<Favorite color="error"/>:<FavoriteBorder/>}</IconButton></Tooltip></span><IconButton aria-label={`عملیات ${fileCode(file)}`} onClick={e=>setAnchor(e.currentTarget)}><MoreHoriz/></IconButton><Menu anchorEl={anchor} open={!!anchor} onClose={()=>setAnchor(null)}><MenuItem onClick={()=>{setAnchor(null);onView()}}>مشاهده جزئیات</MenuItem><MenuItem disabled={busy} onClick={()=>{setAnchor(null);pin()}}>{pinned?'برداشتن پین':'پین فایل'}</MenuItem></Menu></div>
+}
+export default function FileCard({file,handlers}:{file:FileRecord;handlers:FileHandlers}){const {location,priceMain,priceSecondary,priceLabel,areaText}=useDerivedPropertyInfo(file),image=typeof file.images?.[0]==='string'?file.images[0]:null,registrar=file.agencyName||file.expertName||file.created_by_name;return <article className="property-file-card"><div className="file-card-image"><button className="file-card-open" aria-label={`تصاویر ${fileTitle(file)}`} onClick={()=>handlers.onView(file)}>{image?<FileImage loading="lazy" src={image} alt={fileTitle(file)}/>:<span><ApartmentOutlined/><small>تصویری ثبت نشده</small></span>}</button><FileQuickActions file={file} onError={handlers.onError} onView={()=>handlers.onView(file)}/><div className="file-image-labels"><span className={`file-status is-${fileTone(file)}`}>{fileStatus(file)}</span><span className="file-code">{fileCode(file)}</span></div></div><div className="file-card-body"><button className="file-title-button" onClick={()=>handlers.onView(file)}>{fileTitle(file)}</button><p className="file-location"><PlaceOutlined/>{location||'موقعیت ثبت نشده'}</p><div className="file-card-facts"><span><BedOutlined/>{file.roomCount!=null?Number(file.roomCount).toLocaleString('fa-IR')+' اتاق':'—'}</span><span><LayersOutlined/>{file.floor!=null?'طبقه '+Number(file.floor).toLocaleString('fa-IR'):'—'}</span><span><SquareFoot/>{areaText||'—'}</span></div><div className="file-card-price"><span>{priceLabel||'قیمت'}:</span><strong>{priceMain?priceMain+' تومان':'توافقی'}</strong>{priceSecondary&&<small>{priceSecondary}</small>}</div><div className="file-registrar"><Avatar>{registrar?.slice(0,1)||<ApartmentOutlined/>}</Avatar><span><strong>{registrar||'ثبت‌کننده مشخص نشده'}</strong><small>{file.agencyName?'دفتر املاک':file.expertName?'کارشناس املاک':file.source==='landing'?'ثبت از سایت':'فایل ملکی'}</small></span></div><FileOperations file={file} handlers={handlers}/></div></article>}

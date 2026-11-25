@@ -56,7 +56,7 @@ export function Contracts({
                             disabled
                         />,
 
-                        <DatePickerFilter
+                        <DatePickerFilter fixedLabel
                             key="contract_datetime"
                             mode="controlled"
                             item={{

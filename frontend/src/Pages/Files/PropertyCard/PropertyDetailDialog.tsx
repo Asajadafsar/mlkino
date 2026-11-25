@@ -1,3 +1,5 @@
+import type {FileRecord} from '../filePresentation'
+import FileDetailDialog from '../FileDetailDialog'
 import {Box, Chip, Dialog, DialogContent, IconButton, Stack, Typography} from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import ImageNotSupportedRoundedIcon from '@mui/icons-material/ImageNotSupportedRounded'
@@ -6,7 +8,6 @@ import SquareFootRoundedIcon from '@mui/icons-material/SquareFootRounded'
 import BedRoundedIcon from '@mui/icons-material/BedRounded'
 import LayersRoundedIcon from '@mui/icons-material/LayersRounded'
 import ExploreRoundedIcon from '@mui/icons-material/ExploreRounded'
-import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
 import PaidRoundedIcon from '@mui/icons-material/PaidRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import ContactPhoneRoundedIcon from '@mui/icons-material/ContactPhoneRounded'
@@ -44,7 +45,7 @@ function QuickFactChip({icon, label}: {icon: React.ReactNode; label?: string}) {
     )
 }
 
-export function PropertyDetailDialog({
+function LegacyPropertyDetailDialog({
     open,
     onClose,
     item,
@@ -324,4 +325,7 @@ export function PropertyDetailDialog({
             </DialogContent>
         </Dialog>
     )
+}
+export function PropertyDetailDialog(props:{open:boolean;onClose:()=>void;item:Partial<FileRecord>;mode?:RecordMode;onEdit?:(file:FileRecord)=>void;onUpdated?:(file?:FileRecord)=>void}){
+ return !props.mode||props.mode==='file'?<FileDetailDialog {...props}/>:<LegacyPropertyDetailDialog {...props}/>
 }

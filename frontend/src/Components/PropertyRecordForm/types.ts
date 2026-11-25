@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from 'react'
 
 export type RecordMode = 'file' | 'request' | 'ad'
 export type PropertyType = {
+    title?: string
     isAd:boolean
     id: number
     status: string

@@ -1,0 +1,4 @@
+import {ReactNode} from 'react'
+import {PersonAddAltOutlined,NotificationsNone,LayersOutlined} from '@mui/icons-material'
+import './officeWorkspace.css'
+export function OfficeHero({kind,action,title}:{kind:'experts'|'roles'|'reminders';action?:ReactNode;title?:string}){return <header className={'office-hero kind-'+kind} style={{'--office-image':"url('/assets/estate-hero-v1.webp')"} as React.CSSProperties}><span>{kind==='experts'?<PersonAddAltOutlined/>:kind==='roles'?<LayersOutlined/>:<NotificationsNone/>}</span><div><h1>{title||(kind==='roles'?'نقش‌های تکمیلی در دفتر':'مدیریت یادآوری‌های من')}</h1><p>{kind==='experts'?'مدیریت کارشناسان، دسترسی‌ها و نقش‌های فعال دفتر.':kind==='roles'?'تفکیک مسئولیت‌ها و تعیین نقش‌های تکمیلی کاربران در دفتر.':'یادداشت‌ها و کارهایی که نمی‌خواهید فراموش کنید، فقط برای خودتان.'}</p>{action}</div>{kind!=='roles'&&<img src={kind==='experts'?'/assets/users-3d.webp':'/assets/reminders-3d.webp'} alt=""/>}</header>}

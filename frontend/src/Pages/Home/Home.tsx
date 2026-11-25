@@ -88,6 +88,10 @@ import {useDispatch, useStore} from 'react-redux'
 import axios from 'axios'
 import { LogsEdit } from '../Logs/Edit/LogsEdit'
 
+const PlansList=lazy(()=>import('../Plans/PlansList'))
+const PlanEditor=lazy(()=>import('../Plans/PlanEditor'))
+const CapabilitiesList=lazy(()=>import('../Plans/CapabilitiesList'))
+const Archives=lazy(()=>import('../Archives/ArchiveWorkspace').then(m=>({default:m.Archives})))
 const Reports=lazy(()=>import('../Workflows/Reports').then(m=>({default:m.Reports})))
 const WorkflowPage=lazy(()=>import('../Workflows/WorkflowPage').then(m=>({default:m.WorkflowPage})))
 const WorkflowOverview=lazy(()=>import('../Workflows/WorkflowOverview').then(m=>({default:m.WorkflowOverview})))
@@ -226,7 +230,6 @@ export function Home(props) {
         <PanelSettingsProvider><FavoritesProvider><RealtimeProvider><MainLayout><FeatureRouteGuard>
             <Box
                 flexGrow={1}
-                mt="5.25rem"
                 sx={{px: {xs: 1.5, sm: 3}, pb: 4, pt: 2}}
             >
                 <ImpersonationBanner />
@@ -234,6 +237,10 @@ export function Home(props) {
                     sx={{minWidth: 0}}
                 >
                     <Suspense fallback={<Stack alignItems="center" p={5}><CircularProgress aria-label="بارگذاری صفحه"/></Stack>}><Routes>
+                        <Route path="plans" element={<PlansList/>}/>
+                        <Route path="plans/create" element={<PlanEditor/>}/>
+                        <Route path="plans/:id" element={<PlanEditor/>}/>
+                        <Route path="plan-capabilities" element={<CapabilitiesList/>}/>
                         <Route path="reports" element={<Reports/>}/>
                         <Route path="workflows" element={<WorkflowOverview/>}/>
                         <Route path="crm" element={<WorkflowPage section="contacts"/>}/>
@@ -393,8 +400,8 @@ export function Home(props) {
                         <Route path="contracts/:id" element={<ContractsEdit />} />
                         {/* ...........archives.......... */}
 
-                        <Route path="archives" element={<WorkflowPage section="archive"/>} />
-                        <Route path="archives/:id" element={<WorkflowPage section="archive"/>} />
+                        <Route path="archives" element={<Archives/>} />
+                        <Route path="archives/:id" element={<Archives/>} />
                         {/* ...........Tasks.......... */}
                         <Route
                             path="tasks/create"

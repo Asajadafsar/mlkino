@@ -53,7 +53,7 @@ const NewActivity = () => {
     }
 
     const handleNavigate = (link: string) => {
-        navigate(link)
+        navigate(`/${link}`)
         handleClose()
     }
 
@@ -68,51 +68,11 @@ const NewActivity = () => {
                         }}
                     />
                 }
-                sx={{
-                    height: 42,
-                    minWidth: {
-                        xs: 42,
-                        sm: 92,
-                    },
-
-                    px: {
-                        xs: 1,
-                        sm: 1.75,
-                    },
-
-                    borderRadius: '12px',
-
-                    fontSize: 13,
-                    fontWeight: 700,
-
-                    color: '#fff',
-                    backgroundColor: 'primary.main',
-
-                    border: '1px solid',
-                    borderColor: 'primary.light',
-
-                    boxShadow: 'none',
-
-                    '&:hover': {
-                        backgroundColor: 'primary.main',
-                        color: '#fff',
-                        borderColor: 'primary.main',
-                    },
-
-                    '& .MuiButton-startIcon': {
-                        margin: {
-                            xs: 0,
-                            sm: '0 6px 0 0',
-                        },
-                    },
-
-                    '& .button-text': {
-                        display: {
-                            xs: 'none',
-                            sm: 'block',
-                        },
-                    },
-                }}
+                className="panel-header-new"
+                aria-label="ایجاد جدید"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-controls={open?'panel-create-menu':undefined}
             >
                 <span className="button-text">
                     جدید
@@ -120,6 +80,7 @@ const NewActivity = () => {
             </Button>
 
             <Menu
+                id="panel-create-menu"
                 anchorEl={anchorEl}
                 open={open}
                 onClose={handleClose}

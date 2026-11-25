@@ -17,6 +17,6 @@ test('contracts show the contract amount and a usable contract detail dialog',()
 
 test('failed saves retain the draft and allow retry',async()=>{
  const save=jest.fn().mockRejectedValueOnce(new Error('خطای ارتباط')).mockResolvedValueOnce(undefined)
- render(<EstateActivityList kind="contracts" rows={[]} onSave={save}/>);fireEvent.click(screen.getByRole('button',{name:'جدید',exact:true}));fireEvent.change(screen.getByLabelText(/نام ملک/),{target:{value:'قرارداد حفظ‌شده'}});fireEvent.click(screen.getByRole('button',{name:'ذخیره',exact:true}));
+ render(<EstateActivityList kind="contracts" rows={[]} onSave={save}/>);fireEvent.click(screen.getByRole('button',{name:/ثبت قرارداد جدید/}));fireEvent.change(screen.getByLabelText(/نام ملک/),{target:{value:'قرارداد حفظ‌شده'}});fireEvent.click(screen.getByRole('button',{name:'ذخیره',exact:true}));
  expect(await screen.findByRole('alert')).toBeTruthy();expect((screen.getByLabelText(/نام ملک/) as HTMLInputElement).value).toBe('قرارداد حفظ‌شده');fireEvent.click(screen.getByRole('button',{name:'ذخیره',exact:true}));await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());expect(save).toHaveBeenCalledTimes(2)
 })

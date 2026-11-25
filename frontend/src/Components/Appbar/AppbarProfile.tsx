@@ -11,7 +11,7 @@ import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 
-import {Avatar, Divider, ListItemIcon, Menu, MenuItem, Stack, Typography} from '@mui/material'
+import {Avatar, ButtonBase, Divider, ListItemIcon, Menu, MenuItem, Stack, Typography} from '@mui/material'
 
 import {useState} from 'react'
 import {useNavigate} from 'react-router-dom'
@@ -78,24 +78,7 @@ const AppbarProfile = ({user}: {user: UsersType}) => {
 
     return (
         <>
-            <Stack
-                direction="row"
-                alignItems="center"
-                gap={1}
-                onClick={handleOpen}
-                sx={{
-                    cursor: 'pointer',
-                    px: 0.75,
-                    py: 0.5,
-                    borderRadius: '14px',
-
-                    transition: 'background-color .2s ease',
-
-                    '&:hover': {
-                        backgroundColor: 'action.hover',
-                    },
-                }}
-            >
+            <ButtonBase className="panel-header-profile" onClick={handleOpen} aria-label="حساب کاربری" aria-haspopup="menu" aria-expanded={open} aria-controls={open?'panel-profile-menu':undefined}>
                 <Avatar
                     src={typeof user.avatar === 'string' ? user.avatar : ''}
                     alt={user.first_name}
@@ -109,23 +92,7 @@ const AppbarProfile = ({user}: {user: UsersType}) => {
                     {user.first_name?.slice(0, 1)}
                 </Avatar>
 
-                <Stack
-                    sx={{
-                        display: {
-                            xs: 'none',
-                            mdl: 'flex',
-                        },
-                    }}
-                >
-                    <Typography fontSize={14} fontWeight={700} lineHeight={1.3} noWrap>
-                        {user.first_name}
-                    </Typography>
-
-                    <Typography fontSize={11} color="text.secondary" lineHeight={1.3}>
-                        حساب کاربری
-                    </Typography>
-                </Stack>
-
+                <span className="panel-header-profile-copy"><strong>{[user.first_name,user.last_name].filter(Boolean).join(' ')||'حساب کاربری'}</strong><small>حساب کاربری</small></span>
                 <KeyboardArrowDownRoundedIcon
                     sx={{
                         fontSize: 20,
@@ -134,9 +101,10 @@ const AppbarProfile = ({user}: {user: UsersType}) => {
                         transform: open ? 'rotate(180deg)' : 'rotate(0)',
                     }}
                 />
-            </Stack>
+            </ButtonBase>
 
             <Menu
+                id="panel-profile-menu"
                 anchorEl={anchorEl}
                 open={open}
                 onClose={handleClose}

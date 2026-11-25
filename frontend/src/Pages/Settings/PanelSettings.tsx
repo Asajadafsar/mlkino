@@ -10,7 +10,8 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import ContactMailOutlinedIcon from '@mui/icons-material/ContactMailOutlined'
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded'
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
-import {PageHero} from '../../Components/Workspace/PageHero'
+import {AccountHero} from '../../Components/AccountWorkspace/AccountHero'
+import {SettingsHelp} from './SettingsHelp'
 import {usePanelSettings} from '../../Core/PanelSettingsContext'
 import {useSelector} from 'react-redux'
 import {selectIsSuperAdmin} from '../../redux/RoleSlice'
@@ -69,17 +70,17 @@ export default function PanelSettings() {
         {id:'fields',title:'فیلدهای فرم‌ها',description:'نمایش فیلدها در هر بخش',icon:<TuneRoundedIcon/>},
         {id:'features',title:'بخش‌های پنل',description:'نمایش امکانات در منو',icon:<TuneRoundedIcon/>},
     ]
-    return <Stack spacing={2.5}>
-        <PageHero title="تنظیمات سامانه" description="هویت، ظاهر و تنظیمات ملکینو را از یک جای مشخص مدیریت کنید." illustration="/assets/settings-3d.webp" />
+    return <Stack spacing={2.5} className="account-workspace settings-workspace">
+        <AccountHero/>
         {loading && <LinearProgress/>}
         {(error || saveError) && <Alert severity="error">{saveError || error}</Alert>}
         {message && <Alert severity="success" onClose={()=>setMessage('')}>{message}</Alert>}
         {!isAdmin && <Alert severity="info">تغییر تنظیمات عمومی توسط سوپرادمین انجام می‌شود.</Alert>}
-        <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',md:'260px minmax(0,1fr)'},gap:2.5,alignItems:'start'}}>
-            <Paper variant="outlined" sx={{p:1.5,borderRadius:4,minWidth:0,maxWidth:'100%'}}><List sx={{display:{xs:'flex',md:'block'},overflowX:'auto',maxWidth:'100%',gap:1}}>{categories.map(item=><ListItemButton key={item.id} selected={section===item.id} onClick={()=>{setSection(item.id);setMessage('')}} sx={{borderRadius:2.5,mb:{md:.75},minWidth:{xs:180,md:0},'&.Mui-selected':{background:'linear-gradient(100deg,#eaf2ff,#f4f8ff)',color:'primary.main'}}}><ListItemIcon sx={{minWidth:38,color:section===item.id?'primary.main':'text.secondary'}}>{item.icon}</ListItemIcon><ListItemText primary={item.title} secondary={item.description} primaryTypographyProps={{fontWeight:700,fontSize:14}} secondaryTypographyProps={{fontSize:11,mt:.5}}/></ListItemButton>)}</List><Box sx={{p:2,borderTop:'1px solid',borderColor:'divider'}}><Typography variant="caption" color="text.secondary">تغییرات پس از ذخیره در سراسر پنل اعمال می‌شوند.</Typography></Box></Paper>
-            <Stack spacing={2.5} sx={{minWidth:0}}>
+        <Box className="account-layout" sx={{display:'grid',gridTemplateColumns:{xs:'1fr',md:'235px minmax(0,1fr)'},gap:2,alignItems:'start'}}>
+            <Paper className="account-nav" variant="outlined" sx={{p:1.5,borderRadius:4,minWidth:0,maxWidth:'100%'}}><List sx={{display:{xs:'flex',md:'block'},overflowX:'auto',maxWidth:'100%',gap:1}}>{categories.map(item=><ListItemButton key={item.id} selected={section===item.id} onClick={()=>{setSection(item.id);setMessage('')}} sx={{borderRadius:2.5,mb:{md:.75},minWidth:{xs:180,md:0},'&.Mui-selected':{background:'linear-gradient(100deg,#eaf2ff,#f4f8ff)',color:'primary.main'}}}><ListItemIcon sx={{minWidth:38,color:section===item.id?'primary.main':'text.secondary'}}>{item.icon}</ListItemIcon><ListItemText primary={item.title} secondary={item.description} primaryTypographyProps={{fontWeight:700,fontSize:14}} secondaryTypographyProps={{fontSize:11,mt:.5}}/></ListItemButton>)}</List><Box sx={{p:2,borderTop:'1px solid',borderColor:'divider'}}><Typography variant="caption" color="text.secondary">تغییرات پس از ذخیره در سراسر پنل اعمال می‌شوند.</Typography></Box></Paper>
+            <Stack className="account-main" spacing={2.5} sx={{minWidth:0}}>
                 <Stack component="fieldset" disabled={!isAdmin || saving || loading} sx={{border:0,p:0,m:0,minWidth:0}}>
-                    {section==='general' && <GeneralSettings settings={settings} setSettings={setSettings}/>}
+                    {section==='general' && <div className="account-general-layout"><GeneralSettings settings={settings} setSettings={setSettings}/><SettingsHelp maintenance={settings.general.maintenanceMode}/></div>}
                     {section==='branding' && <BrandingSettings settings={settings} setSettings={setSettings}/>}
                     {section==='theme' && <ThemeSettings settings={settings} setSettings={setSettings} previewRef={previewRef}/>}
                     {section==='seo' && <SeoSettings settings={settings} setSettings={setSettings}/>}
@@ -89,7 +90,7 @@ export default function PanelSettings() {
                     {section==='features' && <FeatureSettings settings={settings} setSettings={setSettings}/>}
                 </Stack>
                 {section==='theme' && <PanelPreview ref={previewRef} settings={settings}/>}
-                {section!=='geography' && <Paper variant="outlined" sx={{p:2,borderRadius:3}}><Stack direction="row" justifyContent="flex-end" gap={1}><Button variant="outlined" onClick={resetSettings} disabled={saving||loading}>بازگرداندن فرم</Button>{isAdmin&&<Button variant="contained" startIcon={<SaveOutlinedIcon/>} onClick={saveChanges} disabled={saving||loading}>{saving?'در حال ذخیره…':'ذخیره تنظیمات'}</Button>}</Stack></Paper>}
+                {section!=='geography' && <Paper className="account-save-bar" variant="outlined" sx={{p:2,borderRadius:3}}><Stack direction="row" justifyContent="flex-end" gap={1}><Button variant="outlined" onClick={resetSettings} disabled={saving||loading}>بازگرداندن تغییرات ذخیره‌نشده</Button>{isAdmin&&<Button variant="contained" startIcon={<SaveOutlinedIcon/>} onClick={saveChanges} disabled={saving||loading}>{saving?'در حال ذخیره…':'ذخیره تنظیمات'}</Button>}</Stack></Paper>}
             </Stack>
         </Box>
     </Stack>

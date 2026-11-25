@@ -11,7 +11,7 @@ export const isFilled = (value: unknown) =>
     value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0)
 
 export const formatNumber = (value?: number) =>
-    value || value === 0 ? value.toLocaleString('fa-IR') : undefined
+    value !== undefined && value !== null && Number.isFinite(Number(value)) ? Number(value).toLocaleString('fa-IR') : undefined
 
 export const formatRange = (from?: number, to?: number) => {
     const f = formatNumber(from)
@@ -57,7 +57,7 @@ export function useDerivedPropertyInfo(item: Partial<PropertyType>) {
     let priceLabel: string | undefined
     let priceSecondary: string | undefined
 
-    if (totalPriceText) {
+    if (totalPriceText && item.contractType !== 'رهن و اجاره') {
         priceMain = totalPriceText
         priceLabel = 'قیمت کل'
     } else if (mortgagePriceText) {

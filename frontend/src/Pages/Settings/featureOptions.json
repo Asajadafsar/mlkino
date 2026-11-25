@@ -208,5 +208,17 @@
     "link": "reports",
     "label": "گزارش‌های مدیریتی",
     "default": true
+  },
+  {
+    "key": "plans",
+    "link": "plans",
+    "label": "مدیریت پلن‌ها",
+    "default": true
+  },
+  {
+    "key": "plan-capabilities",
+    "link": "plan-capabilities",
+    "label": "امکانات پلن‌ها",
+    "default": true
   }
 ]

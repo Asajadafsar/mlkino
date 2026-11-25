@@ -1,0 +1,4 @@
+import {useId} from 'react'
+import {TextField,TextFieldProps} from '@mui/material'
+/** Labels stay above controls in RTL; no floating labels or notches to overlap text. */
+export default function FileInput({label,id:providedId,className,...props}:TextFieldProps){const generated=useId(),id=providedId||'file-input-'+generated.replace(/:/g,'');return <div className={`file-field ${className||''}`}>{label&&<label htmlFor={id}>{label}{props.required&&<span aria-hidden="true"> *</span>}</label>}<TextField {...props} id={id} fullWidth size={props.size||'small'} label={undefined} SelectProps={props.select?{displayEmpty:true,...props.SelectProps}:undefined} inputProps={{...props.inputProps,...(typeof label==='string'?{'aria-label':label}:{}),...(props.select?{}:{dir:props.inputProps?.dir||'auto'})}}/></div>}

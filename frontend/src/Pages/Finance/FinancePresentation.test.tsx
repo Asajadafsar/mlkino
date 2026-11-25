@@ -1,0 +1,10 @@
+import '@testing-library/jest-dom'
+import {render,screen,fireEvent,waitFor} from '@testing-library/react'
+import {FinancialSettings} from '../Workflows/FinancialSettings'
+import api from '../../Core/Request'
+jest.mock('../../Core/Request',()=>({__esModule:true,default:{get:jest.fn(),post:jest.fn()}}))
+jest.mock('../../Components/Filter/DatePicker',()=>({__esModule:true,default:({item,value,onChange}:any)=><input aria-label={item.label} value={value||''} onChange={e=>onChange(e.target.value)}/>}))
+const row={id:12,version:12,mode:'agreed',commission_rate:'2',tax_rate:'10',expert_share_rate:'40',deductions:'0',effective_from:'2026-01-01',province:'تهران'}
+beforeEach(()=>{jest.clearAllMocks();(api.get as jest.Mock).mockImplementation(async path=>({data:{data:{results:path.includes('financial-settings')?[row]:[]}}}));(api.post as jest.Mock).mockResolvedValue({data:{data:{id:13}}})})
+test('copying a rate creates a new dated version without overwriting prior identity',async()=>{render(<FinancialSettings/>);fireEvent.click(await screen.findByRole('button',{name:'کپی به نسخه جدید'}));const input=screen.getByRole('textbox',{name:'شروع اعتبار'});expect(input).toHaveValue('');fireEvent.change(input,{target:{value:'2026-11-21'}});fireEvent.click(screen.getByRole('button',{name:'ثبت نسخه نرخ'}));await waitFor(()=>expect(api.post).toHaveBeenCalledWith('workflows/financial-settings/',expect.objectContaining({commission_rate:'2',effective_from:'2026-11-21'})));const payload=(api.post as jest.Mock).mock.calls[0][1];expect(payload).not.toHaveProperty('id');expect(payload).not.toHaveProperty('version')})
+test('rate search preserves historical versions and shows a clear empty state',async()=>{render(<FinancialSettings/>);await screen.findByRole('button',{name:'مشاهده جزئیات'});fireEvent.change(screen.getByRole('textbox',{name:'جستجو در نسخه‌های نرخ'}),{target:{value:'ناشناخته'}});expect(screen.getByText('نسخه‌ای مطابق فیلترها پیدا نشد.')).toBeInTheDocument();expect(api.post).not.toHaveBeenCalled()})

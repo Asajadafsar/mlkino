@@ -1,0 +1,4 @@
+import {ReactNode} from 'react'
+import {DescriptionOutlined,HeadsetMicOutlined} from '@mui/icons-material'
+import './managementWorkspace.css'
+export function ManagementHero({tickets=false,admin=false,action}:{tickets?:boolean;admin?:boolean;action?:ReactNode}){return <header className={'management-hero '+(tickets?'is-support':'')} style={{'--management-image':"url('/assets/estate-hero-v1.webp')"} as React.CSSProperties}><span>{tickets?<HeadsetMicOutlined/>:<DescriptionOutlined/>}</span><div><h1>{tickets?(admin?'مدیریت تیکت‌ها و پشتیبانی':'تیکت‌ها و پشتیبانی'):'مدیریت قراردادها'}</h1><p>{tickets?'درخواست‌ها را بررسی کنید، پاسخ دهید و روند رسیدگی را مدیریت نمایید.':'ایجاد، مشاهده و مدیریت تمامی قراردادهای ملکی'}</p>{action}</div>{tickets&&<img src="/assets/support-3d.webp" alt=""/>}</header>}

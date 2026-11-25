@@ -83,6 +83,8 @@ export const drawerItems: DrawerItemType[] = [
         role: 'all',
         icon: <Dashboard sx={iconStyle} />,
     },
+    {title:'مدیریت پلن‌ها',link:'plans',role:UserRole.SUPERADMIN,icon:<WorkspacePremium sx={iconStyle}/>},
+    {title:'امکانات پلن‌ها',link:'plan-capabilities',role:UserRole.SUPERADMIN,icon:<DiamondIcon sx={iconStyle}/>},
     {title:'فایل‌های ملکی',link:'files',role:'all',groupId:'estate',icon:<HomeIcon sx={iconStyle}/>},
     {title:'درخواست فایل',link:'requests',role:'all',groupId:'estate',icon:<AddCircleOutlineIcon sx={iconStyle}/>},
     {title:'درخواست فروشندگان',link:'seller-requests',role:[UserRole.SUPERADMIN,UserRole.AGENCY,UserRole.EXPERT],groupId:'estate',icon:<FolderSpecialOutlinedIcon sx={iconStyle}/>},

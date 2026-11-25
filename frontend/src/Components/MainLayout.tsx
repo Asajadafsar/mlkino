@@ -16,10 +16,9 @@ const MainLayout = ({children}: {children: React.ReactNode}) => {
     const favorites=useFavorites()
 
     return (
-        <Stack direction="row" bgcolor="background.default" minHeight="100vh" position={'relative'}>
+        <Stack direction="row" bgcolor="background.default" minHeight="100vh" position={'relative'} sx={{'--panel-header-height':{xs:'132px',sm:'84px'}}}>
             <AppDrawer
                 collapsed={collapsed}
-                onToggleCollapse={toggleCollapsed}
                 user={user}
                 setSelectedTitle={setSelectedTitle}
                 drawerOpen={drawerOpen}
@@ -43,7 +42,7 @@ const MainLayout = ({children}: {children: React.ReactNode}) => {
                     setDrawerOpen={setDrawerOpen}
                     user={user}
                 />
-                <Box sx={{pt: 1.5, minWidth: 0}}>{settings.general.maintenanceMode&&<Alert severity="warning" sx={{mx:3,mb:2}}>سامانه در حالت نگهداری است. عملیات کاربران موقتاً محدود شده؛ پشتیبانی در دسترس است.</Alert>}{favorites.error&&settings.features.favorites!==false&&<Alert severity="warning" sx={{mx:3,mb:2}} action={<Button onClick={favorites.reload}>تلاش مجدد</Button>}>{favorites.error}</Alert>}{children}</Box>
+                <Box sx={{pt:'calc(var(--panel-header-height) + 12px)',minWidth:0}}>{settings.general.maintenanceMode&&<Alert severity="warning" sx={{mx:3,mb:2}}>سامانه در حالت نگهداری است. عملیات کاربران موقتاً محدود شده؛ پشتیبانی در دسترس است.</Alert>}{favorites.error&&settings.features.favorites!==false&&<Alert severity="warning" sx={{mx:3,mb:2}} action={<Button onClick={favorites.reload}>تلاش مجدد</Button>}>{favorites.error}</Alert>}{children}</Box>
             </Box>
         </Stack>
     )

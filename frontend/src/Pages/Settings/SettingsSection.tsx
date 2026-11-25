@@ -13,7 +13,7 @@ export function SettingsSection({
     children,
 }: SettingsSectionProps) {
     return (
-        <Box
+        <Box className="account-section"
             sx={{
                 backgroundColor: 'background.paper',
                 border: '1px solid',

@@ -12,6 +12,7 @@ import gregorian_en from 'react-date-object/locales/gregorian_en'
 
 import type {ParamType} from './CustomFilter'
 import './datePicker.css'
+import FileInput from '../../Pages/Files/FileInput'
 import {localDateTime} from '../../Core/PersianDate'
 
 const DATE_FORMAT = 'YYYY-MM-DD'
@@ -22,6 +23,7 @@ type DatePickerFilterBaseProps = {
         field?: string
         label: string
     }
+    fixedLabel?: boolean
     withTime?: boolean
     disabled?: boolean
     required?: boolean
@@ -168,9 +170,10 @@ export default function DatePickerFilter(props: DatePickerFilterProps) {
     const displayValue = selectedDate ? selectedDate.format(displayFormat) : ''
 
     const active = focused || !!selectedDate
+    const DateInput = props.fixedLabel ? FileInput : TextField
 
     return (
-        <Box onKeyDown={event=>{if(event.key==='Escape'&&calendarOpen){event.stopPropagation();pickerRef.current?.closeCalendar()}}}
+        <Box className={props.fixedLabel ? 'fixed-date-field' : undefined} onKeyDown={event=>{if(event.key==='Escape'&&calendarOpen){event.stopPropagation();pickerRef.current?.closeCalendar()}}}
             sx={{
                 width: '100%',
                 minWidth: 0,
@@ -196,7 +199,7 @@ export default function DatePickerFilter(props: DatePickerFilterProps) {
                 }}
                 plugins={withTime ? [<TimePicker key="time-picker" hideSeconds />] : []}
                 render={(_, openCalendar) => (
-                    <TextField
+                    <DateInput
                         fullWidth
                         disabled={props.disabled}
                         required={props.required}
@@ -210,9 +213,7 @@ export default function DatePickerFilter(props: DatePickerFilterProps) {
                             readOnly: true,
                             endAdornment:selectedDate&&!props.disabled?<InputAdornment position="end"><IconButton size="small" aria-label={`پاک کردن ${item.label}`} onClick={event=>{event.stopPropagation();handleChange(null);pickerRef.current?.closeCalendar()}}><ClearRoundedIcon fontSize="small"/></IconButton></InputAdornment>:undefined,
                         }}
-                        InputLabelProps={{
-                            shrink: active,
-                        }}
+                        InputLabelProps={props.fixedLabel ? undefined : {shrink: active}}
                         inputProps={{
                             style: {
                                 cursor: 'pointer',

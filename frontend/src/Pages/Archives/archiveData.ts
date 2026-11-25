@@ -1,0 +1,14 @@
+export type ArchiveRow={id:number;entity_type:string;kind?:string;title?:string;archived_at?:string;created_at?:string;city?:string;status?:string;publication_state?:string;reason?:string;archived_by?:string;note?:string;category?:string;[key:string]:any}
+export function archiveCategory(r:ArchiveRow){return r.category||(r.entity_type==='property'?(r.kind==='request'?'requests':'files'):r.entity_type==='activity'?'contracts':r.entity_type==='conversation'?'conversations':'documents')}
+export const archiveKey=(r:ArchiveRow)=>r.entity_type+':'+r.id
+export const archiveTitle=(r:ArchiveRow)=>r.title||r.file_name||r.propertyType||'رکورد '+r.id
+export const archiveDate=(r:ArchiveRow)=>r.archived_at||r.data?.archived_at||''
+export const archiveSamples:ArchiveRow[]=[
+ {id:10432,entity_type:'property',kind:'file',title:'ملک مسکونی کد MK-10432',city:'تهران، سعادت‌آباد',status:'فعال',reason:'اتمام همکاری',archived_by:'وحید بابایی',note:'ملک به دلیل عدم تمدید مدارک از دسترس خارج شد.',archived_at:'2026-11-16',retention:68},
+ {id:7781,entity_type:'activity',title:'قرارداد اجاره کد CT-7781',city:'اصفهان',status:'در انتظار حذف',reason:'درخواست مالک',archived_by:'محمد حسن‌کلی',note:'قرارداد به درخواست مالک بایگانی شد.',archived_at:'2026-11-07',retention:24},
+ {id:5492,entity_type:'property',kind:'request',title:'درخواست بازدید کد RQ-5492',city:'شیراز',status:'فعال',reason:'منتفی شدن',archived_by:'سارا رضایی',note:'درخواست توسط متقاضی منتفی شد.',archived_at:'2026-11-05',retention:120},
+ {id:3310,entity_type:'document',category:'documents',title:'سند مالکیت کد DOC-3310',city:'واحد حقوقی',status:'دائمی',reason:'آرشیو سازمانی',archived_by:'مدیر سیستم',note:'برای نگهداری تکمیلی بایگانی شد.',archived_at:'2026-10-28'},
+ {id:9187,entity_type:'user',category:'users',title:'کاربر کد USR-9187',city:'کارشناس فروش',status:'غیرفعال',reason:'درخواست کاربر',archived_by:'وحید بابایی',note:'کاربر بنا به درخواست خود غیرفعال و بایگانی شد.',archived_at:'2026-10-20',retention:45},
+ {id:9981,entity_type:'property',kind:'file',title:'ملک تجاری کد MK-9981',city:'مشهد، بلوار وکیل‌آباد',status:'منقضی',reason:'تکراری بودن',archived_by:'لیلا کریمی',note:'فایل به دلیل تکراری بودن بایگانی شد.',archived_at:'2026-10-17',retention:0},
+]
+export function filterArchives(rows:ArchiveRow[],f:Record<string,string>){return rows.filter(r=>(!f.category||archiveCategory(r)===f.category)&&(!f.search||JSON.stringify(r).toLowerCase().includes(f.search.toLowerCase()))&&(!f.reason||r.reason===f.reason)&&(!f.actor||r.archived_by===f.actor)&&(!f.status||(r.status||r.publication_state)===f.status)&&(!f.from||!!archiveDate(r)&&archiveDate(r).slice(0,10)>=f.from)&&(!f.to||!!archiveDate(r)&&archiveDate(r).slice(0,10)<=f.to)).sort((a,b)=>f.order==='title'?archiveTitle(a).localeCompare(archiveTitle(b),'fa'):f.order==='oldest'?archiveDate(a).localeCompare(archiveDate(b)):archiveDate(b).localeCompare(archiveDate(a)))}
