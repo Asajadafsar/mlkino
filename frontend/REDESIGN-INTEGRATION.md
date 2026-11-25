@@ -15,3 +15,11 @@ registration, profile/avatar editing, password/OTP login, authenticated OTP pass
 change and recovery; authenticated desktop/mobile dashboard without horizontal overflow.
 Real SMS and Jibit were simulated only in the isolated QA server. Production accounts
 were not modified for testing.
+
+All 205 frontend tests in 55 suites passed. TypeScript and production build passed.
+Desktop/mobile authenticated screenshots were inspected; the mobile viewport and
+document width both measured 390px. Full isolated auth lifecycle passed.
+
+Deployed release: `20261125-0a0f02e-redesign`. Previous production build and backup
+are recorded in `REDESIGN-DEPLOYMENT.json`. Live panel HTML and main JS/CSS hashes
+match this build; CORS/CSRF smoke passed. No backend or database changes were made.

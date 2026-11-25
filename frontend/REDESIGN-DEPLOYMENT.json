@@ -1,0 +1,32 @@
+{
+  "release": "20261125-0a0f02e-redesign",
+  "revision": "0a0f02e8801d9a720424cac16dab1c05e282566a",
+  "source_revision": "17f4d42",
+  "status": "deployed",
+  "backup": "/var/backups/mlkino/20261125-0a0f02e-redesign",
+  "previous_frontend": "build-release-20261119-53887cc-verified",
+  "backend_settings_proxy_unchanged": true,
+  "checks": {
+    "frontend_tests": 205,
+    "test_suites": 55,
+    "typescript": "passed",
+    "production_build": "passed",
+    "isolated_auth_browser": "registration, password/OTP login, avatar/profile editing, password change and recovery passed",
+    "mobile_width": 390,
+    "mobile_document_width": 390,
+    "live_routes": [
+      "login",
+      "dashboard",
+      "files",
+      "profile",
+      "requests",
+      "reports"
+    ],
+    "served_html_js_css_hashes": "matched",
+    "live_cors_csrf": "passed",
+    "source_repo": "https://github.com/mhk8691/mlkino",
+    "backend_deployed": false,
+    "database_changed": false,
+    "limitation": "Plan management is the source frontend-only labelled demo."
+  }
+}
