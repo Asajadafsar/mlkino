@@ -333,10 +333,6 @@ export default function Onboarding() {
             </Paper>}
             {(role === UserRole.AGENCY || role === UserRole.SUPERADMIN) && <>
                 {role === UserRole.SUPERADMIN && <Button component={Link} to="/plans" sx={{alignSelf:'flex-start'}}>مدیریت پلن‌ها و تعرفه‌ها</Button>}
-                {role === UserRole.SUPERADMIN && <Paper variant="outlined" sx={{p: 2.5, borderRadius: 3}}>
-                    <Typography fontWeight={800}>تعرفهٔ فعلی اشتراک دفتر</Typography>
-                    {state.plans.map(plan => <Typography key={plan.id}>{plan.label} · {plan.price ? number(plan.price) + ' تومان در ماه' : 'بدون هزینه'}</Typography>)}
-                </Paper>}
                 <Typography variant="h6">{role === UserRole.AGENCY ? 'درخواست‌های همکاری' : 'در صف بررسی'}</Typography>
                 <div className="onboarding-review">
                     <Paper variant="outlined" className="onboarding-review-list">
@@ -383,7 +379,7 @@ export default function Onboarding() {
                             {row.terms_accepted_at && <Typography>پذیرش قوانین در {date(row.terms_accepted_at)}</Typography>}
                             {row.profile?.logo && <Avatar src={String(row.profile.logo)}/>}
                             {Object.entries(profileLabels).map(([key, label]) => row.profile?.[key] ?
-                                <Typography key={key}>{label} · {String(row.profile[key])}</Typography> : null)}
+                                <Typography key={key}>{label} · {key === 'occupancy_type' ? (row.profile[key] === 'owner' ? 'ملکی' : 'اجاره‌ای') : String(row.profile[key])}</Typography> : null)}
                             {row.profile?.license_image && <Button component="a" href={String(row.profile.license_image)} target="_blank" rel="noopener noreferrer">مدرک پروانه کسب</Button>}
                         </>}
                         {row.status === 'await_pay' && <Alert severity="info">

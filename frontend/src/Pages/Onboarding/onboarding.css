@@ -127,3 +127,12 @@
     .onboarding-review-list {grid-column: 1; grid-row: 1}
     .onboarding-review-detail {grid-column: 1; grid-row: 2}
 }
+.onboarding-page > .MuiStack-root:first-child {
+    min-height: 130px;
+    margin-bottom: 0;
+}
+.onboarding-page > .MuiStack-root:first-child img {
+    height: 150px;
+    width: 235px;
+}
+.onboarding-page > .MuiStack-root:first-child h1 {font-size: 25px}
