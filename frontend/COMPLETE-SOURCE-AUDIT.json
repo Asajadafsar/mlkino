@@ -1,0 +1,488 @@
+{
+  "source": "https://github.com/mhk8691/mlkino",
+  "source_commit": "17f4d42",
+  "changed_source_files": 120,
+  "exact_matches": 116,
+  "files": [
+    {
+      "file": "frontend/AGENTS.md",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/public/assets/file-demo/sample-document.pdf",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/AccountWorkspace/AccountHero.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/AccountWorkspace/AccountWorkspace.test.tsx",
+      "matches_source": false
+    },
+    {
+      "file": "frontend/src/Components/AccountWorkspace/accountWorkspace.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Appbar/Appbar.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Appbar/Appbar.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Appbar/AppbarProfile.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Appbar/AppbarSearch.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Appbar/NewActivity.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Appbar/appbar.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/AuditWorkspace/AuditPresentation.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/AuditWorkspace/AuditWorkspace.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/AuditWorkspace/auditWorkspace.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Drawer/AppDrawer.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Drawer/DrawerItems.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Estate/AdvancedPropertySearch.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Estate/AdvancedPropertySearch.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Estate/EstateActivityList.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Estate/EstateActivityList.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Estate/EstateProperty.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Estate/advancedPropertySearch.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Filter/DatePicker.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/Filter/datePicker.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/MainLayout.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/MainLayout.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/ManagementWorkspace/ManagementHero.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/ManagementWorkspace/managementWorkspace.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/OfficeWorkspace/OfficeHero.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/OfficeWorkspace/OfficeWorkspace.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/OfficeWorkspace/officeWorkspace.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Components/PropertyRecordForm/types.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Core/AccessControl.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Core/useViewMode.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Announcement/List/AnnouncementList.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Archives/ArchiveWorkspace.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Archives/Archives.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Archives/archiveData.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Archives/archives.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Auth/Shared/LandingEntry.tsx",
+      "matches_source": false
+    },
+    {
+      "file": "frontend/src/Pages/Chats/ChatPage.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Chats/ChatPage.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Chats/chatWorkspace.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Contracts/Contracts.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Dashboard/DashboardInsights.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Dashboard/DashboardLayout.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Dashboard/DashboardLayout.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Dashboard/DashboardMap.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Dashboard/DashboardSearch.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Dashboard/dashboard.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/AdvancedPropertyResults.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/AdvancedPropertyResults.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/FileCard.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/FileDemoEditor.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/FileDemoMap.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/FileDetailDialog.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/FileFilters.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/FileImage.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/FileInput.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/FilesDemo.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/FilesWorkspace.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/FilesWorkspace.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/List/FilesList.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/PropertyCard/PropertyDetailDialog.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/PropertyCard/propertyCardUtils.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/fileData.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/fileDemoData.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/fileDemoStore.test.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/fileDemoStore.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/filePresentation.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Files/filesWorkspace.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Finance/FinancePresentation.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Finance/FinancePresentation.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Finance/finance.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Home/Home.tsx",
+      "matches_source": false
+    },
+    {
+      "file": "frontend/src/Pages/Logs/List/LogsList.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Logs/List/logFilters.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Plans/CapabilitiesList.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Plans/PlanEditor.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Plans/PlanEditor.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Plans/PlanPreview.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Plans/PlansList.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Plans/planDemoStore.test.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Plans/planDemoStore.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Plans/planTypes.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Plans/plans.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Profile/Profile.tsx",
+      "matches_source": false
+    },
+    {
+      "file": "frontend/src/Pages/Reminder/List/ReminderList.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Request/List/RequestList.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Request/Workspace/RequestCard.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Request/Workspace/RequestDetails.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Request/Workspace/RequestEditor.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Request/Workspace/RequestsWorkspace.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Request/Workspace/RequestsWorkspace.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Request/Workspace/requestData.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Request/Workspace/requests.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Settings/PanelSettings.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Settings/SettingsHelp.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Settings/SettingsSection.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Tasks/List/TasksList.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Tasks/List/TasksList.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Tasks/List/taskBoard.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Tasks/List/taskBoardData.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Tickets/List/TicketsList.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Tickets/List/TicketsList.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/User/UserDirectory.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/User/UserTypes.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/AdvancedReportFilters.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/FinancialSettings.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/ReportCharts.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/Reports.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/Reports.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/WorkflowOverview.test.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/WorkflowOverview.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/WorkflowPage.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/WorkspaceRoles.tsx",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/operationData.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/operations.css",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/reportPresentation.ts",
+      "matches_source": true
+    },
+    {
+      "file": "frontend/src/Pages/Workflows/reports.css",
+      "matches_source": true
+    }
+  ]
+}

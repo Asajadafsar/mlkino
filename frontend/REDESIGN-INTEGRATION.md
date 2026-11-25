@@ -6,8 +6,9 @@ Current CSRF bootstrap, same-origin local proxy, Windows start scripts, /panel
 router basename, mandatory registration and OTP password-change flow were retained.
 No backend, migrations, production environment or user media are part of this release.
 
-Files and archives use real API data by default. Explicit development demos remain
-available for design tests; production does not enable them through query strings.
+Files and archives retain the source repository defaults, including its local
+design demo data and local interactions. Their real API modes remain accessible
+with ?demo=0. Requests retain the source ?demo=1 preview mode.
 Plan management remains the source repository's clearly labelled browser-only demo.
 
 Validation: full frontend tests, TypeScript and production build; isolated Chrome
@@ -23,3 +24,9 @@ document width both measured 390px. Full isolated auth lifecycle passed.
 Deployed release: `20261125-0a0f02e-redesign`. Previous production build and backup
 are recorded in `REDESIGN-DEPLOYMENT.json`. Live panel HTML and main JS/CSS hashes
 match this build; CORS/CSRF smoke passed. No backend or database changes were made.
+
+Complete-design correction: the source demo defaults were restored after the owner
+requested the exact complete design behavior. 116 of 120 changed source frontend
+files match byte-for-byte; the four differences are the root auth destination,
+Home registration gate, Profile OTP security integration and its API-call test.
+All new design modules/routes are included.
