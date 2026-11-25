@@ -57,6 +57,7 @@ class PanelRoleFlowTests(TestCase):
         response = client.post(f'/panel/users/{self.user.pk}/impersonate/', {}, format='json', **headers)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(client.get('/accounts/profile/').data['data']['id'], self.user.pk)
+        self.assertTrue(client.get("/accounts/profile/").data["data"]["managed_session"])
         ticket = {'category': 'other', 'subject': 'تیکت ورود مدیریتی', 'message': 'درخواست آزمایشی'}
         denied = client.post('/panel/tickets/', ticket, format='json')
         self.assertEqual(denied.status_code, 403)

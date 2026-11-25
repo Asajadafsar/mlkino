@@ -1,4 +1,4 @@
-from .onboarding_api import Applications, ApplicationDecision, OfficeLookup, OfficePromotions, DiamondAdCopy
+from .onboarding_api import Applications, ApplicationDecision, OfficeLookup, OfficePromotions, DiamondAdCopy, GatewaySettings, DemoCheckout
 from .private_media import PrivateDocumentView
 from django.urls import path
 from .profile_api import PreferencesView, SessionsView, NotificationsView, OwnActivityView
@@ -13,6 +13,8 @@ urlpatterns = [
     path("role-applications/<int:pk>/decision/", ApplicationDecision.as_view()),
     path("office-lookup/", OfficeLookup.as_view()),
     path("office-promotions/", OfficePromotions.as_view()),
+    path("gateway-settings/", GatewaySettings.as_view()),
+    path("demo-checkout/", DemoCheckout.as_view()),
     path("diamond-ad-copy/", DiamondAdCopy.as_view()),
     path('csrf/', csrf_token, name='csrf-token'),
     path("documents/<int:user_id>/<str:kind>/",PrivateDocumentView.as_view(),name="private-document"),

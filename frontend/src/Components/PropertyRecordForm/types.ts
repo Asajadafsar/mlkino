@@ -9,6 +9,7 @@ export type PropertyType = {
     publicationStatus:string
     requestStatus:string
     propertyType: string
+    landUse?: string
     contractType: string
     documentType: string
     requesterName?: string

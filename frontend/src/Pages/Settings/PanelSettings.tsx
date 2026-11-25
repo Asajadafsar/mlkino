@@ -1,3 +1,4 @@
+import GatewaySettings from './GatewaySettings'
 import GeographySettings from './GeographySettings'
 import {FieldSettings} from './FieldSettings'
 import {useEffect, useRef, useState} from 'react'
@@ -66,6 +67,7 @@ export default function PanelSettings() {
         {id:'theme',title:'رنگ و ظاهر',description:'رنگ‌های اصلی و پیش‌نمایش',icon:<PaletteOutlinedIcon/>},
         {id:'seo',title:'موتورهای جستجو',description:'عنوان، توضیحات و اشتراک‌گذاری',icon:<SearchOutlinedIcon/>},
         {id:'contact',title:'اطلاعات تماس',description:'آدرس و شبکه‌های اجتماعی',icon:<ContactMailOutlinedIcon/>},
+        {id:'gateway',title:'درگاه پرداخت',description:'تنظیمات پرداخت آزمایشی',icon:<SettingsOutlinedIcon/>},
         {id:'geography',title:'مناطق و محله‌ها',description:'ثبت منطقه و محله هر شهر',icon:<TuneRoundedIcon/>},
         {id:'fields',title:'فیلدهای فرم‌ها',description:'نمایش فیلدها در هر بخش',icon:<TuneRoundedIcon/>},
         {id:'features',title:'بخش‌های پنل',description:'نمایش امکانات در منو',icon:<TuneRoundedIcon/>},
@@ -85,12 +87,13 @@ export default function PanelSettings() {
                     {section==='theme' && <ThemeSettings settings={settings} setSettings={setSettings} previewRef={previewRef}/>}
                     {section==='seo' && <SeoSettings settings={settings} setSettings={setSettings}/>}
                     {section==='contact' && <ContactSettings settings={settings} setSettings={setSettings}/>}
+                    {section==='gateway' && isAdmin && <GatewaySettings/>}
                     {section==='geography' && isAdmin && <GeographySettings/>}
                     {section==='fields' && <FieldSettings settings={settings} setSettings={setSettings}/>}
                     {section==='features' && <FeatureSettings settings={settings} setSettings={setSettings}/>}
                 </Stack>
                 {section==='theme' && <PanelPreview ref={previewRef} settings={settings}/>}
-                {section!=='geography' && <Paper className="account-save-bar" variant="outlined" sx={{p:2,borderRadius:3}}><Stack direction="row" justifyContent="flex-end" gap={1}><Button variant="outlined" onClick={resetSettings} disabled={saving||loading}>بازگرداندن تغییرات ذخیره‌نشده</Button>{isAdmin&&<Button variant="contained" startIcon={<SaveOutlinedIcon/>} onClick={saveChanges} disabled={saving||loading}>{saving?'در حال ذخیره…':'ذخیره تنظیمات'}</Button>}</Stack></Paper>}
+                {section!=='geography' && section!=='gateway' && <Paper className="account-save-bar" variant="outlined" sx={{p:2,borderRadius:3}}><Stack direction="row" justifyContent="flex-end" gap={1}><Button variant="outlined" onClick={resetSettings} disabled={saving||loading}>بازگرداندن تغییرات ذخیره‌نشده</Button>{isAdmin&&<Button variant="contained" startIcon={<SaveOutlinedIcon/>} onClick={saveChanges} disabled={saving||loading}>{saving?'در حال ذخیره…':'ذخیره تنظیمات'}</Button>}</Stack></Paper>}
             </Stack>
         </Box>
     </Stack>

@@ -1109,6 +1109,7 @@ class ProfileView(APIView):
             "admin_level": user.admin_level,
             "has_profile": user.has_profile,
             "registration_required": user.registration_required,
+            "managed_session": getattr(request._request, "impersonation_session", None) is not None,
             "workspace_roles": list(user.business_roles.values('workspace_id','role')),
             "permissions": permissions,
             "last_login": user.last_login,

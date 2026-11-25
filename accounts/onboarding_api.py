@@ -1,4 +1,5 @@
 import os
+import secrets
 
 import requests
 from datetime import timedelta
@@ -18,6 +19,7 @@ from accounts.models import AgencyExpert, AgencyProfile, ExpertProfile, OfficePa
 from panel.models import AgencyExpertLink, PropertyRecord
 from panel.serializers import AgencyProfileSerializer
 from panel.settings_api import is_superadmin
+from panel.settings_models import PanelSettings
 
 # Introductory monthly prices in toman.
 PLANS = dict(zip(OfficeSubscription.Tier.values, [(0, 0), (299_000, 3), (499_000, 10), (699_000, 25), (999_000, 50)]))
@@ -117,6 +119,7 @@ class Applications(APIView):
             'plans': [{'id': key, 'label': label, 'price': PLANS[key][0], 'promotions': PLANS[key][1]}
                       for key, label in OfficeSubscription.Tier.choices],
             'terms': TERMS,
+            'demo_gateway': gateway_options(),
         })
 
     @transaction.atomic
@@ -200,6 +203,8 @@ class ApplicationDecision(APIView):
                     if not isinstance(reference, str) or not 1 <= len(reference.strip()) <= 100:
                         raise ValidationError('شناسه پرداخت تأییدشده را وارد کنید.')
                     reference = reference.strip()
+                    if reference.upper().startswith('DEMO-'):
+                        raise ValidationError('شناسه آزمایشی برای پرداخت واقعی معتبر نیست.')
                     if PLANS[row.tier][1] < PLANS[subscription.active_tier][1]:
                         raise ValidationError('در زمان اعتبار اشتراک، پلن فعلی یا پلن بالاتر را انتخاب کنید.')
                     subscription.tier = row.tier
@@ -292,3 +297,53 @@ class DiamondAdCopy(APIView):
         except (requests.RequestException, ValueError, IndexError, KeyError, TypeError):
             return Response({'detail': 'متن آگهی آماده نشد. دوباره تلاش کنید.'}, status=502)
         return Response({'copy': copy[:4000]})
+
+
+class GatewayOptions(serializers.Serializer):
+    enabled = serializers.BooleanField()
+    title = serializers.CharField(max_length=60)
+    default_result = serializers.ChoiceField(choices=['success', 'failure', 'cancelled'])
+
+
+GATEWAY_DEFAULTS = {'enabled': True, 'title': 'درگاه آزمایشی ملکینو', 'default_result': 'success'}
+
+
+def gateway_options():
+    stored = PanelSettings.objects.filter(pk=1).values_list('data', flat=True).first() or {}
+    return {**GATEWAY_DEFAULTS, **stored.get('demo_gateway', {})}
+
+
+class GatewaySettings(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not is_superadmin(request.user):
+            raise PermissionDenied()
+        return Response(gateway_options())
+
+    @transaction.atomic
+    def put(self, request):
+        if not is_superadmin(request.user) or active_impersonation(request):
+            raise PermissionDenied()
+        serializer = GatewayOptions(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        obj, _ = PanelSettings.objects.select_for_update().get_or_create(pk=1)
+        obj.data = {**obj.data, 'demo_gateway': serializer.validated_data}
+        obj.save(update_fields=['data'])
+        return Response(serializer.validated_data)
+
+
+class DemoCheckout(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        options = gateway_options()
+        if not options['enabled'] or active_impersonation(request):
+            raise PermissionDenied()
+        if request.user.role not in (User.Role.USER, User.Role.AGENCY, User.Role.SUPER_ADMIN):
+            raise PermissionDenied()
+        tier = serializers.ChoiceField(choices=[key for key in PLANS if key != 'free']).run_validation(request.data.get('tier'))
+        result = serializers.ChoiceField(choices=['success', 'failure', 'cancelled']).run_validation(
+            request.data.get('result', options['default_result']))
+        return Response({'demo': True, 'tier': tier, 'amount': PLANS[tier][0], 'result': result,
+                         'reference': 'DEMO-' + secrets.token_hex(6).upper() if result == 'success' else None})

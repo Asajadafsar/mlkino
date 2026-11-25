@@ -15,7 +15,7 @@ import {estateDate} from '../../Components/Estate/estateFormat'
 import type {CityPoint} from './DashboardMap'
 export type Count={total:number;recent:number;previous:number}
 type Recent={id:number;propertyType?:string;contractType?:string;created_at?:string;requesterName?:string;requestStatus?:string;file_name?:string;status?:string;agreed_price?:number;image?:string}
-export type DashboardSnapshot={counts:Record<string,Count>;points:CityPoint[];matching_files:number;mapped_files:number;matching_items?:number;mapped_items?:number;trend?:{date:string;count:number}[];distribution?:{label:string;count:number}[];comparison?:{label:string;count:number}[];recent_requests?:Recent[];recent_contracts?:Recent[];market_index?:{city:string;sample_size:number;price_per_meter:number|null;mean_listing_age_days:number|null;change_percent:number|null}}
+export type DashboardSnapshot={counts:Record<string,Count>;points:CityPoint[];rows?:CityPoint[];offices?:{id:string;name:string}[];matching_files:number;mapped_files:number;matching_items?:number;mapped_items?:number;trend?:{date:string;count:number}[];distribution?:{label:string;count:number}[];comparison?:{label:string;count:number}[];recent_requests?:Recent[];recent_contracts?:Recent[];market_index?:{city:string;sample_size:number;price_per_meter:number|null;mean_listing_age_days:number|null;change_percent:number|null}}
 const colors=['#0755ff','#ff426c','#ff9f09','#ffc600','#bc39f5','#168bff']
 const n=(value:number)=>value.toLocaleString('fa-IR')
 function Empty(){return <div className="dashboard-empty-chart">هنوز داده‌ای در این بخش ثبت نشده است.</div>}

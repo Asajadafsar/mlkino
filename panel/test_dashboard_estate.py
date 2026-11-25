@@ -82,3 +82,14 @@ class DashboardEstateTests(TestCase):
         self.assertEqual(self.get(self.agency,map_layers='').data['data']['points'],[])
         self.assertEqual(self.get(self.admin,priceFrom='1',priceTo='0').status_code,400)
         self.assertEqual(self.get(self.admin,priceFrom='',priceTo='100').status_code,200)
+
+    def test_demo_is_separate_and_all_selected_location_levels_apply(self):
+        base = {'demo': '1', 'detail': '1', 'province': 'قم', 'city': 'قم', 'map_layers': 'files|agencies'}
+        data = self.get(self.admin, **base).data['data']
+        self.assertEqual({r['kind'] for r in data['rows']}, {'files', 'agencies'})
+        self.assertEqual(data['offices'][0]['id'], 'demo-office')
+        loc = {'district': 'منطقه ۳', 'neighborhood': 'امام خمینی'}
+        self.assertEqual(self.get(self.admin, **base, **loc).data['data']['matching_items'], 2)
+        self.assertEqual(self.get(self.admin, **base, **{**loc, 'neighborhood': 'نام دیگر'}).data['data']['matching_items'], 0)
+        self.assertEqual(self.get(self.admin, **{**base, 'map_layers': ''}).data['data']['rows'], [])
+        self.assertEqual(self.get(self.user, **{**base, 'map_layers': 'agencies'}).data['data']['rows'], [])

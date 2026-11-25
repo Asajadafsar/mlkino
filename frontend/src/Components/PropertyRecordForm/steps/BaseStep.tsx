@@ -1,3 +1,4 @@
+import {LAND_USE_OPTIONS} from '../constants'
 import {OfficeMap} from '../../Location/OfficeMap'
 import {PropertyLocationFields} from '../../Location/PropertyLocationFields'
 import {Box,InputAdornment} from '@mui/material'
@@ -91,6 +92,16 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                     defaultValue={property.propertyType}
                     options={propertyTypeOptions}
                 />,
+
+                ...(property.propertyType === 'زمین' ? [<CustomSelectField
+                    key="landUse"
+                    name="landUse"
+                    setData={setProperty}
+                    resource={resource}
+                    label="کاربری زمین"
+                    defaultValue={property.landUse || ''}
+                    options={toSelectOptions(LAND_USE_OPTIONS)}
+                />] : []),
 
                 // شارژ ماهانه فقط وقتی نوع ملک «آپارتمان» باشد نمایش داده می‌شود
                 ...(isApartment && isMortgageRent

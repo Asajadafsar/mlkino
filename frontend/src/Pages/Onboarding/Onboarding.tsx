@@ -1,5 +1,7 @@
+import DemoCheckout from './DemoCheckout'
+import type {GatewayOptions} from '../Settings/GatewaySettings'
 import {FormEvent, useEffect, useState} from 'react'
-import {Alert, Avatar, Button, Checkbox, Chip, CircularProgress, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography} from '@mui/material'
+import {Alert, Avatar, Button, Checkbox, Chip, CircularProgress, Divider, FormControlLabel, MenuItem, Paper, Stack, Tab, Tabs, TextField, Typography} from '@mui/material'
 import {Link, useSearchParams} from 'react-router-dom'
 import {useSelector} from 'react-redux'
 import {PageHero} from '../../Components/Workspace/PageHero'
@@ -16,7 +18,7 @@ type Application = {
     profile?: Record<string, string | boolean | null>
 }
 type State = {
-    own: Application[]; incoming: Application[]; plans: Plan[]; terms: string
+    demo_gateway: GatewayOptions; own: Application[]; incoming: Application[]; plans: Plan[]; terms: string
     subscription?: {code: string; tier: string; active_tier: string; paid_until?: string; ai_available: boolean; promoted_files: number[]}
 }
 
@@ -45,6 +47,7 @@ export default function Onboarding() {
     const role = useSelector(selectRole)
     const [params] = useSearchParams()
     const entry = role === UserRole.USER ? params.get('request') : null
+    const [section, setSection] = useState<'main'|'history'|'demo'>('main')
     const [state, setState] = useState<State>()
     const [error, setError] = useState('')
     const [notice, setNotice] = useState('')
@@ -112,6 +115,9 @@ export default function Onboarding() {
         setNotice(decision === 'approve' ? 'درخواست تأیید شد.' : 'درخواست رد شد.')
     })
 
+    const [demoDecision, setDemoDecision] = useState<'pending'|'approved'|'rejected'>('pending')
+    const [demoTier, setDemoTier] = useState('pro')
+    const selectedDemo = state?.plans.find(plan => plan.id === demoTier)
     const pending = state?.own.some(row => row.status === 'pending')
     const subscription = state?.subscription
     const planName = (id: string) => state?.plans.find(plan => plan.id === id)?.label || id
@@ -124,12 +130,38 @@ export default function Onboarding() {
         {notice && <Alert severity="success">{notice}</Alert>}
         {!state && busy && <CircularProgress aria-label="دریافت درخواست‌ها"/>}
         {!state && !busy && <Button onClick={() => run(load)}>تلاش دوباره</Button>}
-        {state && <>
+        {state && <Paper variant="outlined" sx={{borderRadius: 3, overflow: 'hidden'}}>
+            <Tabs value={section} onChange={(_, value) => setSection(value)} variant="scrollable" allowScrollButtonsMobile>
+                <Tab value="main" label={role === UserRole.SUPERADMIN ? 'بررسی درخواست‌ها' : 'ثبت و مدیریت درخواست'}/>
+                <Tab value="history" label="درخواست‌های من"/>
+                {state.demo_gateway?.enabled && <Tab value="demo" label="محیط آزمایشی"/>}
+            </Tabs>
+        </Paper>}
+        {state && section === 'demo' && selectedDemo && <Paper variant="outlined" sx={{borderRadius: 3, p: 3}}>
+            <Stack spacing={2}>
+                <Typography variant="h6">پیش‌نمایش درخواست دفتر و پرداخت</Typography>
+                <Alert severity="info">دفتر و درخواست زیر نمونه‌اند و وارد صف بررسی نمی‌شوند.</Alert>
+                <Typography>دفتر املاک نمونه قم · قم، منطقهٔ ۳، محلهٔ امام خمینی</Typography>
+                <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
+                    <Chip label={statuses[demoDecision]} color={demoDecision === 'approved' ? 'success' : demoDecision === 'rejected' ? 'error' : 'warning'}/>
+                    {demoDecision === 'pending' ? <>
+                        <Button onClick={() => setDemoDecision('approved')}>تأیید نمونه</Button>
+                        <Button color="error" onClick={() => setDemoDecision('rejected')}>رد نمونه</Button>
+                    </> : <Button onClick={() => setDemoDecision('pending')}>شروع مجدد نمونه</Button>}
+                </Stack>
+                <Divider/>
+                <TextField select label="پلن نمونه" value={demoTier} onChange={event => setDemoTier(event.target.value)}>
+                    {state.plans.filter(plan => plan.price > 0).map(plan => <MenuItem key={plan.id} value={plan.id}>{plan.label}</MenuItem>)}
+                </TextField>
+                <DemoCheckout gateway={state.demo_gateway} tier={selectedDemo.id} label={selectedDemo.label} amount={selectedDemo.price}/>
+            </Stack>
+        </Paper>}
+        {state && section === 'main' && <>
             {role === UserRole.USER && <Stack direction="row" gap={1} flexWrap="wrap">
                 <Button variant="contained" disabled={pending || busy} onClick={() => selectMode('expert')}>درخواست تبدیل به کارشناس</Button>
                 <Button variant="outlined" disabled={pending || busy} onClick={() => selectMode('office')}>درخواست تبدیل به املاکی</Button>
             </Stack>}
-            {subscription && <Paper variant="outlined" sx={{p: 2.5}}>
+            {subscription && <Paper variant="outlined" sx={{p: 2.5, borderRadius: 3}}>
                 <Stack spacing={1.5} alignItems="flex-start">
                     <Typography fontWeight={800}>پلن فعال دفتر · {planName(subscription.active_tier)}</Typography>
                     {subscription.paid_until && <Typography>پایان اعتبار {date(subscription.paid_until)}</Typography>}
@@ -160,7 +192,7 @@ export default function Onboarding() {
                     </>}
                 </Stack>
             </Paper>}
-            {mode && !pending && <Paper variant="outlined" sx={{p: 2.5}}>
+            {mode && !pending && <Paper variant="outlined" sx={{p: 2.5, borderRadius: 3}}>
                 <Stack spacing={2} component="form" onSubmit={submit}>
                     <Typography variant="h6">{applicationNames[mode]}</Typography>
                     {mode === 'expert' ? <>
@@ -227,7 +259,7 @@ export default function Onboarding() {
                 </Stack>
             </Paper>}
             {(role === UserRole.AGENCY || role === UserRole.SUPERADMIN) && <>
-                {role === UserRole.SUPERADMIN && <Paper variant="outlined" sx={{p: 2.5}}>
+                {role === UserRole.SUPERADMIN && <Paper variant="outlined" sx={{p: 2.5, borderRadius: 3}}>
                     <Typography fontWeight={800}>تعرفهٔ فعلی اشتراک دفتر</Typography>
                     {state.plans.map(plan => <Typography key={plan.id}>{plan.label} · {plan.price ? number(plan.price) + ' تومان در ماه' : 'بدون هزینه'}</Typography>)}
                 </Paper>}
@@ -256,6 +288,9 @@ export default function Onboarding() {
                     </Stack>
                 </Paper>)}
             </>}
+        </>}
+        {state && section === 'history' && <Paper variant="outlined" sx={{borderRadius: 3, p: 3}}>
+            {!state.own.length && <Typography>درخواستی ثبت نشده است.</Typography>}
             {state.own.length > 0 && <Stack spacing={1}>
                 <Typography variant="h6">درخواست‌های من</Typography>
                 {state.own.map(row => <Stack key={row.id} direction="row" alignItems="center" gap={1} flexWrap="wrap">
@@ -263,6 +298,6 @@ export default function Onboarding() {
                     <Chip label={statuses[row.status]} size="small" color={row.status === 'approved' ? 'success' : row.status === 'pending' ? 'warning' : 'default'}/>
                 </Stack>)}
             </Stack>}
-        </>}
+        </Paper>}
     </Stack>
 }

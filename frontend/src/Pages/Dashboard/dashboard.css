@@ -177,3 +177,16 @@
 @media(max-width:599px){.dashboard-welcome p{font-size:14px}.dashboard-stat-copy>span{font-size:13px}.dashboard-search-mode>span,.dashboard-search-mode>a{font-size:12px;white-space:normal;text-align:center}.dashboard-map-layers{width:145px}.dashboard-map-layers label{font-size:12px}.dashboard-monthly-rows{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-filter-form{gap:7px}.dashboard-filter-form>.MuiButton-root{width:auto}.dashboard-filter-form>.dashboard-filter-apply{flex:1}.dashboard-filter-form .dashboard-search-grid{row-gap:24px}}
 
 .dashboard-property-workspace{grid-template-columns:1fr}.dashboard-search-card{min-height:0}.dashboard-map-card{min-height:0}.dashboard-map-layers{bottom:auto}
+
+#dashboard-map {
+    width: 100%;
+    scroll-margin-block-start: 96px;
+}
+
+#dashboard-map .dashboard-live-map {
+    height: clamp(360px, 54vh, 650px);
+}
+
+#dashboard-map .dashboard-live-map.is-expanded {
+    height: 78dvh;
+}

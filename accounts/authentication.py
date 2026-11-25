@@ -47,6 +47,8 @@ class CookieJWTAuthentication(SessionJWTAuthentication):
                 or session.expires_at <= timezone.now() or not session.target.is_active
                 or not (actor.is_superuser or actor.role == actor.Role.SUPER_ADMIN)):
             return actor, validated
+        if session.target.account_status == session.target.AccountStatus.SUSPENDED:
+            return actor, validated
         if request.method not in ('GET', 'HEAD', 'OPTIONS'):
             path = request.path.lower()
             if any(fragment in path for fragment in BLOCKED_PATH_PARTS):

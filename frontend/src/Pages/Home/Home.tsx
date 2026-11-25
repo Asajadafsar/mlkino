@@ -139,7 +139,7 @@ export function Home(props) {
 
                 const user = response.data.data
 
-                if (user?.registration_required) {
+                if (user?.registration_required && !user.managed_session) {
                     navigate('/signup'+location.search, {replace:true,state:{completion:{phone:user.phone,first_name:user.first_name,last_name:user.last_name}}})
                     return
                 }
@@ -194,7 +194,7 @@ export function Home(props) {
             return
         }
 
-        if (user.registration_required === true) {
+        if ((user.registration_required === true && !user.managed_session)) {
             navigate(authEntry('/signup',location.pathname+location.search+location.hash), {replace: true, state: {completion: {phone: user.phone, first_name: user.first_name, last_name: user.last_name}}})
             return
         }
@@ -220,7 +220,7 @@ export function Home(props) {
         return <Alert severity="error" action={<Button onClick={() => {setAuthStatus('loading'); setAttempt(value => value + 1)}}>تلاش مجدد</Button>}>دریافت اطلاعات حساب انجام نشد. اتصال به سرور را بررسی کنید.</Alert>
     }
 
-    if (authStatus === 'unauth' || user.registration_required === true) {
+    if (authStatus === 'unauth' || (user.registration_required === true && !user.managed_session)) {
         return null
     }
 

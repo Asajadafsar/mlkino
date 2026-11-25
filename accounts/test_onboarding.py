@@ -100,3 +100,24 @@ class OfficeOnboardingTests(TestCase):
         response = self.client.post(self.url, {'kind': 'upgrade', 'tier': 'pro', 'accept_terms': True}, format='json')
         self.as_user(self.admin)
         self.assertEqual(self.decision(response.data['id'], payment_reference='bank-id-001').status_code, 400)
+
+    def test_demo_gateway_is_configurable_only_by_admin_and_cannot_activate_subscription(self):
+        options = {'enabled': True, 'title': 'درگاه نمونه', 'default_result': 'failure'}
+        config = '/accounts/gateway-settings/'
+        checkout = '/accounts/demo-checkout/'
+        self.as_user(self.office)
+        self.assertEqual(self.client.put(config, options, format='json').status_code, 403)
+        self.as_user(self.admin)
+        self.assertEqual(self.client.put(config, options, format='json').status_code, 200)
+        self.as_user(self.office)
+        self.assertEqual(self.client.post(checkout, {'tier': 'pro'}, format='json').data['result'], 'failure')
+        receipt = self.client.post(checkout, {'tier': 'pro', 'result': 'success'}, format='json').data
+        self.assertTrue(receipt['reference'].startswith('DEMO-'))
+        response = self.client.post(self.url, {'kind': 'upgrade', 'tier': 'pro', 'accept_terms': True}, format='json')
+        self.as_user(self.admin)
+        self.assertEqual(self.decision(response.data['id'], payment_reference=receipt['reference']).status_code, 400)
+        self.assertFalse(OfficePayment.objects.exists())
+        self.subscription.refresh_from_db()
+        self.assertEqual(self.subscription.active_tier, 'free')
+        self.client.put(config, {**options, 'enabled': False}, format='json')
+        self.assertEqual(self.client.post(checkout, {'tier': 'pro'}, format='json').status_code, 403)

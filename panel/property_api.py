@@ -15,7 +15,7 @@ from .settings_api import envelope, is_superadmin, http_url
 
 FLOORS = {'طبقه اول', 'طبقه آخر', 'پیلوت', 'فرقی نمی‌کند', 'سایر طبقات'}
 NUMBERS = {'area','totalPrice','pricePerMeter','rent','mortgagePrice','monthlyRent','latitude','longitude','buildYear','roomCount','totalFloor','floor','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','monthlyCharge','monthlyChargeFrom','monthlyChargeTo'}
-FIELDS = NUMBERS | {'contractType','propertyType','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','ownerNationalId','ownerNationalCode','customerName','customerPhone','customerPhone2','customerJob','customerNationalId','customerNationalCode','description','internalNote','images','virtualTourLink','floorPreferences','requesterType','title','work_phone','workPhone','virtualTourUrl','otherLink','external_links'}
+FIELDS = NUMBERS | {'contractType','propertyType','landUse','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','ownerNationalId','ownerNationalCode','customerName','customerPhone','customerPhone2','customerJob','customerNationalId','customerNationalCode','description','internalNote','images','virtualTourLink','floorPreferences','requesterType','title','work_phone','workPhone','virtualTourUrl','otherLink','external_links'}
 
 def normalize(value):
     return str('' if value is None else value).translate(str.maketrans('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩يك','01234567890123456789یک')).replace('\u200c',' ').strip().lower()
@@ -157,10 +157,20 @@ class PropertyListView(APIView):
         if audience: rows=[r for r in rows if r.data.get('requesterType','customer')==audience]
         search=normalize(params.get('search'))
         if search: rows=[r for r in rows if search in normalize(' '.join(str(v) for k,v in r.data.items() if k not in ('images','virtualTourLink')))]
-        for key in ['propertyType','contractType','province','county','city','district','neighborhood','status']:
+        for key in ['propertyType','contractType','province','county','city','district','neighborhood','status','roomCount','buildYear','floor','landUse','documentType']:
             expected=normalize(params.get(key))
             if expected:
                 rows=[r for r in rows if any(expected==normalize(v) for v in (r.data.get(key) if isinstance(r.data.get(key),list) else [r.data.get(key)]))]
+        if params.get('office'):
+            rows = [row for row in rows if str(row.office_id) == params['office']]
+        if params.get('recordId'):
+            rows = [row for row in rows if str(row.pk) == normalize(params['recordId'])]
+        if params.get('creatorRoles'):
+            roles = params['creatorRoles'].split('|')
+            rows = [row for row in rows if row.created_by.role in roles]
+        if params.get('amenities'):
+            desired = set(params['amenities'].split('|'))
+            rows = [row for row in rows if desired.issubset(row.data.get('amenities') or [])]
         def within_bound(row,prefix,suffix,amount):
             field='area' if prefix=='area' else ('mortgagePrice' if row.data.get('contractType')=='رهن و اجاره' else 'totalPrice')
             low=row.data.get(field,row.data.get(field+'From'))
