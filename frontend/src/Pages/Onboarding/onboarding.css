@@ -50,3 +50,80 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
     gap: 12px;
 }
+
+.onboarding-page {
+    background: radial-gradient(ellipse at top, #eff2ff 0%, transparent 65%);
+    padding: 6px;
+}
+.onboarding-page .MuiPaper-root {
+    border-color: #dbe2ff;
+    background-image: linear-gradient(145deg, #ffffffef, #f3f5ff9c);
+    box-shadow: 0 5px 16px #3153aa0b, inset 0 1px 0 #fff;
+}
+.onboarding-page .MuiButton-contained {
+    background: linear-gradient(180deg, #3c80ff, #0952ff 75%, #0345df);
+    box-shadow: 0 4px 10px #246bfd30, inset 0 1px 2px #ffffff80;
+    border-radius: 9px;
+}
+.onboarding-page .MuiOutlinedInput-root {border-radius: 9px; background: #ffffffb0}
+.onboarding-page .MuiOutlinedInput-notchedOutline {border-color: #dbe2f8}
+.onboarding-page .MuiInputLabel-root {font-size: 13px}
+.onboarding-page .MuiTypography-h6 {font-size: 16px; font-weight: 800; color: #15225a}
+.onboarding-page .onboarding-choice {
+    align-items: center;
+    text-align: center;
+    min-height: 235px;
+    justify-content: space-between;
+}
+.onboarding-choice > svg {
+    padding: 12px;
+    box-sizing: content-box;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 6px #ffffff80;
+}
+.onboarding-choice.expert > svg {background: #e1eaff}
+.onboarding-choice.office > svg {background: #ffe0ef}
+.onboarding-choice.office .MuiButton-root {background: #f6c5df; color: #8d2865; box-shadow: none}
+.onboarding-page .onboarding-plan {border-color: var(--plan-accent); color: var(--plan-accent)}
+.onboarding-page .onboarding-plan[aria-pressed=true] {background: color-mix(in srgb, var(--plan-accent) 12%, white); box-shadow: inset 0 0 0 1px var(--plan-accent)}
+.onboarding-plan strong {font-size: 19px}
+.onboarding-plan span {font-size: 12px}
+.onboarding-panel-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    border-radius: 10px;
+    background: linear-gradient(100deg, #f9fbff, #e3eaff);
+    border-bottom: 1px solid #c9d7ff;
+}
+.onboarding-page .onboarding-review {direction: ltr; grid-template-columns: minmax(260px, .85fr) minmax(0, 1.5fr)}
+.onboarding-review-list {grid-column: 2; grid-row: 1; direction: rtl}
+.onboarding-review-detail {grid-column: 1; grid-row: 1; direction: rtl}
+.onboarding-review .MuiTableCell-root {font-size: 12px; border-color: #e4eaff}
+.onboarding-review .MuiTableHead-root {background: #f0f4ff}
+.onboarding-review .MuiChip-root {font-size: 11px}
+.onboarding-review-progress {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 12px;
+    background: #eef2ff;
+}
+.onboarding-review-progress strong {
+    border: 5px solid #a8bfff;
+    border-radius: 50%;
+    min-width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    color: #255bce;
+}
+@media (max-width: 900px) {
+    .onboarding-page .onboarding-review {grid-template-columns: minmax(0, 1fr)}
+    .onboarding-review-list {grid-column: 1; grid-row: 1}
+    .onboarding-review-detail {grid-column: 1; grid-row: 2}
+}

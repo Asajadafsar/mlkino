@@ -2,9 +2,9 @@ import '@testing-library/jest-dom'
 import {fireEvent,render,screen,waitFor} from '@testing-library/react'
 import {MemoryRouter,Routes,Route} from 'react-router-dom'
 import PlanEditor from './PlanEditor'
-import {PlanDemoStore as DataProvider} from './planDemoStore'
+import {PlanDemoStore as DataProvider} from './planApi'
 import {canAccessUserRoute} from '../../Core/AccessControl'
-jest.mock('./planDemoStore',()=>({PlanDemoStore:{get:jest.fn(),post:jest.fn(),patch:jest.fn()}}))
+jest.mock('./planApi',()=>({PlanDemoStore:{get:jest.fn(),post:jest.fn(),patch:jest.fn()}}))
 const capabilities=[{id:1,name:'ثبت فایل',code:'create',category:'فایل‌ها',access_type:'toggle',description:'',is_active:true,order:0},{id:2,name:'تعداد فایل',code:'limit',category:'فایل‌ها',access_type:'limit',description:'',is_active:true,order:1}]
 beforeEach(()=>{jest.clearAllMocks();(DataProvider.get as jest.Mock).mockImplementation(resource=>Promise.resolve({data:resource.startsWith('plan-capabilities/')?{results:capabilities,total_results:2}:{id:9,name:'الماس',subtitle:'دفتر',description:'',icon:'diamond',color:'#0755ff',monthly_price:100,annual_price:null,is_active:true,recommended:false,order:0,accesses:[{capability:2,enabled:true,limit:null}]}}));(DataProvider.post as jest.Mock).mockResolvedValue({data:{id:9}});(DataProvider.patch as jest.Mock).mockResolvedValue({data:{id:9}})})
 function show(path='/plans/create'){render(<MemoryRouter initialEntries={[path]}><Routes><Route path="/plans/create" element={<PlanEditor/>}/><Route path="/plans/:id" element={<PlanEditor/>}/><Route path="/plans" element={<div>فهرست مقصد</div>}/></Routes></MemoryRouter>)}

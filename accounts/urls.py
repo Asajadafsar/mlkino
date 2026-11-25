@@ -1,3 +1,4 @@
+from .plan_catalog import PlanCatalogView
 from .onboarding_api import Applications, ApplicationDecision, ApplicationPayment, ApplicationResume, OfficeLookup, OfficePromotions, DiamondAdCopy, GatewaySettings, DemoCheckout
 from .private_media import PrivateDocumentView
 from django.urls import path
@@ -9,6 +10,10 @@ from .csrf_api import csrf_token
 app_name = "accounts"
 
 urlpatterns = [
+    path("plans/", PlanCatalogView.as_view(), {'collection':'plans'}),
+    path("plans/<int:pk>/", PlanCatalogView.as_view(), {'collection':'plans'}),
+    path("plan-capabilities/", PlanCatalogView.as_view(), {'collection':'capabilities'}),
+    path("plan-capabilities/<int:pk>/", PlanCatalogView.as_view(), {'collection':'capabilities'}),
     path("role-applications/", Applications.as_view()),
     path("role-applications/<int:pk>/decision/", ApplicationDecision.as_view()),
     path("role-applications/<int:pk>/payment/", ApplicationPayment.as_view()),

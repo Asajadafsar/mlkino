@@ -1,3 +1,4 @@
+jest.mock('../../Pages/Plans/planApi', () => require('../../Pages/Plans/planDemoStore'))
 import '@testing-library/jest-dom'
 import {fireEvent, render, screen} from '@testing-library/react'
 import {configureStore} from '@reduxjs/toolkit'

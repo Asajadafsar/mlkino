@@ -1,4 +1,4 @@
-import {PlanDemoStore as DataProvider} from './planDemoStore'
+import {PlanDemoStore as DataProvider} from './planApi'
 export type Capability={id:number;name:string;code:string;category:string;access_type:'toggle'|'limit';description:string;is_active:boolean;order:number}
 export type Access={capability:number;enabled:boolean;limit:number|null}
 export type Plan={id?:number;name:string;subtitle:string;description:string;icon:string;color:string;monthly_price:number|null;annual_price:number|null;is_active:boolean;recommended:boolean;order:number;accesses:Access[]}

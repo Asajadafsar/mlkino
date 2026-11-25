@@ -212,7 +212,7 @@ class PanelSettingsView(APIView):
                 if group in updated and isinstance(values, dict):
                     updated[group].update({key: value for key, value in values.items() if key in updated[group]})
         if isinstance(obj.data,dict):
-            for retained in ('geography','workflow','demo_gateway'):
+            for retained in ('geography','workflow','demo_gateway','plan_catalog'):
                 if retained in obj.data:updated[retained]=obj.data[retained]
         inherit_fields(updated, obj.data if obj else {})
         created_files = []

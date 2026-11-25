@@ -24,7 +24,8 @@ from panel.settings_api import is_superadmin
 from panel.settings_models import PanelSettings
 
 # Introductory monthly prices in toman.
-PLANS = dict(zip(OfficeSubscription.Tier.values, [(0, 0), (299_000, 3), (499_000, 10), (699_000, 25), (999_000, 50)]))
+from .plan_catalog import CatalogPrices, catalog, code_for, plan_by_code, entitlement
+PLANS = CatalogPrices()
 TERMS = "اطلاعات دفتر و مدارک باید صحیح باشند. اشتراک پولی پس از تأیید پرداخت فعال می‌شود. با پایان اعتبار، امکانات پایه باقی می‌ماند و امکانات پولی تا تمدید غیرفعال می‌شود."
 
 
@@ -127,8 +128,10 @@ class Applications(APIView):
             'incoming': [application_data(row, request) for row in incoming.filter(status__in=['pending', 'await_pay'])[:100]],
             'reviewed': [application_data(row, request) for row in incoming.exclude(status__in=['pending', 'await_pay'])[:50]],
             'subscription': subscription,
-            'plans': [{'id': key, 'label': label, 'price': PLANS[key][0], 'promotions': PLANS[key][1]}
-                      for key, label in OfficeSubscription.Tier.choices],
+            'plans': [{'id': key, 'label': label, 'price': PLANS[key][0], 'promotions': PLANS[key][1], 'color': plan_by_code(key)['color'], 'description': plan_by_code(key)['description'], 'accesses': plan_by_code(key)['accesses'],
+                                'features': [cap['name'] for cap in catalog()['capabilities'] if cap['is_active']
+                                             and any(access['capability']==cap['id'] and access['enabled'] for access in plan_by_code(key)['accesses'])]}
+                      for key, label in [(code_for(plan['id']), plan['name']) for plan in catalog()['plans'] if plan['is_active'] and plan['monthly_price'] is not None]],
             'terms': TERMS,
             'demo_gateway': {key: value for key, value in gateway_options().items() if key != 'payment_instructions'
                              or is_superadmin(user) or records.filter(applicant=user, status='await_pay').exists()},
@@ -161,7 +164,7 @@ class Applications(APIView):
             application.resume = application.details.pop('resume', None)
         else:
             tier = request.data.get('tier')
-            if not isinstance(tier, str) or tier not in PLANS or (kind == 'upgrade' and tier == 'free'):
+            if not isinstance(tier, str) or tier not in PLANS or PLANS[tier][0] is None or (kind == 'upgrade' and tier == 'free'):
                 raise ValidationError('پلن معتبر انتخاب کنید.')
             if request.data.get('accept_terms') not in (True, 'true'):
                 raise ValidationError('تأیید قوانین لازم است.')
@@ -336,7 +339,7 @@ class DiamondAdCopy(APIView):
         if active_impersonation(request):
             raise PermissionDenied()
         subscription = OfficeSubscription.objects.filter(office=request.user).first()
-        if (not subscription or subscription.active_tier != 'diamond'
+        if (not subscription or not entitlement(plan_by_code(subscription.active_tier), 'ai_copy')
                 or not active_offices().filter(pk=request.user.pk).exists()):
             raise PermissionDenied('این بخش به اشتراک فعال الماس نیاز دارد.')
         key, model = os.environ.get('OPENAI_API_KEY'), os.environ.get('MLKINO_AD_COPY_MODEL')
@@ -406,7 +409,7 @@ class DemoCheckout(APIView):
             raise PermissionDenied()
         if request.user.role not in (User.Role.USER, User.Role.AGENCY, User.Role.SUPER_ADMIN):
             raise PermissionDenied()
-        tier = serializers.ChoiceField(choices=[key for key in PLANS if key != 'free']).run_validation(request.data.get('tier'))
+        tier = serializers.ChoiceField(choices=[key for key in PLANS if key != 'free' and PLANS[key][0] is not None]).run_validation(request.data.get('tier'))
         result = serializers.ChoiceField(choices=['success', 'failure', 'cancelled']).run_validation(
             request.data.get('result', options['default_result']))
         return Response({'demo': True, 'tier': tier, 'amount': PLANS[tier][0], 'result': result,

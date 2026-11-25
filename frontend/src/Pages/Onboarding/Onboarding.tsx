@@ -7,7 +7,7 @@ import OfficeLocation from './OfficeLocation'
 import DemoCheckout from './DemoCheckout'
 import type {GatewayOptions} from '../Settings/GatewaySettings'
 import {FormEvent, useEffect, useState} from 'react'
-import {Alert, Avatar, Button, Checkbox, Chip, CircularProgress, Divider, FormControlLabel, MenuItem, Paper, Stack, Step, StepLabel, Stepper, Tab, Tabs, TextField, Typography} from '@mui/material'
+import {Alert, Avatar, Button, Checkbox, Chip, CircularProgress, Divider, FormControlLabel, MenuItem, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Stack, Step, StepLabel, Stepper, Tab, Tabs, TextField, Typography} from '@mui/material'
 import {Link, useSearchParams} from 'react-router-dom'
 import {useSelector} from 'react-redux'
 import {PageHero} from '../../Components/Workspace/PageHero'
@@ -15,7 +15,7 @@ import {ACCOUNTS_URL} from '../../Core/APP_URL'
 import api from '../../Core/Request'
 import {selectRole, UserRole} from '../../redux/RoleSlice'
 
-type Plan = {id: string; label: string; price: number; promotions: number}
+type Plan = {id: string; label: string; price: number; promotions: number; color?: string; description?: string; features?: string[]}
 type Office = {name: string; logo?: string; address: string; active_experts: number; city?: string; district?: string}
 type Application = {
     id: number; created_at: string; kind: 'expert' | 'office' | 'upgrade'; status: 'pending' | 'await_pay' | 'fix' | 'approved' | 'rejected'
@@ -153,7 +153,7 @@ export default function Onboarding() {
         role === UserRole.SUPERADMIN ? 'درخواست دفتر و اشتراک' : 'ارتقای حساب'
     const formField = (name: string, label: string, required = true) => <TextField name={name} label={label} required={required} fullWidth size="small"/>
     return <Stack spacing={2.5} className="onboarding-page">
-        <PageHero title={title} description={role === UserRole.USER ? 'با یک دفتر همکاری کنید یا برای راه‌اندازی دفتر خود درخواست بدهید.' : 'وضعیت درخواست‌ها و امکانات فعال را بررسی کنید.'}/>
+        <PageHero title={title} illustration="/assets/estate-hero-v1.webp" description={role === UserRole.USER ? 'با یک دفتر همکاری کنید یا برای راه‌اندازی دفتر خود درخواست بدهید.' : 'وضعیت درخواست‌ها و امکانات فعال را بررسی کنید.'}/>
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="success">{notice}</Alert>}
         {!state && busy && <CircularProgress aria-label="دریافت درخواست‌ها"/>}
@@ -254,7 +254,7 @@ export default function Onboarding() {
             </Paper>}
             {mode && !pending && <Paper variant="outlined" sx={{p: 2.5, borderRadius: 3}}>
                 <Stack spacing={2} component="form" onSubmit={submit}>
-                    <Typography variant="h6">{applicationNames[mode]}</Typography>
+                    <div className="onboarding-panel-heading"><Typography variant="h6">{applicationNames[mode]}</Typography><Chip size="small" label={role==='agency'?'املاکی':'کاربر عادی'}/></div>
                     {mode === 'expert' ? <>
                         <Stepper alternativeLabel activeStep={confirmed ? 2 : office ? 1 : 0} sx={{py: 2}}>
                             {['ورود کد دفتر','تأیید دفتر املاک','تکمیل رزومه'].map(label => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
@@ -313,10 +313,12 @@ export default function Onboarding() {
                         <Typography fontWeight={800}>انتخاب پلن همکاری</Typography>
                         <div className="onboarding-plans" role="group" aria-label="پلن دفتر">
                             {state.plans.filter(plan => mode !== 'upgrade' || plan.id !== 'free').map(plan =>
-                                <Button key={plan.id} className={'onboarding-plan ' + plan.id} variant={tier === plan.id ? 'contained' : 'outlined'}
+                                <Button style={{"--plan-accent":plan.color || "#246bfd"} as React.CSSProperties} key={plan.id} className={'onboarding-plan ' + plan.id} variant={tier === plan.id ? 'contained' : 'outlined'}
                                     aria-pressed={tier === plan.id} onClick={() => setTier(plan.id)}>
-                                    <Stack spacing={.5}><strong>{plan.label}</strong><span>{plan.price ? number(plan.price) + ' تومان در ماه' : 'بدون هزینه'}</span>
+                                    <Stack spacing={.5}><strong>{plan.id==="free"?"♧":plan.id==="diamond"?"♢":"☆"} {plan.label}</strong><span>{plan.price ? number(plan.price) + ' تومان در ماه' : 'بدون هزینه'}</span>
+                                    <span>{plan.description}</span>
                                     <span>{plan.promotions ? number(plan.promotions) + ' فایل ویژهٔ هم‌زمان' : 'مدیریت پایه دفتر'}</span>
+                                    {(plan.features || []).map(feature => <span key={feature}>✓ {feature}</span>)}
                                     {plan.id === 'diamond' && <span>پیشنهاد متن آگهی با هوش مصنوعی</span>}</Stack>
                                 </Button>)}
                         </div>
@@ -330,6 +332,7 @@ export default function Onboarding() {
                 </Stack>
             </Paper>}
             {(role === UserRole.AGENCY || role === UserRole.SUPERADMIN) && <>
+                {role === UserRole.SUPERADMIN && <Button component={Link} to="/plans" sx={{alignSelf:'flex-start'}}>مدیریت پلن‌ها و تعرفه‌ها</Button>}
                 {role === UserRole.SUPERADMIN && <Paper variant="outlined" sx={{p: 2.5, borderRadius: 3}}>
                     <Typography fontWeight={800}>تعرفهٔ فعلی اشتراک دفتر</Typography>
                     {state.plans.map(plan => <Typography key={plan.id}>{plan.label} · {plan.price ? number(plan.price) + ' تومان در ماه' : 'بدون هزینه'}</Typography>)}
@@ -344,13 +347,30 @@ export default function Onboarding() {
                             </TextField>
                         </Stack>
                         {!reviews.length && <Typography sx={{p: 2}}>درخواستی برای نمایش وجود ندارد.</Typography>}
-                        {reviews.map(row => <Button key={row.id} fullWidth variant={reviewed?.id === row.id ? 'contained' : 'text'} onClick={() => {setSelectedReview(row.id);setReviewNote('')}}>
-                            <span>{String(row.profile?.agency_name || row.name)}</span><Chip size="small" label={statuses[row.status]} sx={{mx: 1}}/>
-                        </Button>)}
+                        <TableContainer>
+                            <Table size="small">
+                                <TableHead><TableRow>{['متقاضی / دفتر','نوع درخواست','تاریخ','وضعیت',''].map(label => <TableCell key={label}>{label}</TableCell>)}</TableRow></TableHead>
+                                <TableBody>{reviews.map(row => <TableRow key={row.id} hover selected={reviewed?.id === row.id}
+                                    onClick={() => {setSelectedReview(row.id);setReviewNote('')}} sx={{cursor:'pointer'}}>
+                                    <TableCell><Stack direction="row" alignItems="center" gap={1}>
+                                        <Avatar src={String(row.profile?.logo || '')} sx={{width:32,height:32}}>{row.name[0]}</Avatar>
+                                        <Typography fontSize={13} fontWeight={700}>{String(row.profile?.agency_name || row.name)}</Typography>
+                                    </Stack></TableCell>
+                                    <TableCell>{applicationNames[row.kind]}</TableCell>
+                                    <TableCell sx={{whiteSpace:'nowrap'}}>{date(row.created_at)}</TableCell>
+                                    <TableCell><Chip size="small" label={statuses[row.status]} color={row.status==='await_pay'?'success':'warning'}/></TableCell>
+                                    <TableCell><Button aria-label={'مشاهده درخواست '+row.name}>‹</Button></TableCell>
+                                </TableRow>)}</TableBody>
+                            </Table>
+                        </TableContainer>
                     </Paper>
                     {reviewed && [reviewed].map(row => <Paper key={row.id} className="onboarding-review-detail" variant="outlined">
                         <Stack spacing={1.5} alignItems="flex-start">
                         <Typography variant="h6">جزئیات درخواست</Typography>
+                        <div className="onboarding-review-progress">
+                            <strong>{Math.round((row.profile ? Object.values(row.profile).filter(Boolean).length / Object.keys(row.profile).length : 1) * 100).toLocaleString('fa-IR')}٪</strong>
+                            <span>اطلاعات ثبت‌شده برای بررسی</span>
+                        </div>
                         <Typography fontWeight={800}>{applicationNames[row.kind]} · {row.name} · {row.phone}</Typography>
                         {row.kind === 'expert' ? <>
                             <Typography>{row.details.job_title} · {number(row.details.experience_years || 0)} سال سابقه</Typography>
