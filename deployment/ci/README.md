@@ -5,6 +5,14 @@ The GitHub Actions deployment workflow has been retired. Follow the
 The runner registration and CI release instructions below are retained for
 historical reference.
 
+For manual releases, run `manual-deploy.sh` as root from verified tooling,
+passing the full approved application commit on `codex/latest`. The script
+checks both releases against the installed Python environment before building.
+The controller repeats the check under the deployment lock. A manifest
+difference is allowed when all requirements and their runtime dependencies
+are already satisfied. Missing or conflicting packages stop deployment;
+the live venv and both releases' manifests are preserved.
+
 The pipeline targets the **single-domain** configuration documented in
 [the previous release](../../docs/auth-profile-release-20261117.md) and
 [the service and Nginx files](../single-domain/). It expects Debian 12 x64,
