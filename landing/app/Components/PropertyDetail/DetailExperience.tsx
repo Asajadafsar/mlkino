@@ -66,7 +66,8 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
   const relatedRef = useRef<HTMLDivElement>(null);
   const neighborhood = Array.isArray(data.neighborhood) ? data.neighborhood.join("، ") : data.neighborhood;
   const title = isRequest ? `درخواست ${data.contractType} ${data.propertyType}` : propertyTitle(data);
-  const phone = isRequest ? data.requesterPhone || "" : data.contactPhone || data.ownerPhone;
+  const phone = isRequest ? data.requesterPhone || "" : data.contactPhone;
+  const chatEnabled = isRequest || data.allowOnlineChat !== false;
   const name = isRequest ? data.requesterName : data.advisorName || data.assignedTo;
   const related = PROPERTIES.filter(item => item.id !== data.id).slice(0,4);
   const photos = data.images.filter((image): image is string => typeof image === "string");
@@ -87,7 +88,7 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
   }
   const sectionOptions = { desktop, expanded, onExpandedChange: (id: string, open: boolean) => setExpanded(current => open ? current.includes(id) ? current : [...current,id] : current.includes(id) ? current.filter(key => key !== id) : current) };
   const socialLinks = <div className={styles.socialLinks}>
-    <button type="button" onClick={() => setMessageOpen(true)}><ChatOutlined /><span>گفتگو</span></button>
+    {chatEnabled && <button type="button" onClick={() => setMessageOpen(true)}><ChatOutlined /><span>گفتگو</span></button>}
     {!isRequest && data.virtualTourUrl?.instagram && <a href={data.virtualTourUrl.instagram} target="_blank" rel="noreferrer"><Instagram /><span>اینستاگرام</span></a>}
     {!isRequest && data.virtualTourUrl?.telegram && <a href={data.virtualTourUrl.telegram} target="_blank" rel="noreferrer"><Telegram /><span>تلگرام</span></a>}
     {!isRequest && <button type="button" onClick={() => setTourOpen(true)}><ThreeSixtyRounded /><span>تور مجازی</span></button>}
@@ -130,7 +131,7 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
             <div className={styles.metrics}>{metrics.map(({Icon,value,label}) => <div key={label}><Icon /><strong>{value}</strong><span>{label}</span></div>)}</div>
             <div className={styles.primaryActions}>
               <button type="button" className={styles.goldButton} onClick={() => isRequest ? setMessageOpen(true) : setVisitOpen(true)}>{isRequest ? <HandshakeOutlined /> : <CalendarMonthOutlined />}{isRequest ? "من ملک مناسب دارم" : "درخواست بازدید"}</button>
-              <a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined />{isRequest ? "تماس با متقاضی" : "تماس با کارشناس"}</a>
+              {phone && <a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined />{isRequest ? "تماس با متقاضی" : "تماس با کارشناس"} <bdi>{phone}</bdi></a>}
             </div>
           </section>
           <div className={styles.galleryColumn}>{isRequest ? <div className={styles.requestVisual}><AssignmentOutlined /><span>درخواست {data.contractType}</span><h2>{data.propertyType} در {data.city}</h2><p>{neighborhood}</p><div>{data.amenities.map(amenity => <span key={amenity}>{amenity}</span>)}</div><button type="button" onClick={share}><LinkRounded />اشتراک‌گذاری درخواست</button></div> : <PropertyGallery images={photos} title={title} favorite={favorite} onFavorite={() => setFavorite(value => !value)} onShare={share} />}</div>
@@ -150,7 +151,7 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
         </div>
       </div>
       <aside className={styles.sidebar}>
-        <div className={styles.advisor}><div className={styles.advisorHeading}><img src="/images/profile.webp" alt="" loading="lazy" decoding="async" /><div><h2>{name}</h2><p>{isRequest ? "متقاضی ملک" : "کارشناس املاک"}</p></div></div><div className={styles.advisorMeta}><span><VerifiedUserOutlined />{isRequest ? "درخواست ثبت‌شده" : data.agencyName || "مشاور ملکینو"}</span><span>کد {formatNumber(data.id)}</span></div><a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined />{isRequest ? "تماس با متقاضی" : "تماس با کارشناس"}</a><button type="button" className={styles.softButton} onClick={() => setMessageOpen(true)}><ChatOutlined />گفتگو در ملکینو</button>{!isRequest && socialLinks}</div>
+        <div className={styles.advisor}><div className={styles.advisorHeading}><img src="/images/profile.webp" alt="" loading="lazy" decoding="async" /><div><h2>{name}</h2><p>{isRequest ? "متقاضی ملک" : "کارشناس املاک"}</p></div></div><div className={styles.advisorMeta}><span><VerifiedUserOutlined />{isRequest ? "درخواست ثبت‌شده" : data.agencyName || "مشاور ملکینو"}</span><span>کد {formatNumber(data.id)}</span></div>{phone && <a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined />{isRequest ? "تماس با متقاضی" : "تماس با کارشناس"} <bdi>{phone}</bdi></a>}{chatEnabled && <button type="button" className={styles.softButton} onClick={() => setMessageOpen(true)}><ChatOutlined />گفتگو در ملکینو</button>}{!isRequest && socialLinks}</div>
         <section id="sidebar-address" className={styles.sidebarAddress}><h2><LocationOnOutlined />{isRequest ? "محدوده درخواستی" : "موقعیت و آدرس"}</h2>{addressView}</section>
       </aside>
     </div>
@@ -162,7 +163,7 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
     </section>
     <VisitRequestModal key={visitOpen ? "open" : "closed"} open={visitOpen} onClose={() => setVisitOpen(false)} property={data} />
     <VirtualTourModal open={tourOpen} onClose={() => setTourOpen(false)} links={data.virtualTourUrl} />
-    <Dialog open={messageOpen} onClose={() => setMessageOpen(false)} fullWidth maxWidth="sm" slotProps={{paper:{sx:{borderRadius:5}}}}><div className={styles.messageDialog}><div><h2>{isRequest ? "معرفی ملک به متقاضی" : "گفتگو با کارشناس"}</h2><IconButton aria-label="بستن گفتگو" onClick={() => setMessageOpen(false)}><CloseRounded /></IconButton></div><p>{title}</p><TextField className={styles.dialogField} id="detail-message" label="متن پیام" fullWidth multiline minRows={4} maxRows={8} value={message} onChange={event => setMessage(event.target.value)} placeholder={isRequest ? "مشخصات ملک مناسب را بنویسید…" : "سلام، برای دریافت اطلاعات این ملک پیام می‌دهم…"} helperText={`${message.length.toLocaleString("fa-IR")} / ۱۰۰۰`} slotProps={{inputLabel:{shrink:true},htmlInput:{maxLength:1000}}} /><button type="button" className={styles.softButton} disabled={!message.trim()} onClick={() => copy(message)}><ContentCopyOutlined />کپی متن پیام</button><a className={styles.blueButton} href={`https://mlkino.com/panel/support?${isRequest ? "requestId" : "propertyId"}=${data.id}`}><ChatOutlined />ادامه گفتگو در پنل ملکینو</a></div></Dialog>
+    <Dialog open={chatEnabled && messageOpen} onClose={() => setMessageOpen(false)} fullWidth maxWidth="sm" slotProps={{paper:{sx:{borderRadius:5}}}}><div className={styles.messageDialog}><div><h2>{isRequest ? "معرفی ملک به متقاضی" : "گفتگو با کارشناس"}</h2><IconButton aria-label="بستن گفتگو" onClick={() => setMessageOpen(false)}><CloseRounded /></IconButton></div><p>{title}</p><TextField className={styles.dialogField} id="detail-message" label="متن پیام" fullWidth multiline minRows={4} maxRows={8} value={message} onChange={event => setMessage(event.target.value)} placeholder={isRequest ? "مشخصات ملک مناسب را بنویسید…" : "سلام، برای دریافت اطلاعات این ملک پیام می‌دهم…"} helperText={`${message.length.toLocaleString("fa-IR")} / ۱۰۰۰`} slotProps={{inputLabel:{shrink:true},htmlInput:{maxLength:1000}}} /><button type="button" className={styles.softButton} disabled={!message.trim()} onClick={() => copy(message)}><ContentCopyOutlined />کپی متن پیام</button><a className={styles.blueButton} href={isRequest ? `https://mlkino.com/panel/support?requestId=${data.id}` : `https://mlkino.com/panel/files/${data.id}`}><ChatOutlined />ادامه گفتگو در پنل ملکینو</a></div></Dialog>
     <Dialog open={Boolean(copyFallback)} onClose={() => setCopyFallback("")} maxWidth="sm" fullWidth slotProps={{paper:{sx:{borderRadius:5}}}}><div className={styles.messageDialog}><div><h2>کپی اطلاعات</h2><IconButton aria-label="بستن اشتراک‌گذاری" onClick={() => setCopyFallback("")}><CloseRounded /></IconButton></div><TextField className={styles.dialogField} label="اطلاعات قابل کپی" fullWidth value={copyFallback} onFocus={event => {if (event.target instanceof HTMLInputElement) event.target.select();}} slotProps={{input:{readOnly:true},htmlInput:{"aria-label":"اطلاعات قابل کپی",dir:"auto"}}} /></div></Dialog>
     <Snackbar open={Boolean(notice)} autoHideDuration={2500} onClose={() => setNotice("")} message={notice} />
   </div>;

@@ -1,7 +1,7 @@
 import {LAND_USE_OPTIONS} from '../constants'
 import {OfficeMap} from '../../Location/OfficeMap'
 import {PropertyLocationFields} from '../../Location/PropertyLocationFields'
-import {Box,InputAdornment} from '@mui/material'
+import {Box,FormControlLabel,InputAdornment,Switch} from '@mui/material'
 
 import {
     DOCUMENT_TYPE_OPTIONS,
@@ -192,7 +192,11 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                       ]),
                 ...(mode === 'file'
                     ? [<Box key="propertyMap" sx={{gridColumn:'1 / -1',width:'100%'}}><OfficeMap placeLabel="ملک" value={{...property,office_address:property.address}} onChange={next=>setProperty(previous=>({...previous,latitude:next.latitude,longitude:next.longitude}))}/></Box>,
-                          <CustomTextField key="workPhone" name="workPhone" setData={setProperty} resource={resource} label="شماره تماس کاری کارشناس" defaultValue={property.workPhone||''} />,
+                          <CustomTextField key="workPhone" name="workPhone" setData={setProperty} resource={resource} label="شماره تماس کاری کارشناس (الزامی برای انتشار)" defaultValue={property.workPhone ?? property.work_phone ?? ''} />,
+                          <FormControlLabel key="allowOnlineChat" label="گفتگوی آنلاین برای این فایل" control={<Switch
+                              checked={property.allowOnlineChat !== false}
+                              onChange={(_, checked) => setProperty(previous => ({...previous, allowOnlineChat: checked}))}
+                          />} />,
                           <CustomTextField key="virtualTourUrl" name="virtualTourUrl" setData={setProperty} resource={resource} label="لینک تور مجازی" defaultValue={property.virtualTourUrl||''} />,
                           <CustomTextField key="otherLink" name="otherLink" setData={setProperty} resource={resource} label="لینک تکمیلی مجاز" defaultValue={property.otherLink||''} />,
                           <CustomTextField

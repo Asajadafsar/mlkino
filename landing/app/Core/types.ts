@@ -140,6 +140,7 @@ export type PropertyType = {
     agencyName?: string
 
     contactPhone?: string
+    allowOnlineChat?: boolean
 
     toneOfTheAd?: string
 }

@@ -57,13 +57,31 @@ def scope(user):
     offices=AgencyExpertLink.objects.filter(expert=user).values_list('agency_id',flat=True)
     return qs.filter(Q(created_by=user)|Q(assigned_expert=user)).filter(Q(office__isnull=True)|Q(office=user)|Q(office_id__in=offices))
 
+def property_work_phone(data):
+    from django.core.exceptions import ValidationError as InvalidPhone
+    from accounts.validators import validate_iranian_mobile
+
+    try:
+        return validate_iranian_mobile(data.get('work_phone') or data.get('workPhone'))
+    except InvalidPhone:
+        return None
+
+
+def require_property_work_phone(data):
+    if not property_work_phone(data):
+        raise ValidationError({'workPhone': 'برای انتشار فایل، شماره تماس کاری کارشناس الزامی است.'})
+
+
 def validate_payload(request, kind, previous=None):
     if 'payload' in request.data:
         try: incoming=json.loads(request.data['payload'])
         except (TypeError,ValueError): raise ValidationError('اطلاعات فرم معتبر نیست.')
     else: incoming=request.data
     if not isinstance(incoming,dict): raise ValidationError('اطلاعات فرم معتبر نیست.')
-    data={**{key:value for key,value in (previous or {}).items() if key not in PARTY_IDS}, **{key:value for key,value in incoming.items() if key in FIELDS}}
+    writable_fields = FIELDS
+    if kind == 'file' and request.user.role not in ('expert', 'agency'):
+        writable_fields = FIELDS - {'workPhone', 'work_phone'}
+    data={**{key:value for key,value in (previous or {}).items() if key not in PARTY_IDS}, **{key:value for key,value in incoming.items() if key in writable_fields}}
     for key in (('contractType','propertyType') if incoming.get('publicationStatus')=='draft' else ('contractType','propertyType','city')):
         if not isinstance(data.get(key),str) or not data[key].strip(): raise ValidationError({key:'این فیلد الزامی است.'})
     if data['contractType'] not in ('فروش','رهن و اجاره'): raise ValidationError({'contractType':'نوع معامله معتبر نیست.'})
@@ -89,7 +107,14 @@ def validate_payload(request, kind, previous=None):
         data.pop('heating', None)
     links=data.get('virtualTourLink',{})
     if links and (not isinstance(links,dict) or any(k not in ('eitaa','telegram','instagram') or not isinstance(v,str) or v and not http_url(v) for k,v in links.items())): raise ValidationError({'virtualTourLink':'لینک تور مجازی باید یک نشانی وب معتبر باشد.'})
-    if data.get('workPhone'):data['work_phone']=data['workPhone']
+    if kind == 'file' and request.user.role in ('expert', 'agency'):
+        if 'allowOnlineChat' in incoming:
+            if not isinstance(incoming['allowOnlineChat'], bool):
+                raise ValidationError({'allowOnlineChat': 'وضعیت گفتگو باید روشن یا خاموش باشد.'})
+            data['allowOnlineChat'] = incoming['allowOnlineChat']
+    if {'workPhone', 'work_phone'} & writable_fields & incoming.keys():
+        phone = incoming.get('workPhone', incoming.get('work_phone'))
+        data['workPhone'] = data['work_phone'] = phone or ''
     external=dict(data.get('external_links') or {})
     for src,target in [('virtualTourUrl','virtual_tour'),('otherLink','other')]:
         if data.get(src):external[target]=data[src]
@@ -281,7 +306,13 @@ class PropertyDetailView(APIView):
         if request.user.role not in ('agency','expert'):
             if row.assigned_expert_id:raise PermissionDenied('این پرونده به کارشناس سپرده شده است؛ تغییرات را با مسئول پرونده هماهنگ کنید.')
         if row.created_by_id!=request.user.pk and row.assigned_expert_id!=request.user.pk and not (request.user.role=='agency' and row.office_id==request.user.pk): raise PermissionDenied('ویرایش این پرونده مجاز نیست.')
-        row.data=validate_payload(request,kind,row.data);row.save(update_fields=['data','updated_at'])
+        data = validate_payload(request, kind, row.data)
+        if kind == 'file' and row.publication_state == 'published' and (
+            property_work_phone(row.data) or 'allowOnlineChat' in data
+        ):
+            require_property_work_phone(data)
+        row.data = data
+        row.save(update_fields=['data','updated_at'])
         if row.data.get('publicationStatus')=='pending':
             from .workflow_services import dispatch
             dispatch(row.pk,request.user)

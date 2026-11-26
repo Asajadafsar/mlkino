@@ -4,6 +4,7 @@ type CatalogFile = Omit<Partial<PropertyType>, "buildYear"> & {
   id: number;
   kind: "file" | "request";
   buildYear?: string | number;
+  workPhone?: string | null;
   expert?: {name: string; work_phone: string | null};
   office?: {name: string};
   external_links?: {telegram?: string; instagram?: string; eitaa?: string};
@@ -48,7 +49,7 @@ function toPublicFile(row: CatalogFile): PropertyType {
     buildYear: row.buildYear ? Number(row.buildYear).toLocaleString("fa-IR", {useGrouping: false}) : undefined,
     advisorName: row.expert?.name,
     agencyName: row.office?.name,
-    contactPhone: row.expert?.work_phone || undefined,
+    contactPhone: row.workPhone || row.expert?.work_phone || undefined,
     virtualTourLink: "",
     virtualTourUrl: row.external_links ? {
       telegram: row.external_links.telegram || "", instagram: row.external_links.instagram || "", eitaa: row.external_links.eitaa || "",

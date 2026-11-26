@@ -29,7 +29,11 @@ class WorkflowTests(TestCase):
         self.assertEqual(self.post(f'workflows/properties/{self.row.pk}/publish/',{'publish':True},self.buyer).status_code,403)
         self.assertEqual(self.post(f'workflows/properties/{self.row.pk}/publish/',{'publish':True},self.admin).status_code,403)
         self.row.assigned_expert=self.expert;self.row.office=self.agency;self.row.save()
-        self.assertEqual(self.post(f'workflows/properties/{self.row.pk}/publish/',{'publish':True},self.agency).status_code,200)
+        publish = f'workflows/properties/{self.row.pk}/publish/'
+        self.assertEqual(self.post(publish, {'publish': True}, self.agency).status_code, 400)
+        self.row.data['workPhone'] = self.expert.phone
+        self.row.save(update_fields=['data'])
+        self.assertEqual(self.post(publish, {'publish': True}, self.agency).status_code, 200)
         r=self.client.get(f'/panel/public/catalog/{self.row.pk}/');d=r.data['data'];self.assertEqual(r.status_code,200)
         for key in ('ownerPhone','ownerName','internalNote','address','requesterPhone'):self.assertNotIn(key,d)
         self.assertEqual(self.client.get('/panel/public/catalog/',{'areaFrom':'200','areaTo':'100'}).status_code,400)
@@ -38,6 +42,8 @@ class WorkflowTests(TestCase):
     def test_routing_geographic_accept_and_crm_are_idempotent(self):
         ref=dispatch(self.row.pk,self.owner);self.assertEqual(ref.expert_id,self.expert.pk)
         self.assertEqual(dispatch(self.row.pk).pk,ref.pk)
+        self.row.data['workPhone'] = self.expert.phone
+        self.row.save(update_fields=['data'])
         accepted=respond(ref.pk,self.expert,'accept',True);self.assertEqual(accepted.status,'accepted')
         respond(ref.pk,self.expert,'accept',True)
         self.row.refresh_from_db();self.assertEqual(self.row.office_id,self.agency.pk);self.assertEqual(self.row.publication_state,'published');self.assertEqual(CRMContact.objects.count(),1)
@@ -177,10 +183,12 @@ class WorkflowTests(TestCase):
         self.assertNotEqual(first_version,second.data['data']['agreement_version'])
         self.assertEqual(ExpertShareAgreement.objects.get(pk=first_version).share_percent,Decimal('35.1234'))
         self.assertEqual(self.post('workflows/commission/calculate/',{**payload,'rate_version_id':'invalid'}).status_code,400)
-    def test_contact_requires_login_and_public_catalog_hides_phone(self):
+    def test_contact_requires_login_and_public_catalog_shows_only_work_phone(self):
         self.row.publication_state='published';self.row.assigned_expert=self.expert
         self.row.data['workPhone']=self.expert.phone;self.row.save()
-        self.assertIsNone(self.client.get(f'/panel/public/catalog/{self.row.pk}/').data['data']['expert']['work_phone'])
+        public = self.client.get(f'/panel/public/catalog/{self.row.pk}/').data['data']
+        self.assertEqual(public['expert']['work_phone'], self.expert.phone)
+        self.assertNotIn('ownerPhone', public)
         self.assertIn(self.client.get(f'/panel/workflows/properties/{self.row.pk}/contact/').status_code,(401,403))
         self.login(self.buyer)
         response=self.client.get(f'/panel/workflows/properties/{self.row.pk}/contact/')
@@ -281,6 +289,27 @@ class WorkflowTests(TestCase):
         self.assertEqual(self.post('workflows/archive/',{'entity_type':'property','id':self.row.pk,'archived':True},self.buyer).status_code,404)
         self.assertEqual(self.post('workflows/archive/',{'entity_type':'property','id':self.row.pk,'archived':True},self.owner).status_code,200)
         self.assertEqual(self.client.get(f'/panel/public/catalog/{self.row.pk}/').status_code,404)
+    def test_expert_can_disable_file_chat_without_hiding_work_phone(self):
+        self.row.publication_state = 'published'
+        self.row.assigned_expert = self.expert
+        self.row.office = self.agency
+        self.row.data['work_phone'] = self.expert.phone
+        self.row.save()
+        self.login(self.expert)
+        path = f'/panel/files/{self.row.pk}/'
+        response = self.client.patch(path, {'allowOnlineChat': False}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        denied = self.client.patch(path, {'workPhone': ''}, format='json')
+        self.assertEqual(denied.status_code, 400, denied.data)
+        self.login(self.buyer)
+        public = self.client.get(f'/panel/public/catalog/{self.row.pk}/').data['data']
+        self.assertIs(public['allowOnlineChat'], False)
+        self.assertEqual(public['expert']['work_phone'], self.expert.phone)
+        self.assertEqual(self.post(f'workflows/properties/{self.row.pk}/chat/', {}).status_code, 403)
+        self.login(self.expert)
+        self.assertEqual(self.client.patch(path, {'allowOnlineChat': True}, format='json').status_code, 200)
+        self.assertEqual(self.post(f'workflows/properties/{self.row.pk}/chat/', {}, self.buyer).status_code, 200)
+
     def test_disabled_feature_blocks_backend_not_just_menu(self):
         from .settings_models import PanelSettings
         PanelSettings.objects.create(pk=1,data={'features':{'favorites':False}});cache.clear()

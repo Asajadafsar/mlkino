@@ -10,7 +10,7 @@ from rest_framework.exceptions import ValidationError
 from .models import PropertyRecord,AgencyExpertLink,VisitSlot
 from .settings_api import envelope
 from .settings_runtime import system_settings
-from .property_api import normalize, property_type, record_field
+from .property_api import normalize, property_type, record_field, property_work_phone
 from .geography_api import IranLocationsView,MapTileView
 from .workflow_services import feature
 
@@ -35,7 +35,12 @@ def public_serialize(row):
     result['images']=[x for x in result.get('images',[]) if isinstance(x,str) and x.startswith(('https://','http://'))][:15]
     result.update(id=row.pk,kind=row.kind,featured=row.featured or getattr(row, "paid_promotion", False),created_at=row.created_at.isoformat(),title=row.data.get('title') or f'{row.data.get("propertyType", "ملک")} {row.data.get("city", "")}')
     expert=row.assigned_expert or (row.created_by if row.created_by.role=='expert' else None)
-    result['expert']={'id':expert.pk,'name':expert.full_name,'work_phone':None} if expert else None
+    if row.kind == 'file':
+        result['allowOnlineChat'] = row.data.get('allowOnlineChat') is not False
+        result['workPhone'] = property_work_phone(row.data)
+    result['expert'] = {
+        'id': expert.pk, 'name': expert.full_name, 'work_phone': result.get('workPhone'),
+    } if expert else None
     office=row.office
     result['office']={'id':office.pk,'name':getattr(getattr(office,'agency_profile',None),'agency_name',office.full_name)} if office else None
     links=row.data.get('external_links') or row.data.get('virtualTourLink') or {}

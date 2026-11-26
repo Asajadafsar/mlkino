@@ -18,7 +18,7 @@ from .settings_models import PanelSettings
 from .workflow_services import (workspaces,workspace,audit,feature,dispatch,respond,policy,ROUTING_DEFAULTS,
     EXPERT_PERMISSION_DEFAULTS,expert_permissions,require_expert_permission,touch_contact,dispatch_visit,respond_visit,
     visit_office_id,calculate_visit_commission)
-from .property_api import scope,serialize as property_serialize,validate_payload,normalize,require_estate_write
+from .property_api import scope,serialize as property_serialize,validate_payload,normalize,require_estate_write,property_work_phone,require_property_work_phone
 from .public_api import public_serialize,public_rows,ACTIVE_BOOKINGS
 from .finance_api import money
 from .workflow_pagination import filtered,paginate
@@ -182,7 +182,10 @@ class PropertyPublishView(APIView):
         publish=request.data.get('publish')
         if not isinstance(publish,bool):raise ValidationError('وضعیت انتشار معتبر نیست.')
         if row.archived_at:raise ValidationError('ابتدا پرونده را از بایگانی بازیابی کنید.')
-        if publish:validate_payload(request,row.kind,row.data)
+        if publish:
+            validate_payload(request, row.kind, row.data)
+            if row.kind == 'file':
+                require_property_work_phone(row.data)
         row.publication_state='published' if publish else 'draft';row.data={**row.data,'publicationStatus':row.publication_state};row.save(update_fields=['publication_state','data','updated_at']);audit(request.user,'property.publication','property',row.pk,property=row,status=row.publication_state)
         return envelope(property_serialize(row))
 class FavoritesView(APIView):
@@ -370,7 +373,10 @@ class PropertyChatView(APIView):
     permission_classes=[IsAuthenticated]
     @transaction.atomic
     def post(self,request,pk):
-        feature('chats');row=view_property(request.user,pk);expert=row.assigned_expert or row.created_by
+        feature('chats');row=view_property(request.user,pk)
+        if row.kind == 'file' and row.data.get('allowOnlineChat') is False:
+            raise PermissionDenied('گفتگوی آنلاین برای این فایل غیرفعال است.')
+        expert=row.assigned_expert or row.created_by
         if expert.pk==request.user.pk:raise ValidationError('امکان گفت‌وگو با خودتان وجود ندارد.')
         from .models import ChatBlock
         from accounts.models import AccountPreferences
@@ -542,9 +548,7 @@ class PropertyContactView(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request,pk):
         row=view_property(request.user,pk)
-        phone=row.data.get('work_phone') or row.data.get('workPhone')
-        if not phone:raise ValidationError('شماره کاری برای این ملک ثبت نشده است؛ از گفتگو استفاده کنید.')
-        from accounts.validators import validate_iranian_mobile
-        try:phone=validate_iranian_mobile(phone)
-        except Exception:raise ValidationError('شماره کاری قابل تماس نیست؛ با پشتیبانی تماس بگیرید.')
+        phone = property_work_phone(row.data)
+        if not phone:
+            raise ValidationError('شماره کاری قابل تماس برای این ملک ثبت نشده است.')
         response=envelope({'phone':phone,'property_id':row.pk});response['Cache-Control']='private, no-store';return response

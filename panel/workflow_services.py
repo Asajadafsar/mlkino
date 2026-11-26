@@ -129,6 +129,9 @@ def respond(referral_id,user,decision,publish=False):
     if decision=='accept' and (not ref.expert or ref.expert.role!='expert' or not ref.expert.is_active or ref.expert.account_status!='active'):raise ValidationError('کارشناس این ارجاع فعال نیست؛ پرونده باید دوباره ارجاع شود.')
     if ref.expires_at<=timezone.now():
         ref.status='expired';ref.save(update_fields=['status','updated_at']);audit(user,'routing.expired','referral',ref.pk,property=row,status='expired');dispatch(row.pk,user);return ref
+    if decision == 'accept' and publish and row.kind == 'file':
+        from .property_api import require_property_work_phone
+        require_property_work_phone(row.data)
     ref.status=target;ref.save(update_fields=['status','updated_at'])
     audit(user,'routing.responded','referral',ref.pk,property=row,decision=decision,status=target)
     if decision=='accept':

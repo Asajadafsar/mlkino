@@ -24,6 +24,8 @@ export type PropertyType = {
     latitude?: number|null
     longitude?: number|null
     workPhone?: string
+    work_phone?: string
+    allowOnlineChat?: boolean
     virtualTourUrl?: string
     otherLink?: string
     virtualTourLink: {
