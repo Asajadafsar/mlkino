@@ -1,4 +1,9 @@
-# MLKino production deployment
+# Historical MLKino CI deployment
+
+The GitHub Actions deployment workflow has been retired. Follow the
+[manual production deployment policy](../../AGENTS.md) for current work.
+The runner registration and CI release instructions below are retained for
+historical reference.
 
 The pipeline targets the **single-domain** configuration documented in
 [the previous release](../../docs/auth-profile-release-20261117.md) and
