@@ -24,6 +24,7 @@ PROC = Path("/proc")
 PREVIOUS = BASE / "previous"
 BACKUPS = Path("/var/backups/mlkino/.ci")
 MIGRATE = "/usr/local/libexec/mlkino-migrate"
+CHECK_DEPENDENCIES = "/usr/local/libexec/mlkino-check-dependencies"
 SERVICES = ("mlkino-backend.service", "mlkino-landing.service")
 DOMAIN = "https://mlkino.com"
 MAX_ARCHIVE = 256 * 1024 * 1024
@@ -238,11 +239,18 @@ def activate(candidate, previous):
         raise
 
 
+def check_dependencies(*releases):
+    run("/usr/sbin/runuser", "-u", "mlkino", "-g", "www-data", "--",
+        "/opt/mlkino/venv/bin/python", "-I", CHECK_DEPENDENCIES,
+        *(str(release) for release in releases), timeout=45)
+
+
 def deploy(previous):
     with tempfile.TemporaryDirectory(dir=RELEASES, prefix=".staged-") as staging:
         stage = Path(staging)
         stage.chmod(0o755)
         commit = load_release(stage)
+        check_dependencies(previous, stage)
         if previous.name == commit:
             health(previous)
             print(f"Production already healthy at {commit}.", flush=True)
@@ -257,9 +265,6 @@ def deploy(previous):
             output.write(release_bytes(previous / config, limit=1_000_000))
         shutil.chown(stage / config, group="www-data")
         (stage / config).chmod(0o640)
-        for manifest in ("requirements.txt", "requirements-extra.txt"):
-            if (stage / manifest).read_bytes() != release_bytes(previous / manifest, limit=1_000_000):
-                raise RuntimeError("Dependency changes require a separately provisioned venv")
         cache = stage / "landing/.next/standalone/.next/cache"
         cache.mkdir()
         shutil.chown(cache, user="mlkino", group="www-data")
@@ -425,6 +430,7 @@ def main():
         previous = release_target(CURRENT)
         if sys.argv[1:] == ["--rollback"]:
             target = release_target(PREVIOUS)
+            check_dependencies(target)
             activate(target, previous)
             print(f"Rolled back application to {target.name}. Database was left intact.", flush=True)
         else:
