@@ -1,3 +1,4 @@
+import "@testing-library/jest-dom"
 import {useState} from 'react'
 import {act,fireEvent,render,screen,waitFor,within} from '@testing-library/react'
 import {FloorChoices} from './components/CheckboxChoices'
@@ -33,4 +34,22 @@ test('monthly charge appears only for apartment rental files and requests',async
  view.rerender(<BaseStep mode="file" property={{...property,contractType:'رهن و اجاره'}} setProperty={jest.fn()} resource="files"/>);
  expect(screen.getByLabelText('شارژ ماهانه')).toBeTruthy()
  await act(async()=>{})
+})
+
+test('garden villas show optional water quota, utilities, and their own technical fields', () => {
+    render(<TechnicalStep mode="file" property={{propertyType: 'باغ ویلا'} as any} setProperty={jest.fn()} resource="files"/>)
+    expect(screen.getByRole('combobox', {name: 'نوع سند'})).toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', {name: 'سهم آب کشاورزی (دقیقه)'})).toHaveAttribute('max', '59')
+    expect(screen.getByRole('checkbox', {name: 'آب'})).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', {name: 'فاضلاب'})).toBeNull()
+    expect(screen.queryByRole('textbox', {name: 'حمام'})).toBeNull()
+})
+
+test('whole building renders one price field per floor in per-floor pricing mode', () => {
+    render(<TechnicalStep mode="file" property={{
+        propertyType: 'ساختمان یکجا', contractType: 'فروش', totalFloor: 2,
+        technical: {priceMode: 'floor'},
+    } as any} setProperty={jest.fn()} resource="files"/>)
+    expect(screen.getAllByRole('spinbutton', {name: /قیمت طبقه/})).toHaveLength(2)
+    expect(screen.getByRole('button', {name: 'افزودن گروه متراژ واحدها'})).toBeInTheDocument()
 })

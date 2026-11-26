@@ -69,11 +69,16 @@ export function PropertyRecordForm({
     const stepRenderers: Record<RecordMode, Array<() => React.ReactNode>> = {
         file: [
             () => <BaseStep {...stepProps} mode={mode} editMode={editMode} />,
-            () => <FinancialStep {...stepProps} mode={mode} />,
+            () => <Stack gap={2}>
+                <FinancialStep {...stepProps} mode={mode} />
+                <Typography component="h2" fontWeight={700}>اطلاعات مالک</Typography>
+                <OwnerStep {...stepProps} mode={mode} />
+            </Stack>,
             () => <TechnicalStep {...stepProps} mode={mode} />,
-            () => <OwnerStep {...stepProps} mode={mode} />,
-            () => <ImagesStep setProperty={setProperty} />,
-            () => <DescriptionStep {...stepProps} />,
+            () => <Stack gap={2}>
+                <ImagesStep setProperty={setProperty} />
+                <DescriptionStep {...stepProps} />
+            </Stack>,
         ],
         request: [
             () => <BaseStep {...stepProps} mode={mode} />,

@@ -32,6 +32,7 @@ import TourRoundedIcon from "@mui/icons-material/TourRounded";
 import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
 import HandshakeRoundedIcon from "@mui/icons-material/HandshakeRounded";
 import { useRouter } from "next/navigation";
+import {isListingBodyClick} from "@/app/Core/listings";
 import { PropertyType } from "@/app/Core/types";
 import { getPropertyTypeIcon } from "./PropertyTypeIcon";
 import VisitRequestModal from "./VisitRequestModal";
@@ -169,7 +170,8 @@ export default function CardFile({
   };
 
   if (appearance === "showcase") return <>
-    <article className={showcase.card}>
+    <article className={showcase.card} style={{cursor: "pointer"}}
+      onClick={event => {if (isListingBodyClick(event.target)) handleDetails();}}>
       <div className={showcase.cover}>
         <button type="button" className={showcase.imageLink} onClick={handleDetails} aria-label={`جزئیات ${data.propertyType} در ${Array.isArray(data.neighborhood) ? data.neighborhood.join("، ") : data.neighborhood}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -199,9 +201,11 @@ export default function CardFile({
   return (
     <>
       <Card
+        onClick={event => {if (isListingBodyClick(event.target)) handleDetails();}}
         elevation={0}
         sx={{
           width: "100%",
+          cursor: "pointer",
           maxWidth: 360,
           borderRadius: "12px",
           overflow: "hidden",

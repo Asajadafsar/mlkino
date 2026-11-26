@@ -10,11 +10,11 @@ from rest_framework.exceptions import ValidationError
 from .models import PropertyRecord,AgencyExpertLink,VisitSlot
 from .settings_api import envelope
 from .settings_runtime import system_settings
-from .property_api import normalize, property_type, record_field, property_work_phone
+from .property_api import normalize, property_type, record_field, property_contact
 from .geography_api import IranLocationsView,MapTileView
 from .workflow_services import feature
 
-SAFE_FIELDS=('title','propertyType','landUse','contractType','province','city','district','neighborhood','area','totalPrice','mortgagePrice','monthlyRent','roomCount','images','latitude','longitude','description','documentType','amenities','buildYear','totalFloor','floor','external_links','image_variants','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','floorPreferences')
+SAFE_FIELDS=('title','propertyType','landUse','contractType','province','city','district','neighborhood','area','totalPrice','mortgagePrice','monthlyRent','roomCount','images','latitude','longitude','description','documentType','documentTypeOther','technical','heating','cooling','direction','facade','amenities','buildYear','totalFloor','floor','external_links','image_variants','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','floorPreferences')
 ACTIVE_BOOKINGS = ('pending', 'confirmed')
 def public_rows():
     membership=AgencyExpertLink.objects.filter(agency_id=OuterRef('office_id'),expert_id=OuterRef('assigned_expert_id'))
@@ -34,10 +34,10 @@ def public_serialize(row):
     if not isinstance(result.get('images',[]),list):result['images']=[]
     result['images']=[x for x in result.get('images',[]) if isinstance(x,str) and x.startswith(('https://','http://'))][:15]
     result.update(id=row.pk,kind=row.kind,featured=row.featured or getattr(row, "paid_promotion", False),created_at=row.created_at.isoformat(),title=row.data.get('title') or f'{row.data.get("propertyType", "ملک")} {row.data.get("city", "")}')
-    expert=row.assigned_expert or (row.created_by if row.created_by.role=='expert' else None)
+    expert = property_contact(row) if row.kind == 'file' else row.assigned_expert
     if row.kind == 'file':
         result['allowOnlineChat'] = row.data.get('allowOnlineChat') is not False
-        result['workPhone'] = property_work_phone(row.data)
+        result['workPhone'] = expert.phone if expert else None
     result['expert'] = {
         'id': expert.pk, 'name': expert.full_name, 'work_phone': result.get('workPhone'),
     } if expert else None
@@ -145,7 +145,7 @@ class PublicVisitSlotsView(APIView):
         slots = slots.annotate(reserved=Count('bookings', filter=Q(bookings__status__in=ACTIVE_BOOKINGS))).filter(reserved__lt=F('capacity'))
         response = envelope({'results': [
             {'id': pk, 'starts_at': start.isoformat(), 'ends_at': end.isoformat()}
-            for pk, start, end in slots.values_list('pk', 'starts_at', 'ends_at')
+            for pk, start, end in slots.order_by('starts_at', 'pk').values_list('pk', 'starts_at', 'ends_at')
         ]})
         response['Cache-Control'] = 'no-store'
         return response

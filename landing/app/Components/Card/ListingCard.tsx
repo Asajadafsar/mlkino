@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import {useRouter} from "next/navigation";
 import FavoriteBorderRounded from "@mui/icons-material/FavoriteBorderRounded";
 import FavoriteRounded from "@mui/icons-material/FavoriteRounded";
 import WorkspacePremiumOutlined from "@mui/icons-material/WorkspacePremiumOutlined";
@@ -13,12 +14,13 @@ import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
 import { Dialog, IconButton } from "@mui/material";
 import CloseRounded from "@mui/icons-material/CloseRounded";
 import type { PropertyType } from "@/app/Core/types";
-import { propertyTitle } from "@/app/Core/listings";
+import { isListingBodyClick, propertyTitle } from "@/app/Core/listings";
 import { formatNumber, getPriceInfo } from "./cardFileUtils";
 import VisitRequestModal from "./VisitRequestModal";
 import styles from "./listing.module.css";
 
 export default function ListingCard({ data, variant = "featured" }: { data: PropertyType; variant?: "featured" | "compact" | "related" }) {
+  const router = useRouter();
   const [favorite, setFavorite] = useState(false);
   const [visitOpen, setVisitOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
@@ -26,7 +28,8 @@ export default function ListingCard({ data, variant = "featured" }: { data: Prop
   const href = `/property/${data.id}`;
 
   return <>
-    <article className={`${styles.card} ${styles[variant]}`}>
+    <article className={`${styles.card} ${styles[variant]}`} style={{cursor: "pointer"}}
+      onClick={event => {if (isListingBodyClick(event.target)) router.push(href);}}>
       <div className={styles.cover}>
         <Link href={href} aria-label={propertyTitle(data)}><img src={image} alt={propertyTitle(data)} loading="lazy" decoding="async" /></Link>
         {variant !== "compact" && <>
@@ -43,6 +46,6 @@ export default function ListingCard({ data, variant = "featured" }: { data: Prop
       {variant === "featured" && <div className={styles.actions}><button type="button" className={styles.visit} onClick={() => setVisitOpen(true)}><CalendarMonthOutlined /> درخواست بازدید</button><button type="button" className={styles.call} onClick={() => setContactOpen(true)}><PhoneInTalkOutlined /> تماس</button></div>}
     </article>
     <VisitRequestModal key={visitOpen ? "open" : "closed"} open={visitOpen} onClose={() => setVisitOpen(false)} property={data} />
-    <Dialog open={contactOpen} onClose={() => setContactOpen(false)} maxWidth="xs" fullWidth slotProps={{paper:{sx:{borderRadius:5}}}}><div className={styles.contact}><div><h2>تماس با کارشناس</h2><IconButton aria-label="بستن تماس" onClick={() => setContactOpen(false)}><CloseRounded /></IconButton></div><p>{data.advisorName || data.assignedTo}</p><a href={`tel:${data.contactPhone || data.ownerPhone}`}><PhoneInTalkOutlined />{data.contactPhone || data.ownerPhone}</a></div></Dialog>
+    <Dialog open={contactOpen} onClose={() => setContactOpen(false)} maxWidth="xs" fullWidth slotProps={{paper:{sx:{borderRadius:5}}}}><div className={styles.contact}><div><h2>تماس با کارشناس</h2><IconButton aria-label="بستن تماس" onClick={() => setContactOpen(false)}><CloseRounded /></IconButton></div><p>{data.advisorName || data.assignedTo}</p>{data.contactPhone && <a href={`tel:${data.contactPhone}`}><PhoneInTalkOutlined />{data.contactPhone}</a>}</div></Dialog>
   </>;
 }

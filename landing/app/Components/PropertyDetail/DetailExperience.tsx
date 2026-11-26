@@ -39,6 +39,29 @@ import VirtualTourModal from "../Card/VirtualTourModal";
 import PropertyGallery from "./PropertyGallery";
 import styles from "./detail.module.css";
 
+const technicalLabels: Record<string, string> = {
+  landArea: "متراژ زمین", buildingArea: "متراژ سازه مسکونی", buildingAge: "قدمت بنا",
+  waterHours: "سهم آب (ساعت)", waterMinutes: "سهم آب (دقیقه)", utilities: "انشعابات",
+  hasPermit: "مجوز", pool: "استخر", structureType: "نوع سازه", renovated: "بازسازی",
+  density: "تراکم", parking: "پارکینگ", storage: "انباری", terrace: "بهارخواب یا تراس",
+  frontage: "بر ملک", completionCertificate: "پایان کار", passageWidth: "عرض گذر",
+  balcony: "بالکن", commercialUse: "کاربری تجاری", unitCount: "تعداد واحد",
+  unitsPerFloor: "تعداد واحد در طبقه", utilityType: "نوع انشعابات", violationsPaid: "پرداخت عدم خلاف",
+  ceilingHeight: "ارتفاع سقف", electricityType: "نوع برق", permitType: "نوع مجوز",
+  builderType: "نوع سازنده", deliveryDate: "زمان تحویل",
+};
+
+function technicalSpecs(details?: Record<string, unknown>) {
+  return Object.entries(technicalLabels).flatMap(([key, label]) => {
+    const value = details?.[key];
+    if (typeof value === "boolean") return [[label, value ? "بله" : "خیر"]];
+    if (typeof value === "number") return [[label, formatNumber(value)]];
+    if (typeof value === "string" && value) return [[label, value]];
+    if (Array.isArray(value) && value.length) return [[label, value.join("، ")]];
+    return [];
+  });
+}
+
 function range(from?: number, to?: number, unit = "") {
   const max = Math.max(from || 0, to || 0);
   const scale = unit.startsWith("تومان") && max >= 1_000_000_000 ? 1_000_000_000 : unit.startsWith("تومان") && max >= 1_000_000 ? 1_000_000 : 1;
@@ -102,7 +125,7 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
   const specs = isRequest ? [
     ["نوع ملک",data.propertyType],["نوع درخواست",data.contractType],["شهر",data.city],["محله‌های درخواستی",neighborhood],["محدوده متراژ",range(data.areaFrom,data.areaTo,"متر")],["تعداد خواب",`${formatNumber(data.roomCount)} خواب`],["بودجه",price],["شرایط",data.mortgageTerms || data.budgetType || "توافقی"],
   ] : [
-    ["نوع ملک",data.propertyType],["وضعیت",data.contractType],["قیمت",price],["متراژ",getDisplayArea(data)],["تعداد خواب",formatNumber(data.roomCount)],["طبقات ساختمان",formatNumber(data.totalFloor)],...(data.floor == null ? [] : [["طبقه", `${formatNumber(data.floor)}${data.totalFloor ? ` از ${formatNumber(data.totalFloor)}` : ""}`]]),...(data.landUse ? [["کاربری زمین",data.landUse]] : []),["سال ساخت",data.buildYear || "ثبت نشده"],["وضعیت اشغال",data.occupancyStatus],["جهت ملک",data.direction],["نوع سند",data.documentType],["کف‌پوش",data.flooring],["نمای ساختمان",data.facade],
+    ["نوع ملک",data.propertyType],["وضعیت",data.contractType],["قیمت",price],["متراژ",getDisplayArea(data)],["تعداد خواب",formatNumber(data.roomCount)],["طبقات ساختمان",formatNumber(data.totalFloor)],...(data.floor == null ? [] : [["طبقه", `${formatNumber(data.floor)}${data.totalFloor ? ` از ${formatNumber(data.totalFloor)}` : ""}`]]),...(data.landUse ? [["کاربری زمین",data.landUse]] : []),["سال ساخت",data.buildYear || "ثبت نشده"],["وضعیت اشغال",data.occupancyStatus],["جهت ملک",data.direction],["نوع سند",data.documentTypeOther || data.documentType],["کف‌پوش",data.flooring],["نمای ساختمان",data.facade],["سرمایش",data.cooling],["گرمایش",data.heating], ...technicalSpecs(data.technical),
   ];
   const metrics = isRequest ? [
     {Icon:OpenInFullRounded,value:`${formatNumber(data.areaFrom)}–${formatNumber(data.areaTo)}`,label:"متر مربع"},

@@ -10,7 +10,7 @@ from .models import (AgencyExpertLink,PropertyRecord,PropertyReferral,WorkflowEv
     UserBusinessRole,ExpertPermission,PropertyVisit,VisitAssignment,ExpertShareAgreement)
 from .settings_api import is_superadmin
 from .settings_runtime import system_settings
-from .property_api import normalize
+from .property_api import normalize, require_file_fields
 
 ROUTING_DEFAULTS={'enabled':True,'mode':'round_robin','response_minutes':20,'max_attempts':20,'geographic_priority':['neighborhood','district','city','province','other'],'expert_order':[],'notifications':True}
 EXPERT_PERMISSION_DEFAULTS={
@@ -66,9 +66,11 @@ def touch_contact(row,expert):
         contact,created=CRMContact.objects.get_or_create(workspace_id=ws,phone=phone,defaults=defaults)
     if not created:
         contact.roles=list(dict.fromkeys(contact.roles+roles));contact.expert=expert
+        if defaults['user'] and phone == contact.phone:
+            contact.user = defaults['user']
         contact.name=name or contact.name;contact.national_code=national or contact.national_code
         contact.phone2=row.data.get(prefix+'Phone2') or contact.phone2;contact.job=row.data.get(prefix+'Job') or contact.job
-        contact.save(update_fields=['name','roles','expert','national_code','phone2','job','updated_at'])
+        contact.save(update_fields=['name','roles','expert','user','national_code','phone2','job','updated_at'])
     contact.properties.add(row)
     if row.data.get('partyContactId')!=contact.pk:
         row.data={**row.data,'partyContactId':contact.pk,'partyRole':roles[0]}
@@ -130,8 +132,7 @@ def respond(referral_id,user,decision,publish=False):
     if ref.expires_at<=timezone.now():
         ref.status='expired';ref.save(update_fields=['status','updated_at']);audit(user,'routing.expired','referral',ref.pk,property=row,status='expired');dispatch(row.pk,user);return ref
     if decision == 'accept' and publish and row.kind == 'file':
-        from .property_api import require_property_work_phone
-        require_property_work_phone(row.data)
+        require_file_fields(row.data)
     ref.status=target;ref.save(update_fields=['status','updated_at'])
     audit(user,'routing.responded','referral',ref.pk,property=row,decision=decision,status=target)
     if decision=='accept':

@@ -9,16 +9,11 @@ export const LAND_USE_OPTIONS = ['مسکونی','تجاری','اداری','کش�
 
 export const GATE_CONTRACT_TYPE_OPTIONS = ['فروش', 'رهن و اجاره'] as const
 
-export const DOCUMENT_TYPE_OPTIONS = [
-    'تک برگ',
-    'مبایعه نامه',
-    'وکالت نامه',
-    'سند مشاعی',
-    'سند اوقافی',
-    'سند مسکن ملی',
-    'صلح نامه',
-    'در دست اقدام',
+export const BASE_DOCUMENT_TYPES = [
+    'تک برگ', 'اوقافی', 'منگوله دار', 'شورایی', 'وکالت نامه', 'سند مشاعی',
+    'سند مسکن ملی', 'صلح نامه', 'در دست اقدام', 'قول نامه ای',
 ]
+export const DOCUMENT_TYPE_OPTIONS = [...BASE_DOCUMENT_TYPES, 'سر قفلی', 'تعاونی', 'سایر']
 
 export const CITY_OPTIONS = [
     'تهران',
@@ -108,7 +103,7 @@ export const BUILD_YEAR_OPTIONS = Array.from({length: 56}, (_, i) => String(CURR
 
 // برچسب گام‌ها بسته به حالت فرم متفاوت است
 export const STEPS_BY_MODE: Record<RecordMode, string[]> = {
-    file: ['پایه', 'اطلاعات مالی', 'فنی', 'مالک', 'تصاویر', 'توضیحات'],
+    file: ['پایه', 'اطلاعات مالی و مالک', 'فنی', 'تصاویر و توضیحات'],
     request: ['پایه', 'اطلاعات مالی', 'فنی', 'اطلاعات متقاضی', 'توضیحات'],
     // در «آگهی» یک گام مشخصات ملک (فشرده) + یک گام مخصوص متن آگهی داریم
     ad: ['مشخصات ملک', 'متن دیوارکوب'],

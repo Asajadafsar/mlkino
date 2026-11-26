@@ -30,9 +30,6 @@ class WorkflowTests(TestCase):
         self.assertEqual(self.post(f'workflows/properties/{self.row.pk}/publish/',{'publish':True},self.admin).status_code,403)
         self.row.assigned_expert=self.expert;self.row.office=self.agency;self.row.save()
         publish = f'workflows/properties/{self.row.pk}/publish/'
-        self.assertEqual(self.post(publish, {'publish': True}, self.agency).status_code, 400)
-        self.row.data['workPhone'] = self.expert.phone
-        self.row.save(update_fields=['data'])
         self.assertEqual(self.post(publish, {'publish': True}, self.agency).status_code, 200)
         r=self.client.get(f'/panel/public/catalog/{self.row.pk}/');d=r.data['data'];self.assertEqual(r.status_code,200)
         for key in ('ownerPhone','ownerName','internalNote','address','requesterPhone'):self.assertNotIn(key,d)
@@ -55,7 +52,9 @@ class WorkflowTests(TestCase):
     def test_owner_draft_does_not_dispatch_and_submit_does(self):
         data={'propertyType':'آپارتمان','contractType':'فروش','province':'قم','city':'قم','publicationStatus':'draft'}
         r=self.post('workflows/owner-submissions/',data,self.owner);self.assertEqual(r.status_code,201,r.data);pk=r.data['data']['id'];self.assertFalse(PropertyReferral.objects.filter(property_id=pk).exists())
-        r=self.client.patch(f'/panel/files/{pk}/',{'publicationStatus':'pending'},format='json');self.assertEqual(r.status_code,200,r.data);self.assertTrue(PropertyReferral.objects.filter(property_id=pk).exists())
+        self.assertEqual(self.client.patch(f'/panel/files/{pk}/', {'publicationStatus': 'pending'}, format='json').status_code, 400)
+        details = {key: self.row.data[key] for key in ('ownerName', 'ownerPhone', 'address', 'area', 'totalPrice')}
+        r=self.client.patch(f'/panel/files/{pk}/',details | {'publicationStatus':'pending'},format='json');self.assertEqual(r.status_code,200,r.data);self.assertTrue(PropertyReferral.objects.filter(property_id=pk).exists())
     def test_favorites_persist_deduplicate_and_do_not_expose_drafts(self):
         self.row.publication_state='published';self.row.save()
         first=self.post('workflows/favorites/',{'property_id':self.row.pk},self.buyer);self.assertEqual(first.status_code,201)
@@ -293,14 +292,14 @@ class WorkflowTests(TestCase):
         self.row.publication_state = 'published'
         self.row.assigned_expert = self.expert
         self.row.office = self.agency
-        self.row.data['work_phone'] = self.expert.phone
+        self.row.data['work_phone'] = self.next.phone
         self.row.save()
         self.login(self.expert)
         path = f'/panel/files/{self.row.pk}/'
         response = self.client.patch(path, {'allowOnlineChat': False}, format='json')
         self.assertEqual(response.status_code, 200, response.data)
-        denied = self.client.patch(path, {'workPhone': ''}, format='json')
-        self.assertEqual(denied.status_code, 400, denied.data)
+        updated = self.client.patch(path, {'workPhone': self.next.phone}, format='json')
+        self.assertEqual(updated.data['data']['workPhone'], self.expert.phone)
         self.login(self.buyer)
         public = self.client.get(f'/panel/public/catalog/{self.row.pk}/').data['data']
         self.assertIs(public['allowOnlineChat'], False)
@@ -309,6 +308,52 @@ class WorkflowTests(TestCase):
         self.login(self.expert)
         self.assertEqual(self.client.patch(path, {'allowOnlineChat': True}, format='json').status_code, 200)
         self.assertEqual(self.post(f'workflows/properties/{self.row.pk}/chat/', {}, self.buyer).status_code, 200)
+
+    def test_file_specs_are_optional_and_owner_is_linked_by_normalized_phone(self):
+        base = {key: self.row.data[key] for key in (
+            'propertyType', 'contractType', 'province', 'city', 'ownerName', 'ownerPhone', 'address', 'area', 'totalPrice',
+        )}
+        for key in ('propertyType', 'area', 'totalPrice', 'ownerName', 'ownerPhone', 'address'):
+            response = self.post('files/', {**base, key: ''}, self.expert)
+            self.assertEqual(response.status_code, 400, (key, response.data))
+        created = self.post('files/', base, self.expert)
+        self.assertEqual(created.status_code, 201, created.data)
+        record = PropertyRecord.objects.get(pk=created.data['data']['id'])
+        self.assertEqual(record.crm_contacts.get().user_id, self.owner.pk)
+        edited = self.client.patch(f'/panel/files/{record.pk}/', {
+            'ownerPhone': '۰۹۰۰۹۰۰۹۰۰۹', 'ownerName': 'مالک جدید',
+            'propertyType': 'باغ ویلا', 'technical': {'waterHours': '2', 'waterMinutes': '15', 'utilities': ['آب'], 'pool': False},
+            'documentType': 'سایر', 'documentTypeOther': 'سند آزمایشی',
+        }, format='json')
+        self.assertEqual(edited.status_code, 200, edited.data)
+        self.assertEqual(edited.data['data']['technical']['waterMinutes'], 15)
+        contact = record.crm_contacts.get()
+        self.assertEqual(contact.phone, '09009009009')
+        self.assertIsNone(contact.user_id)
+        self.assertIn('owner', contact.roles)
+        malformed = self.client.patch(f'/panel/files/{record.pk}/', {
+            'technical': {'waterMinutes': 60},
+        }, format='json')
+        self.assertEqual(malformed.status_code, 400, malformed.data)
+
+    def test_whole_building_price_can_be_calculated_from_all_floor_prices(self):
+        data = {key: self.row.data[key] for key in (
+            'contractType', 'province', 'city', 'ownerName', 'ownerPhone', 'address', 'area',
+        )}
+        response = self.post('files/', data | {
+            'propertyType': 'ساختمان یکجا', 'totalFloor': 2,
+            'technical': {'floorPrices': [1200, 1700], 'unitCount': 3, 'unitAreas': [{'area': 110, 'count': 2}]},
+        }, self.expert)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['data']['totalPrice'], 2900)
+        self.assertEqual(response.data['data']['technical']['unitAreas'], [{'area': 110.0, 'count': 2}])
+        pk = response.data['data']['id']
+        update = self.client.patch(f'/panel/files/{pk}/', {
+            'technical': {'priceMode': 'floor', 'floorPrices': [1800, 2200]},
+        }, format='json')
+        self.assertEqual(update.status_code, 200, update.data)
+        self.assertEqual(update.data['data']['totalPrice'], 4000)
+
 
     def test_disabled_feature_blocks_backend_not_just_menu(self):
         from .settings_models import PanelSettings

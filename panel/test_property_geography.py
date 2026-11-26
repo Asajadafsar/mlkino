@@ -49,6 +49,7 @@ class PropertyAndGeographyTests(TestCase):
         data = {'contractType': 'فروش', 'propertyType': 'آپارتمان', 'province': 'تهران', 'city': 'تهران',
                 'district': 'منطقه ۴', 'neighborhood': 'تهرانپارس', 'area': 82, 'roomCount': 2,
                 'floor': '−۱', 'totalFloor': 3, 'buildYear': 1400, 'totalPrice': 1000000,
+                'address': 'نشانی آزمایشی', 'ownerName': 'مالک آزمایشی', 'ownerPhone': '09000876543',
                 'direction': 'شمالی', 'heating': 'کولر آبی', 'cooling': 'کولر آبی', 'ownerNationalId': 'legacy'}
         created = self.client.post('/panel/files/', data, format='json')
         self.assertEqual(created.status_code, 201, created.data)

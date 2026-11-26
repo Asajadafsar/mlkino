@@ -1,10 +1,17 @@
-import {useState, type FormEvent} from 'react'
+import {useState, useEffect, type FormEvent} from 'react'
 import {Link} from 'react-router-dom'
-import {Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack} from '@mui/material'
+import {Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography} from '@mui/material'
 import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined'
 import DatePickerFilter from '../../Components/Filter/DatePicker'
 import {dateTimeIso} from '../../Core/PersianDate'
 import {DataProvider} from '../../Core/DataProvider'
+
+type Slot = {id: number; starts_at: string; ends_at: string}
+const visitDate = new Intl.DateTimeFormat('fa-IR', {
+    timeZone: 'Asia/Tehran', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+})
+const visitTime = new Intl.DateTimeFormat('fa-IR', {timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit'})
 
 export function ScheduleVisitButton({propertyId}: {propertyId: number}) {
     const [open, setOpen] = useState(false)
@@ -13,6 +20,17 @@ export function ScheduleVisitButton({propertyId}: {propertyId: number}) {
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState('')
     const [saved, setSaved] = useState(false)
+    const [slots, setSlots] = useState<Slot[]>([])
+    const [listError, setListError] = useState(false)
+    useEffect(() => {
+        if (!open) return
+        let active = true
+        setListError(false)
+        DataProvider.get<{results: Slot[]}>(`workflows/visit-slots/?property_id=${propertyId}`)
+            .then(response => {if (active) setSlots(response.data.results)})
+            .catch(() => {if (active) setListError(true)})
+        return () => {active = false}
+    }, [open, propertyId, saved])
 
     const save = async (event: FormEvent) => {
         event.preventDefault()
@@ -47,6 +65,13 @@ export function ScheduleVisitButton({propertyId}: {propertyId: number}) {
                         {error && <Alert severity="error">{error}</Alert>}
                         {saved && <Alert severity="success">زمان بازدید ثبت شد.</Alert>}
                         <DatePickerFilter mode="controlled" item={{label: 'تاریخ و ساعت شروع'}} withTime required value={start} onChange={value => {setSaved(false); setStart(value)}}/>
+                        {listError && <Alert severity="warning">فهرست زمان‌های ثبت‌شده دریافت نشد.</Alert>}
+                        {slots.length > 0 && <Stack gap={0.5} aria-label="زمان‌های آیندهٔ بازدید">
+                            <Typography fontWeight={700}>زمان‌های آیندهٔ ثبت‌شده</Typography>
+                            {slots.map(slot => <Typography key={slot.id} variant="body2">
+                                {visitDate.format(new Date(slot.starts_at))} تا {visitTime.format(new Date(slot.ends_at))}
+                            </Typography>)}
+                        </Stack>}
                         <DatePickerFilter mode="controlled" item={{label: 'تاریخ و ساعت پایان'}} withTime required value={end} onChange={value => {setSaved(false); setEnd(value)}}/>
                     </Stack>
                 </DialogContent>

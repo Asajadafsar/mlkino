@@ -27,6 +27,7 @@ import StraightenRoundedIcon from "@mui/icons-material/StraightenRounded";
 import KingBedRoundedIcon from "@mui/icons-material/KingBedRounded";
 import LayersRoundedIcon from "@mui/icons-material/LayersRounded";
 import { useRouter } from "next/navigation";
+import {isListingBodyClick} from "@/app/Core/listings";
 import { getPropertyTypeIcon } from "./PropertyTypeIcon";
 import VisitRequestModal from "./VisitRequestModal";
 import type { CardFileProps } from "./CardFile";
@@ -254,9 +255,11 @@ export default function CardFileHorizontal({
   return (
     <>
       <Card
+        onClick={event => {if (isListingBodyClick(event.target)) handleDetails();}}
         elevation={0}
         sx={{
           width: "100%",
+          cursor: "pointer",
           display: "flex",
           flexDirection: "row",
           // ✅ در موبایل تصویر کشیده نمی‌شود، در sm به بالا کشیده می‌شود
