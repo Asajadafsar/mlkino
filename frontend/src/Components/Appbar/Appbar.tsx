@@ -34,7 +34,7 @@ export default function Appbar({drawerOpen, setDrawerOpen, user, collapsed = fal
         return () => {active = false; window.clearInterval(timer); window.removeEventListener('focus', refresh); window.removeEventListener('mlkino:reminders-changed', refresh)}
     }, [])
     const panelLabel=user.role==='superadmin'?'پنل مدیریت':user.role==='agency'?'پنل املاک':user.role==='expert'?'پنل کارشناسی':'پنل کاربری'
-    return <Box component="header" className="panel-header" data-color-mode={theme.palette.mode} sx={{position:'fixed',top:0,right:0,left:0,zIndex:theme.zIndex.appBar}}>
+    return <Box component="header" className="panel-header" data-color-mode={theme.palette.mode} sx={{position:'fixed',top:{xs:8,sm:12},right:{xs:8,sm:12},left:{xs:8,sm:12},zIndex:theme.zIndex.appBar}}>
         <div className="panel-header-inner">
             <Link to="/dashboard" className="panel-header-brand" aria-label={`پیشخوان ${settings.general.shortName}`}>
                 <img src={(mobile?settings.branding.mobileLogo:'')||settings.branding.logo||'/assets/melkino-logo-hd.webp'} alt=""/>

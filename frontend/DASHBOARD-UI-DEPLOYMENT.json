@@ -1,0 +1,36 @@
+{
+  "release": "20261125-dashboard-reference",
+  "status": "deployed",
+  "url": "https://mlkino.com/panel/dashboard",
+  "target": "/opt/mlkino/current/frontend/build-release-20261125-dashboard-reference",
+  "previous_frontend": "build-release-20261125-workflow-reference2",
+  "backup": "/var/backups/mlkino/20261125-dashboard-reference",
+  "checks": {
+    "production_build": "passed, PUBLIC_URL=/panel",
+    "tests": 47,
+    "suites": 9,
+    "public_files_sha256_matched": 60,
+    "nginx_served_files_sha256_matched": 60,
+    "public_routes": "dashboard and role-applications passed",
+    "visual_browser_qa": "not completed; native browser concurrently used; no claim of pixel-perfect validation"
+  },
+  "reference_rows": [
+    "Villa welcome banner with brand/date/period",
+    "Six KPI cards",
+    "Compact advanced search with transaction tabs, ranges, amenities and saved searches",
+    "Featured property cards next to compact map",
+    "Period summary, request trend and property distribution",
+    "Request statuses, advisor performance and period comparison",
+    "Recent requests, contracts and property tables",
+    "Performance summary"
+  ],
+  "data_notes": [
+    "Real role-scoped APIs preserved; no fabricated production metrics.",
+    "Request trend/status charts summarize up to 100 recent accessible requests.",
+    "Featured cards show featured or user-pinned records among up to 100 recent accessible properties.",
+    "Advisor ranking uses registered contract/file counts; revenue per advisor is not supplied by API.",
+    "Customer satisfaction is unavailable and displayed as a dash.",
+    "Summary contract value is the sum of displayed recent contracts; listing age is not contract completion time."
+  ],
+  "backend_database_unchanged": true
+}

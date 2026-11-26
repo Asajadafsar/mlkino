@@ -7,13 +7,13 @@ type Store={files:FileRecord[];favorites:number[];visits:Record<string,FileVisit
 let memory:Store|undefined
 function initial():Store{const files=demoFiles();return {files,favorites:[files[0].id,files[2].id],visits:{[files[0].id]:[{id:1,visitor_name:'متقاضی نمایشی',starts_at:'2026-11-22T10:00:00+03:30',status:'confirmed',notes:'بازدید نمونهٔ واحد'}]}}}
 function read():Store{try{const value=localStorage.getItem(key);if(value){const parsed=JSON.parse(value);if(Array.isArray(parsed.files)&&Array.isArray(parsed.favorites)&&parsed.visits)return parsed}}catch{}return memory||initial()}
-function validate(file:FileRecord){if(!file.title?.trim()||!file.city?.trim())throw new Error('عنوان و شهر فایل الزامی هستند.');for(const field of ['area','roomCount','floor','totalPrice','mortgagePrice','monthlyRent']){const value=file[field];if(value!==undefined&&(!Number.isFinite(Number(value))||Number(value)<0))throw new Error('مقادیر عددی باید معتبر و نامنفی باشند.')}}
+function validate(file:FileRecord){if(!file.title?.trim()||!file.city?.trim())throw new Error('عنوان و شهر فایل الزامی هستند.');for(const field of ['area','roomCount','totalFloor','floor','totalPrice','mortgagePrice','monthlyRent']){const value=file[field];if(value!==undefined&&(!Number.isFinite(Number(value))||(field!=='floor'&&Number(value)<0)))throw new Error('مقادیر عددی باید معتبر و نامنفی باشند.')}}
 function write(value:Store){memory=value;try{localStorage.setItem(key,JSON.stringify(value))}catch{}window.dispatchEvent(new Event(FILE_DEMO_CHANGED))}
 const normalize=(value:unknown)=>String(value??'').replace(/[۰-۹٠-٩]/g,c=>String(c.charCodeAt(0)-(c>='۰'?1776:1632))).replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/\u200c/g,' ').trim().toLowerCase()
 const number=(value:unknown)=>Number(normalize(value).replace(/,/g,''))
 export const fileDemoStore={
  list(query:Record<string,string>){const all=read().files;let rows=all.filter(file=>{
- for(const field of ['propertyType','contractType','province','city','district','neighborhood','roomCount','status']){const wanted=normalize(query[field]);if(wanted&&normalize(file[field])!==wanted)return false}
+ for(const field of ['propertyType','contractType','province','city','district','neighborhood','roomCount','buildYear','totalFloor','floor','landUse','status']){const wanted=normalize(query[field]);if(wanted&&normalize(file[field])!==wanted)return false}
  if(query.recordId&&file.id!==number(query.recordId))return false
  if(query.creatorRoles&&!query.creatorRoles.split('|').includes(file.creatorRole||''))return false
  if(query.search&&!normalize([file.title,file.id,file.propertyType,file.city,file.neighborhood,file.description].join(' ')).includes(normalize(query.search)))return false

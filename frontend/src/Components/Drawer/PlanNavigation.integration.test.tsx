@@ -27,6 +27,7 @@ beforeEach(() => localStorage.clear())
 
 test('superadmin can open the redesigned plans catalog from the actual drawer', async () => {
     show(UserRole.SUPERADMIN)
+    fireEvent.click(screen.getByRole('button', {name: 'مدیریت دفتر'}))
     fireEvent.click(screen.getByRole('button', {name: 'مدیریت پلن‌ها'}))
     expect(await screen.findByText('مدیریت پلن‌ها و اشتراک‌ها')).toBeVisible()
     expect((await screen.findAllByRole('button', {name: /مشاهده/}))[0]).toBeVisible()
@@ -34,6 +35,7 @@ test('superadmin can open the redesigned plans catalog from the actual drawer', 
 
 test('superadmin can open the capabilities catalog from the actual drawer', async () => {
     show(UserRole.SUPERADMIN)
+    fireEvent.click(screen.getByRole('button', {name: 'مدیریت دفتر'}))
     fireEvent.click(screen.getByRole('button', {name: 'امکانات پلن‌ها'}))
     expect(await screen.findByRole('button', {name: /قابلیت جدید/})).toBeVisible()
 })

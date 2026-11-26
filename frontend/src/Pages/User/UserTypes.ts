@@ -1,7 +1,7 @@
 export type UploadValue = File | string | null
 
 export interface CommonUserType {
-    permissions?: {can_finance?: boolean; can_manage_files?: boolean}
+    permissions?: {can_finance?: boolean; can_manage_files?: boolean; can_manage_visits?: boolean}
     workspace_roles?: {workspace_id:number;role:string}[]
     password?: string
     id: number

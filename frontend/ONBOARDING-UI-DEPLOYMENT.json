@@ -1,0 +1,80 @@
+{
+  "release": "20261125-workflow-reference2",
+  "status": "deployed",
+  "url": "https://mlkino.com/panel/role-applications",
+  "target": "/opt/mlkino/current/frontend/build-release-20261125-workflow-reference2",
+  "previous_frontend": "build-release-20261125-workflow-reference",
+  "backup": "/var/backups/mlkino/20261125-workflow-reference2",
+  "checks": {
+    "tests": 39,
+    "suites": 7,
+    "production_build": "passed, PUBLIC_URL=/panel",
+    "public_files_sha256_matched": 58,
+    "nginx_served_files_sha256_matched": 58,
+    "routes": "role-applications and users/expert/collaboration passed",
+    "browser_visual_qa": "not completed; native computer control returned service startup failures/timeouts"
+  },
+  "reference_structure": {
+    "1": [
+      "user identity",
+      "expert and office choices",
+      "previous requests"
+    ],
+    "2": [
+      "steps",
+      "office code",
+      "office card",
+      "confirmation",
+      "confirm and retry actions"
+    ],
+    "3": [
+      "office role",
+      "experience",
+      "phone",
+      "cooperation type",
+      "transaction domain",
+      "activity areas",
+      "skills",
+      "description",
+      "documents",
+      "submit"
+    ],
+    "4": [
+      "requests and expert directory",
+      "filters",
+      "table on right",
+      "resume detail on left",
+      "approve/reject/full resume"
+    ],
+    "5": [
+      "office profile",
+      "payment warning",
+      "plan cards",
+      "comparison",
+      "terms",
+      "submit"
+    ],
+    "6": [
+      "requests/history",
+      "filters",
+      "table",
+      "application details",
+      "documents/review result",
+      "decision actions"
+    ],
+    "7": [
+      "subscription status",
+      "renewal",
+      "plan upgrades",
+      "comparison",
+      "subscription management"
+    ]
+  },
+  "api_constraints": [
+    "DOC files are not supported by the existing API; UI accepts supported PDF/images.",
+    "Required office address, landline and legal documents are retained under a separate details section.",
+    "Cooperation and transaction choices are preserved in the existing reviewer-visible resume text.",
+    "Prices and plan capabilities come from the existing API; sample reference data is not substituted for live data."
+  ],
+  "backend_database_unchanged": true
+}

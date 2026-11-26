@@ -14,11 +14,11 @@ import SearchRounded from '@mui/icons-material/SearchRounded'
 import FilterAltOutlined from '@mui/icons-material/FilterAltOutlined'
 import MapOutlined from '@mui/icons-material/MapOutlined'
 import RestartAlt from '@mui/icons-material/RestartAlt'
-import {BUILD_YEAR_OPTIONS,AD_AMENITIES_OPTIONS,STATUS_OPTIONS,PROPERTY_TYPE_OPTIONS,DOCUMENT_TYPE_OPTIONS,OCCUPANCY_OPTIONS,HEATING_OPTIONS,COOLING_OPTIONS,FLOORING_OPTIONS,FACADE_OPTIONS,DIRECTION_OPTIONS,LAND_USE_OPTIONS} from '../PropertyRecordForm/constants'
+import {AD_AMENITIES_OPTIONS,STATUS_OPTIONS,PROPERTY_TYPE_OPTIONS,DOCUMENT_TYPE_OPTIONS,OCCUPANCY_OPTIONS,HEATING_OPTIONS,COOLING_OPTIONS,FLOORING_OPTIONS,FACADE_OPTIONS,DIRECTION_OPTIONS,LAND_USE_OPTIONS} from '../PropertyRecordForm/constants'
 import api from '../../Core/Request'
 import './advancedPropertySearch.css'
 export type PropertySearchValues=Record<string,string>
-export const propertySearchFields=['propertyType','contractType','province','city','district','neighborhood','areaFrom','areaTo','priceFrom','priceTo','roomCount','buildYear','floor','status','amenities','creatorRoles','recordId','landUse','office']
+export const propertySearchFields=['propertyType','contractType','province','city','district','neighborhood','areaFrom','areaTo','priceFrom','priceTo','roomCount','buildYear','totalFloor','floor','status','amenities','creatorRoles','recordId','landUse','office']
 export function validatePropertySearch(values:PropertySearchValues){
  for(const [prefix,label] of [['price','قیمت'],['area','متراژ']])if(values[prefix+'From']&&values[prefix+'To']&&Number(values[prefix+'From'])>Number(values[prefix+'To']))return `حداکثر ${label} نباید کمتر از حداقل باشد.`
  return ''
@@ -29,6 +29,7 @@ export default function AdvancedPropertySearch({values,onChange,onSearch,count,o
  useEffect(()=>{const c=new AbortController();setLocations({});setError('');const levels=['province','city',...(city?['district','neighborhood']:[])];Promise.all(levels.map(async level=>{const r=await api.get('locations/',{params:{level,all:province?undefined:true,province:province||undefined,city:city||undefined,...(level==='neighborhood'&&district?{district}: {})},signal:c.signal});return [level,Array.from(new Set(r.data.data.results.map((x:any)=>x.name))) as string[]] as const})).then(rows=>{if(!c.signal.aborted)setLocations(Object.fromEntries(rows))}).catch(()=>{if(!c.signal.aborted)setError('فهرست موقعیت‌ها دریافت نشد؛ دوباره تلاش کنید.')});return()=>c.abort()},[province,city,district])
  const set=(key:string,value:string)=>onChange({...values,[key]:value})
  const digits=(s:string)=>s.replace(/[۰-۹٠-٩]/g,c=>String(c.charCodeAt(0)-(c>='۰'?1776:1632))).replace(/[^0-9]/g,'')
+ const integer=(key:string,label:string,signed=false)=><TextField fullWidth size="small" value={values[key]||''} onChange={e=>set(key,(signed&&/^[-−]/.test(e.target.value)?'-':'')+digits(e.target.value))} inputProps={{'aria-label':label,inputMode:signed?'text':'numeric',maxLength:8}}/>
  const tile=(title:string,icon:ReactNode,children:ReactNode,wide=false)=><div className={`property-search-field${wide?' is-wide':''}`}><div className="property-search-label">{icon}<span>{title}</span></div>{children}</div>
  const select=(key:string,label:string,options:string[])=> <TextField select fullWidth size="small" value={values[key]||''} onChange={e=>set(key,e.target.value)} SelectProps={{native:true}} inputProps={{'aria-label':label}}><option value="">همه</option>{options.map(x=><option key={x} value={x}>{/^\d+$/.test(x)?Number(x).toLocaleString('fa-IR',{useGrouping:false}):x}</option>)}</TextField>
  const demoPlaces:Record<string,string>={province:'قم',city:'قم',district:'منطقه ۳',neighborhood:'امام خمینی'}
@@ -48,12 +49,13 @@ export default function AdvancedPropertySearch({values,onChange,onSearch,count,o
  {tile('محله',<PlaceOutlined/>,geo('neighborhood','محله',['office']))}
  {tile('متراژ (متر مربع)',<SquareFoot/>,range('area','متراژ'))}
  {tile(values.contractType==='رهن و اجاره'?'مبلغ رهن (تومان)':'قیمت (تومان)',<LayersOutlined/>,range('price','قیمت'))}
- {tile('تعداد اتاق',<BedOutlined/>,select('roomCount','تعداد اتاق',['0','1','2','3','4','5','6','7','8','9','10']))}
- {tile('سال ساخت',<CalendarMonthOutlined/>,select('buildYear','سال ساخت',BUILD_YEAR_OPTIONS))}
- {tile('طبقه',<LayersOutlined/>,select('floor','طبقه',Array.from({length:31},(_,i)=>String(i))))}
+ {tile('تعداد خواب',<BedOutlined/>,integer('roomCount','تعداد خواب'))}
+ {tile('سال ساخت',<CalendarMonthOutlined/>,integer('buildYear','سال ساخت'))}
+ {tile('تعداد کل طبقات',<LayersOutlined/>,integer('totalFloor','تعداد کل طبقات'))}
+ {tile('شماره طبقه',<LayersOutlined/>,integer('floor','شماره طبقه',true))}
  {tile('وضعیت ملک',<CheckRounded/>,select('status','وضعیت ملک',STATUS_OPTIONS))}
  {officeOptions&&([
-  ['documentType','نوع سند',DOCUMENT_TYPE_OPTIONS],['occupancyStatus','وضعیت سکونت',OCCUPANCY_OPTIONS],
+  ['documentType','نوع سند',DOCUMENT_TYPE_OPTIONS],['occupancyStatus','وضعیت اشغال',OCCUPANCY_OPTIONS],
   ['heating','گرمایش',HEATING_OPTIONS],['cooling','سرمایش',COOLING_OPTIONS],['flooring','کف‌پوش',FLOORING_OPTIONS],
   ['facade','نما',FACADE_OPTIONS],['direction','جهت ساختمان',DIRECTION_OPTIONS],['bathroom','سرویس بهداشتی',['ایرانی','فرنگی','هر دو']],
  ] as [string,string,string[]][]).map(([key,label,options])=><div key={key}>{tile(label,<LayersOutlined/>,select(key,label,options))}</div>)}

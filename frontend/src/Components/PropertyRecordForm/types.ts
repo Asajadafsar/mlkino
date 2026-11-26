@@ -77,12 +77,10 @@ export type PropertyType = {
     ownerPhone: string
     ownerPhone2: string
     ownerJob: string
-    ownerNationalId?: string
     customerName?: string
     customerPhone?: string
     customerPhone2?: string
     customerJob?: string
-    customerNationalId?: string
     partyContactId?: number
     source?: 'landing'|'panel'
     pinned?: boolean

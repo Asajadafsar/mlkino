@@ -3,18 +3,20 @@ import {Alert,Box,Button,CircularProgress,Pagination,Stack,Tab,Tabs,Typography} 
 import PeopleOutlineRoundedIcon from '@mui/icons-material/PeopleOutlineRounded'
 import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined'
-import {useCallback,useEffect,useRef,useState} from 'react'
+import {useCallback,useContext,useEffect,useRef,useState} from 'react'
 import {useQueryParams} from 'use-query-params'
 import {EstateHero,EstateStats,EstateToolbar,EstateFilter} from '../../Components/Estate/EstateWorkspace'
 import {EstateProperty} from '../../Components/Estate/EstateProperty'
 import {DataProvider} from '../../Core/DataProvider'
 import {createQueryParam} from '../../Core/QueryParams'
 import {PropertyType} from '../../Components/PropertyRecordForm'
+import {PROPERTY_TYPE_OPTIONS} from '../../Components/PropertyRecordForm/constants'
+import {CurrentUserContext} from '../../Core/CurrentUser'
 import {useViewMode} from '../../Core/useViewMode'
 const choices=(items:string[])=>items.map(value=>({label:value,value}))
-const filters:EstateFilter[]=[{field:'propertyType',label:'نوع ملک',options:choices(['آپارتمان','ویلایی','زمین','تجاری','سوله','پیش فروش'])},{field:'city',label:'شهر',options:choices(['تهران','مشهد','اصفهان','کرج','شیراز','تبریز','قم'])},{field:'areaFrom',label:'حداقل متراژ',type:'number'},{field:'areaTo',label:'حداکثر متراژ',type:'number'},{field:'priceFrom',label:'حداقل قیمت',type:'number'},{field:'priceTo',label:'حداکثر قیمت',type:'number'},{field:'contractType',label:'نوع معامله',options:choices(['فروش','رهن و اجاره'])},{field:'province',label:'استان'},{field:'district',label:'منطقه'},{field:'neighborhood',label:'محله'}]
+const filters:EstateFilter[]=[{field:'propertyType',label:'نوع ملک',options:choices(PROPERTY_TYPE_OPTIONS)},{field:'city',label:'شهر',options:choices(['تهران','مشهد','اصفهان','کرج','شیراز','تبریز','قم'])},{field:'areaFrom',label:'حداقل متراژ',type:'number'},{field:'areaTo',label:'حداکثر متراژ',type:'number'},{field:'priceFrom',label:'حداقل قیمت',type:'number'},{field:'priceTo',label:'حداکثر قیمت',type:'number'},{field:'contractType',label:'نوع معامله',options:choices(['فروش','رهن و اجاره'])},{field:'province',label:'استان'},{field:'district',label:'منطقه'},{field:'neighborhood',label:'محله'}]
 export function RecordList({mode,requesterType}:{mode:'file'|'request';requesterType?:'owner'|'customer'}) {
- const navigate=useNavigate(),resource=mode==='file'?'files':'requests'
+ const navigate=useNavigate(),{user}=useContext(CurrentUserContext),resource=mode==='file'?'files':'requests'
  const [params,setParams]=useQueryParams(createQueryParam([...filters,{field:'requesterType'}]) as any)
  useEffect(()=>{if(!params.contractType)setParams(current=>({...current,contractType:'فروش',page:1}),'replaceIn')},[])
  const [cities,setCities]=useState<string[]>([])
@@ -28,7 +30,7 @@ export function RecordList({mode,requesterType}:{mode:'file'|'request';requester
  useEffect(()=>{requestVersion.current++;const timer=setTimeout(load,300);return()=>clearTimeout(timer)},[load])
  const change=(field:string,value:string)=>setParams(current=>({...current,[field]:value||undefined,page:1}))
  const stats=result.stats||{total:result.total_results,active:result.results.filter(r=>r.status==='فعال').length,customer:result.total_results,owner:0}
- const toolbar=<EstateToolbar search={params.search||''} onSearch={value=>change('search',value)} view={view} onView={setView} onCreate={()=>navigate(`/${resource}/create`)} createLabel={mode==='request'?'ثبت درخواست':'جدید'} placeholder={mode==='file'?'جستجو در فایل‌ها…':'جستجو در درخواست‌ها…'} quickFilterCount={mode==='request'?0:3} filters={visibleFilters} values={params} onFilter={change}/>
+ const toolbar=<EstateToolbar search={params.search||''} onSearch={value=>change('search',value)} view={view} onView={setView} onCreate={user.role==='superadmin'?undefined:()=>navigate(`/${resource}/create`)} createLabel={mode==='request'?'ثبت درخواست':'جدید'} placeholder={mode==='file'?'جستجو در فایل‌ها…':'جستجو در درخواست‌ها…'} quickFilterCount={mode==='request'?0:3} filters={visibleFilters} values={params} onFilter={change}/>
  return <Box className="estate-page"><EstateHero title={mode==='file'?'مدیریت فایل‌های ملکی':'درخواست فایل'} description={mode==='file'?'ایجاد، مشاهده و مدیریت فایل‌های ملک':'مدیریت و پیگیری درخواست فایل خریداران و مستأجران'}/>
  {mode==='request'&&<EstateStats reverse items={[{label:'کل درخواست‌ها',value:stats.total},{label:'درخواست فعال',value:stats.active},{label:'درخواست مالکین',value:stats.owner},{label:'درخواست مشتریان',value:stats.customer,icon:<PeopleOutlineRoundedIcon/>}]}/>}
  <Box className={mode==='request'?'estate-request-panel':''}><Tabs className="estate-tabs" value={params.contractType||'فروش'} onChange={(_,next)=>change('contractType',next)} variant="fullWidth"><Tab icon={<HomeOutlinedIcon/>} iconPosition="start" label={mode==='file'?'فایل فروش':'درخواست فروش'} value="فروش"/><Tab icon={<LayersOutlinedIcon/>} iconPosition="start" label={mode==='file'?'فایل اجاره':'درخواست اجاره'} value="رهن و اجاره"/></Tabs>{toolbar}

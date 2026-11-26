@@ -1,0 +1,162 @@
+.panel-sidebar .MuiDrawer-paper {
+    color: #fff;
+    background: #122446;
+    background-image: linear-gradient(165deg, #1b335b, #102344 65%, #18315a);
+    border: 1px solid #ffffff20;
+    box-shadow: 0 8px 28px #19375e18, inset 0 1px 0 #ffffff12;
+    isolation: isolate;
+}
+.sidebar-scroll {
+    position: relative;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 0;
+    padding: 0 14px 18px;
+    scrollbar-width: thin;
+    scrollbar-color: #3763b7 transparent;
+    display: flex;
+    flex-direction: column;
+    direction: rtl;
+}
+.sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: #3763b7; border-radius: 5px; }
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 8px 18px;
+    min-height: 84px;
+    flex-shrink: 0;
+    color: #fff;
+    text-decoration: none;
+}
+.sidebar-brand > svg, .sidebar-brand > img { width: 43px; height: 43px; object-fit: contain; flex-shrink: 0; }
+.sidebar-brand strong { display: block; font-size: 25px; line-height: 1.5; font-weight: 900; letter-spacing: -.8px; text-shadow: 0 2px 5px #0003; }
+.sidebar-brand span { display: block; font-size: 14px; color: #e0e8ff; text-align: center; line-height: 1.6; }
+.panel-sidebar .sidebar-navigation { padding: 0; overflow: visible; flex-shrink: 0; }
+.panel-sidebar .sidebar-menu-button {
+    display: flex;
+    gap: 9px;
+    direction: rtl;
+    min-height: 46px;
+    padding: 5px 10px;
+    margin: 0;
+    color: #fff;
+    text-align: right;
+    border: 1px solid #7697c638;
+    border-top-color: #91b0dd4a;
+    border-radius: 13px;
+    background: linear-gradient(120deg, #ffffff08, #729bda10);
+    box-shadow: inset 0 1px 0 #ffffff08;
+    transition: background .18s, border-color .18s, box-shadow .18s;
+}
+.panel-sidebar .sidebar-menu-button:hover {
+    background: linear-gradient(120deg, #305da8c9, #234e9cba);
+    border-color: #7ea9ed;
+}
+.panel-sidebar .sidebar-menu-icon {
+    display: grid;
+    place-items: center;
+    color: inherit;
+    min-width: 37px;
+    width: 37px;
+    height: 36px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #9dbdff15, #5181d508);
+    flex-shrink: 0;
+    margin: 0;
+}
+.panel-sidebar .sidebar-menu-icon .MuiSvgIcon-root { font-size: 24px !important; }
+.panel-sidebar .sidebar-menu-label { flex: 1; font-size: 14px; font-weight: 700; line-height: 1.8; color: inherit; min-width: 0; }
+.panel-sidebar .sidebar-home { width: calc(100% - 8px); margin: 0 4px 14px; border-radius: 15px; min-height: 44px; }
+.panel-sidebar .sidebar-home .sidebar-menu-label { font-size: 15px; text-align: center; }
+.panel-sidebar .sidebar-dashboard { margin-bottom: 16px; min-height: 46px; }
+.panel-sidebar .sidebar-menu-button.Mui-selected {
+    color: #fff;
+    border: 1px solid #72adf5;
+    border-top-color: #a4cbff;
+    background: linear-gradient(135deg, #3285ed, #2164d7);
+    box-shadow: inset 0 1px 1px #ffffff30, 0 3px 10px #06265d38;
+}
+.panel-sidebar .sidebar-menu-button.Mui-selected:hover { background: linear-gradient(180deg, #45a9ff, #0062ff); }
+.panel-sidebar .sidebar-dashboard .sidebar-menu-label { font-size: 16px; }
+.sidebar-groups { display: flex; flex-direction: column; gap: 9px; }
+.panel-sidebar .sidebar-chevron { margin-inline-start: auto; font-size: 25px; flex-shrink: 0; }
+.panel-sidebar .sidebar-group-active > .sidebar-group-toggle { border-color: #75b6ff; background: linear-gradient(110deg, #285db59c, #1c438d); }
+.panel-sidebar .sidebar-submenu { padding: 9px 10px 0 0; margin-inline-start: 18px; border-inline-start: 1px solid #6a91e04a; }
+.panel-sidebar .sidebar-submenu-button {
+    min-height: 39px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 4px 7px;
+    background: #1f458545;
+    box-shadow: none;
+    margin-bottom: 5px;
+    gap: 7px;
+}
+.panel-sidebar .sidebar-submenu-button .sidebar-menu-label { font-size: 14px; font-weight: 500; }
+.panel-sidebar .sidebar-submenu-button .sidebar-menu-icon { width: 27px; min-width: 27px; height: 29px; background: none; }
+.panel-sidebar .sidebar-submenu-button .sidebar-menu-icon .MuiSvgIcon-root { font-size: 20px !important; }
+.panel-sidebar .sidebar-menu-button.Mui-disabled { color: #b5c4e3; opacity: .5; }
+.sidebar-footer { position: relative; flex-shrink: 0; padding-top: 24px; margin-top: auto; }
+.sidebar-skyline { display: block; width: calc(100% + 28px); max-width: none; height: 100px; margin: 0 -14px -5px; opacity: .5; }
+.sidebar-support {
+    position: relative;
+    margin: 18px 0 6px;
+    padding: 36px 12px 12px;
+    text-align: center;
+    border: 1px solid #8aaada38;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #ffffff0d, #7197d216);
+    box-shadow: inset 0 1px 0 #ffffff12;
+}
+.sidebar-support-symbol {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    top: -22px;
+    left: calc(50% - 26px);
+    border-radius: 50%;
+    border-top: 1px solid #c7f6ff;
+    background: linear-gradient(135deg, #4d99ef, #2867ca);
+    box-shadow: inset 0 1px 6px #bcefff80, 0 6px 18px #0040c34d;
+}
+.sidebar-support-symbol .MuiSvgIcon-root { font-size: 31px; }
+.sidebar-support h2 { margin: 3px 0 10px; font-size: 18px; font-weight: 800; line-height: 1.8; color: white; }
+.sidebar-support p { margin: 0 0 15px; color: #e7efff; font-size: 13px; line-height: 1.9; }
+.panel-sidebar .sidebar-support-button {
+    display: flex;
+    gap: 10px;
+    min-height: 41px;
+    padding: 6px 10px;
+    border: 1px solid white;
+    border-radius: 18px;
+    color: #061d61;
+    background: linear-gradient(140deg, #fff, #cfdcff 50%, #f9fbff);
+    box-shadow: inset 0 0 5px #fff, 0 4px 12px #00115f2b;
+    font-size: 16px;
+    font-weight: 900;
+}
+.panel-sidebar .sidebar-support-button:hover { color: #003cce; background: #fff; }
+.sidebar-support-button .MuiSvgIcon-root { font-size: 25px; color: #0751ff; }
+.panel-sidebar .sidebar-mobile-heading { padding: 10px 16px; border-bottom: 1px solid #4976c844; color: white; }
+.sidebar-mobile-heading .MuiIconButton-root { color: white; }
+.panel-sidebar a:focus-visible, .panel-sidebar button:focus-visible, .panel-sidebar .MuiListItemButton-root:focus-visible { outline: 2px solid #a5f1ff; outline-offset: 3px; }
+.sidebar-is-collapsed .sidebar-scroll { padding: 0 8px 16px; }
+.sidebar-is-collapsed .sidebar-brand { min-height: 76px; padding: 15px 0; }
+.sidebar-is-collapsed .sidebar-brand > svg, .sidebar-is-collapsed .sidebar-brand > img { width: 43px; height: 43px; }
+.panel-sidebar.sidebar-is-collapsed .sidebar-menu-button { justify-content: center; padding: 4px; border-radius: 13px; }
+.panel-sidebar.sidebar-is-collapsed .sidebar-home { margin: 0 0 16px; width: 100%; }
+.panel-sidebar.sidebar-is-collapsed .sidebar-dashboard { margin-bottom: 13px; }
+.panel-sidebar.sidebar-is-collapsed .sidebar-groups { gap: 0; }
+.panel-sidebar.sidebar-is-collapsed .sidebar-submenu { border: 0; padding: 0; margin: 0; }
+.panel-sidebar.sidebar-is-collapsed .sidebar-submenu-button { min-height: 43px; margin-bottom: 7px; }
+.panel-sidebar.sidebar-is-collapsed .sidebar-submenu-button .sidebar-menu-icon .MuiSvgIcon-root { font-size: 24px !important; }
+@media (prefers-reduced-motion: reduce) { .panel-sidebar *, .panel-sidebar .MuiDrawer-paper { transition: none !important; } }
+
+.panel-sidebar .sidebar-submenu-button .sidebar-menu-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

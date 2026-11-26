@@ -18,14 +18,14 @@ const tableHeadCells = [
     createTableHeadCells('تلفن', 'phone_number'),
     createTableHeadCells('شهر', 'cities'),
     createTableHeadCells('محله', 'neighborhoods'),
-    createTableHeadCells('وضعیت اشتغال', 'occupancyStatus'),
+    createTableHeadCells('وضعیت اشغال', 'occupancyStatus'),
 ]
 
 /** همان ستون‌ها، اما برای بدنه‌ی کارت. نام و تلفن در سربرگ کارت می‌آیند پس اینجا تکرار نشده */
 const cardFields = [
     createCardField('شهر', 'cities'),
     createCardField('محله', 'neighborhoods'),
-    createCardField('وضعیت اشتغال', 'occupancyStatus'),
+    createCardField('وضعیت اشغال', 'occupancyStatus'),
 ]
 
 const queryNames = tableHeadCells.slice(1,3).map((cell) => ({

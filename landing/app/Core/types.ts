@@ -1,6 +1,10 @@
 export type PropertyType = {
 
     id: number
+    title?: string
+    published?: boolean
+    landUse?: string
+    floor?: number
     virtualTourUrl?:{
         telegram:string
         instagram:string

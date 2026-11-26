@@ -1,0 +1,26 @@
+{
+  "release": "20261125-sidebar-polish",
+  "status": "deployed",
+  "url": "https://mlkino.com/panel/dashboard",
+  "target": "/opt/mlkino/current/frontend/build-release-20261125-sidebar-polish",
+  "previous_frontend": "build-release-20261125-sidebar-reference",
+  "backup": "/var/backups/mlkino/20261125-sidebar-polish",
+  "nginx_backup": "/var/backups/mlkino/20261125-sidebar-polish-nginx",
+  "changes": [
+    "Shorter menu labels, including درخواست دفاتر",
+    "Inset rounded sidebar and header, softer navy palette",
+    "Manifest version check on page restore, focus and visibility return; reload only when deployed main bundle differs",
+    "Panel HTML and manifest Cache-Control: no-cache; fingerprinted static assets cached for one year"
+  ],
+  "checks": {
+    "tests": 30,
+    "test_suites": 6,
+    "production_build": "passed, PUBLIC_URL=/panel",
+    "public_files_sha256_matched": 58,
+    "nginx_files_sha256_matched": 58,
+    "public_routes": "dashboard, role-applications passed",
+    "public_html_and_manifest_cache_control": "no-cache",
+    "visual_browser_qa": "unavailable; native browser control timed out"
+  },
+  "backend_database_unchanged": true
+}

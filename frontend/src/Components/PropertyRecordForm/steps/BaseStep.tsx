@@ -17,7 +17,6 @@ import {SelectOption} from '../../Input/CustomSelectField'
 import DatePickerFilter from '../../Filter/DatePicker'
 
 // در «رهن و اجاره» علاوه‌بر گزینه‌های عمومی نوع ملک، «تجاری» و «سوله» هم اضافه می‌شود
-const MORTGAGE_RENT_EXTRA_PROPERTY_TYPES = ['تجاری', 'سوله']
 
 // گزینه‌های وضعیت اشغال فایل رهن و اجاره
 const occupancyStatusOptions: SelectOption[] = [
@@ -34,11 +33,7 @@ const mortgageTermsOptions: SelectOption[] = [
 
 export function BaseStep({property, setProperty, resource, mode, editMode}: ModeStepProps) {
     const isMortgageRent = property.contractType === 'رهن و اجاره'
-    const propertyTypeOptions = toSelectOptions(
-        isMortgageRent
-            ? [...PROPERTY_TYPE_OPTIONS, ...MORTGAGE_RENT_EXTRA_PROPERTY_TYPES]
-            : PROPERTY_TYPE_OPTIONS,
-    )
+    const propertyTypeOptions = toSelectOptions(PROPERTY_TYPE_OPTIONS)
     // شارژ ماهانه فقط برای «آپارتمان» معنا دارد
     const isApartment = property.propertyType === 'آپارتمان'
 

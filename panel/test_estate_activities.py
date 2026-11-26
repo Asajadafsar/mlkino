@@ -41,7 +41,9 @@ class EstateActivityTests(TestCase):
         self.assertEqual(self.client.get('/panel/contracts/').data['data']['total_results'],1)
         self.assertEqual(self.client.patch(f'/panel/contracts/{row.pk}/',{'status':'لغو شده'},format='json').status_code,403)
         self.client.force_authenticate(self.admin)
-        self.assertEqual(self.client.patch(f'/panel/contracts/{row.pk}/',{'status':'لغو شده'},format='json').status_code,200)
+        self.assertEqual(self.client.get(f'/panel/contracts/{row.pk}/').status_code,200)
+        self.assertEqual(self.client.patch(f'/panel/contracts/{row.pk}/',{'status':'لغو شده'},format='json').status_code,403)
+        self.assertEqual(self.client.post('/panel/contracts/',{'file_name':'قرارداد'},format='json').status_code,403)
 
     def test_bad_money_dates_and_statuses_do_not_write(self):
         for changes in [{'agreed_price':-1},{'agreed_price':'NaN'},{'contract_datetime':'2026-99-99T12:00:00'},{'status':'نامعتبر'},{'image':'javascript:alert(1)'}]:

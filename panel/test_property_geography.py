@@ -43,6 +43,29 @@ class PropertyAndGeographyTests(TestCase):
     def test_ordinary_user_cannot_create_property_file(self):
         self.assertEqual(self.client.post('/panel/files/',self.payload,format='json').status_code,403)
 
+    def test_file_filters_intersect_and_signed_floor_round_trips_without_party_identifiers(self):
+        agency = get_user_model().objects.create_user('09128888004', role='agency')
+        self.client.force_authenticate(agency)
+        data = {'contractType': 'فروش', 'propertyType': 'آپارتمان', 'province': 'تهران', 'city': 'تهران',
+                'district': 'منطقه ۴', 'neighborhood': 'تهرانپارس', 'area': 82, 'roomCount': 2,
+                'floor': '−۱', 'totalFloor': 3, 'buildYear': 1400, 'totalPrice': 1000000,
+                'direction': 'شمالی', 'heating': 'کولر آبی', 'cooling': 'کولر آبی', 'ownerNationalId': 'legacy'}
+        created = self.client.post('/panel/files/', data, format='json')
+        self.assertEqual(created.status_code, 201, created.data)
+        saved = created.data['data']
+        self.assertEqual((saved['floor'], saved['totalFloor'], saved['cooling']), (-1, 3, 'کولر آبی'))
+        self.assertNotIn('heating', saved)
+        self.assertNotIn('ownerNationalId', saved)
+        filters = {key: data[key] for key in ('contractType','propertyType','province','city','district','neighborhood','floor','totalFloor','roomCount','buildYear')}
+        filters.update(areaFrom=80, areaTo=90, priceFrom=950000, priceTo=1100000)
+        for changed in ({}, {'floor': 0}, {'totalFloor': 4}, {'priceTo': 990000}, {'buildYear': 1401}):
+            result = self.client.get('/panel/files/', filters | changed)
+            self.assertEqual(result.data['data']['total_results'], int(not changed), changed)
+        for bad in ({'direction':'شرق'}, {'floor':4}, {'floor':-0.5}, {'propertyType':'کاربری نامعتبر'}):
+            self.assertEqual(self.client.patch(f"/panel/files/{saved['id']}/", bad, format='json').status_code, 400)
+        land = self.client.post('/panel/files/', data | {'propertyType':'زمین','landUse':'مسکن ملی'}, format='json')
+        self.assertEqual(land.data['data']['landUse'], 'مسکن ملی')
+
     @patch('panel.geography_api.city_neighborhoods')
     def test_iran_hierarchy_and_tehran_district_four_neighborhoods(self,lookup):
         self.assertEqual(len(catalog('provinces')),31)

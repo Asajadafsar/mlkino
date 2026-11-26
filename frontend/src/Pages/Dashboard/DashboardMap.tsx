@@ -8,6 +8,7 @@ import {PANEL_URL} from '../../Core/APP_URL'
 export type CityPoint = {
     city: string; province: string; id?: number | string; title?: string; district?: string; neighborhood?: string
     precision?: string; office?: string; kind?: string; count: number; latitude: number; longitude: number
+    propertyType?: string; area?: number; contractType?: string; totalPrice?: number; mortgagePrice?: number
     online?: number | boolean
 }
 
@@ -17,8 +18,8 @@ const precisionLabels: Record<string, string> = {
 }
 const iran: L.LatLngExpression = [34.2, 51.5]
 
-export default function DashboardMap({points, onSelect, matching, mapped}: {
-    points: CityPoint[]; onSelect: (point: CityPoint) => void; matching: number; mapped: number
+export default function DashboardMap({points, onSelect, matching, mapped, onExpand}: {
+    points: CityPoint[]; onSelect: (point: CityPoint) => void; matching: number; mapped: number; onExpand?: () => void
 }) {
     const container = useRef<HTMLDivElement>(null)
     const map = useRef<L.Map>()
@@ -83,7 +84,7 @@ export default function DashboardMap({points, onSelect, matching, mapped}: {
                 details.textContent = [point.province, point.city, point.district, point.neighborhood, point.office,
                     precisionLabels[point.precision || '']].filter(Boolean).join(' · ')
                 popup.append(title, details)
-                if ((!point.id || ['files', 'requests', 'contracts'].includes(point.kind || '')) && point.precision !== 'demo') {
+                if (point.precision !== 'demo') {
                     const button = document.createElement('button')
                     button.textContent = point.id ? 'مشاهده جزئیات' : 'مشاهده فایل‌های این شهر'
                     button.addEventListener('click', () => select.current(point))
@@ -103,7 +104,7 @@ export default function DashboardMap({points, onSelect, matching, mapped}: {
     return <>
         <Box className={`dashboard-live-map${expanded ? ' is-expanded' : ''}`}>
             <div ref={container} aria-label="نقشه ملکینو" role="region"/>
-            <Button className="dashboard-map-expand" size="small" aria-label={expanded ? 'کوچک کردن نقشه' : 'بزرگ کردن نقشه'} onClick={() => setExpanded(value => !value)}><OpenInFullRoundedIcon fontSize="small"/></Button>
+            <Button className="dashboard-map-expand" size="small" aria-label={expanded ? 'کوچک کردن نقشه' : 'بزرگ کردن نقشه'} onClick={() => onExpand ? onExpand() : setExpanded(value => !value)}><OpenInFullRoundedIcon fontSize="small"/>{expanded ? 'بستن نقشه' : 'نمایش نقشه کامل'}</Button>
             {!matching && <div className="dashboard-map-empty">موردی با این فیلتر ثبت نشده است.</div>}
         </Box>
         <div className="dashboard-map-caption">{mapped.toLocaleString('fa-IR')} مورد روی نقشه · مختصات ثبت‌شده یا تقریبی در جزئیات نشانگر مشخص است.

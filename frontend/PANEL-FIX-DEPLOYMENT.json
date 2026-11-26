@@ -1,0 +1,34 @@
+{
+  "release": "20261125-dashboard-fixed",
+  "deployed_on": "2026-11-26",
+  "status": "deployed",
+  "url": "https://mlkino.com/panel",
+  "active_frontend": "build-release-20261125-dashboard-fixed",
+  "previous_frontend": "build-release-20261125-filtered-reports2",
+  "backup": "/var/backups/mlkino/20261125-dashboard-fixed",
+  "cache_backup": "/var/backups/mlkino/20261125-dashboard-cache-fixed2",
+  "checks": {
+    "frontend_tests": 45,
+    "test_suites": 10,
+    "typescript": "passed",
+    "production_build": "passed",
+    "nginx_served_files_matched": 60,
+    "public_files_matched": 60,
+    "repeated_panel_route_checks": 12,
+    "html_cache": "no-store",
+    "conditional_requests": "fresh HTML returned",
+    "status": "passed",
+    "services": "nginx, backend, landing active"
+  },
+  "changes": [
+    "Compact reference dashboard with featured properties beside map and three-column reports",
+    "Independent per-card filter dialogs preserve the dashboard layout",
+    "Full-screen map/list/form explorer and selected record details",
+    "Aggregate geographic reports for superadmin; recent tables retained for agencies",
+    "Initial and restored-page bundle version checks; HTML and manifest served without retention"
+  ],
+  "verification_limits": [
+    "Authenticated production browser session was not visually verified in this final deployment; local reference layout inspection was completed in the preceding turn."
+  ],
+  "backend_database_unchanged_in_this_frontend_deployment": true
+}

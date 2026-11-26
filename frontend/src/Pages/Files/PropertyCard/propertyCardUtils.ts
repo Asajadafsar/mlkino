@@ -82,7 +82,7 @@ export function useDerivedPropertyInfo(item: Partial<PropertyType>) {
 
     const specFields: DetailField[] = [
         {label: 'آدرس', value: item.address},
-        {label: 'وضعیت تصرف', value: item.occupancyStatus},
+        {label: 'وضعیت اشغال', value: item.occupancyStatus},
         {label: 'سال ساخت', value: item.buildYear},
         {label: 'نما', value: item.facade},
         {label: 'کف‌پوش', value: item.flooring},

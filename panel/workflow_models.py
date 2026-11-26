@@ -78,6 +78,7 @@ class VisitSlot(models.Model):
     ends_at=models.DateTimeField()
     capacity=models.PositiveSmallIntegerField(default=1)
     active=models.BooleanField(default=True)
+    is_public=models.BooleanField(default=True)
     class Meta:
         ordering=['starts_at','id']
         constraints=[models.CheckConstraint(condition=Q(ends_at__gt=models.F('starts_at')),name='visit_slot_positive_duration'),models.CheckConstraint(condition=Q(capacity__gte=1),name='visit_slot_positive_capacity')]

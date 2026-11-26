@@ -192,7 +192,7 @@ export default function CardFile({
         </div>
       </div>
     </article>
-    <VisitRequestModal key={visitModalOpen ? "open" : "closed"} open={visitModalOpen} onClose={() => setVisitModalOpen(false)} property={data} onSubmit={async payload => { console.log("Visit request:", { ...payload, propertyId: data.id }); }} />
+    <VisitRequestModal key={visitModalOpen ? "open" : "closed"} open={visitModalOpen} onClose={() => setVisitModalOpen(false)} property={data} />
     <VirtualTourModal open={virtualTourModalOpen} onClose={() => setVirtualTourModalOpen(false)} links={data.virtualTourUrl} />
   </>;
 
@@ -666,10 +666,6 @@ export default function CardFile({
         open={visitModalOpen}
         onClose={() => setVisitModalOpen(false)}
         property={data}
-        onSubmit={async (payload) => {
-          // اینجا به API وصل کن
-          console.log("Visit request:", { ...payload, propertyId: data.id });
-        }}
       />
       <VirtualTourModal
         open={virtualTourModalOpen}

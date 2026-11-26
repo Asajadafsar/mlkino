@@ -18,8 +18,8 @@ from .settings_models import PanelSettings
 from .workflow_services import (workspaces,workspace,audit,feature,dispatch,respond,policy,ROUTING_DEFAULTS,
     EXPERT_PERMISSION_DEFAULTS,expert_permissions,require_expert_permission,touch_contact,dispatch_visit,respond_visit,
     visit_office_id,calculate_visit_commission)
-from .property_api import scope,serialize as property_serialize,validate_payload,normalize
-from .public_api import public_serialize,public_rows
+from .property_api import scope,serialize as property_serialize,validate_payload,normalize,require_estate_write
+from .public_api import public_serialize,public_rows,ACTIVE_BOOKINGS
 from .finance_api import money
 from .workflow_pagination import filtered,paginate
 
@@ -31,9 +31,10 @@ def ident(value):
     return n
 def results(qs,serialize,request):return paginate(filtered(qs,request),request,serialize)
 def can_manage(user,row):
-    if not is_superadmin(user) and user.role not in ('agency','expert'):raise PermissionDenied('مدیریت حرفه‌ای این پرونده برای نقش شما مجاز نیست.')
-    if not is_superadmin(user) and not scope(user).filter(pk=row.pk).exists():raise PermissionDenied('این پرونده در محدوده دفتر شما نیست.')
-    if not(is_superadmin(user) or row.assigned_expert_id==user.pk or row.created_by_id==user.pk and user.role in ('expert','agency') or user.role=='agency' and row.office_id==user.pk):raise PermissionDenied('مدیریت این پرونده مجاز نیست.')
+    require_estate_write(user)
+    if user.role not in ('agency','expert'):raise PermissionDenied('مدیریت حرفه‌ای این پرونده برای نقش شما مجاز نیست.')
+    if not scope(user).filter(pk=row.pk).exists():raise PermissionDenied('این پرونده در محدوده دفتر شما نیست.')
+    if not(row.assigned_expert_id==user.pk or row.created_by_id==user.pk or user.role=='agency' and row.office_id==user.pk):raise PermissionDenied('مدیریت این پرونده مجاز نیست.')
 def view_property(user,pk):
     row=get_object_or_404(PropertyRecord.objects.select_related('assigned_expert','created_by','office'),pk=pk)
     if not public_rows().filter(pk=pk).exists() and not scope(user).filter(pk=pk).exists():raise PermissionDenied('این ملک قابل مشاهده نیست.')
@@ -71,7 +72,8 @@ class ContactsView(APIView):
     @transaction.atomic
     def save(self,request,pk=None):
         feature('crm')
-        if request.user.role not in ('agency','expert') and not is_superadmin(request.user):raise PermissionDenied('مدیریت CRM برای این نقش مجاز نیست.')
+        require_estate_write(request.user)
+        if request.user.role not in ('agency','expert'):raise PermissionDenied('مدیریت CRM برای این نقش مجاز نیست.')
         if request.user.role=='expert':require_expert_permission(request.user,'can_manage_contacts')
         d=request.data;allowed={'name','full_name','phone','phone2','job','national_code','roles','kind','email','notes','province','city','district','neighborhood','budget_min','budget_max','expert_id','user_id','workspace_id'}
         if set(d)-allowed:raise ValidationError('فیلد CRM معتبر نیست.')
@@ -83,7 +85,7 @@ class ContactsView(APIView):
         if not isinstance(roles,list) or not roles or not set(roles)<={'owner','buyer','landlord','tenant','expert'}:raise ValidationError('نوع مخاطب معتبر نیست.')
         ws=ident(d.get('workspace_id') or (row.workspace_id if row else workspace(request.user)))
         get_object_or_404(User.objects.select_for_update(of=('self',)),pk=ws)
-        if ws not in workspaces(request.user) and not is_superadmin(request.user):raise PermissionDenied('دفتر متعلق به شما نیست.')
+        if ws not in workspaces(request.user):raise PermissionDenied('دفتر متعلق به شما نیست.')
         staff_user=None
         if 'expert' in roles:
             if row and 'expert' in row.roles and row.user_id and row.phone==phone:staff_user=row.user
@@ -164,6 +166,7 @@ class OwnerSubmissionView(APIView):
     permission_classes=[IsAuthenticated]
     @transaction.atomic
     def post(self,request):
+        require_estate_write(request.user)
         feature('files');d=validate_payload(request,'file');d['requesterType']='owner';d['ownerSubmission']=True;d['source']='landing'
         draft=d.get('publicationStatus')=='draft'
         row=PropertyRecord.objects.create(kind='file',created_by=request.user,data=d,publication_state='draft' if draft else 'pending')
@@ -215,14 +218,15 @@ def slot_json(r):
 class VisitSlotsView(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request):
-        feature('visits');qs=VisitSlot.objects.filter(active=True,starts_at__gt=timezone.now()).select_related('property')
+        feature('visits');qs=VisitSlot.objects.filter(active=True,is_public=True,starts_at__gt=timezone.now()).select_related('property')
         if request.query_params.get('property_id'):
             row=view_property(request.user,ident(request.query_params['property_id']));qs=qs.filter(property=row)
         elif not is_superadmin(request.user):qs=qs.filter(Q(property__publication_state='published')|Q(expert=request.user))
         return envelope(results(qs,slot_json,request))
     @transaction.atomic
     def post(self,request):
-        feature('visits');row=get_object_or_404(PropertyRecord.objects.select_for_update(of=('self',)),pk=ident(request.data.get('property_id')));can_manage(request.user,row)
+        feature('visits');row=get_object_or_404(PropertyRecord.objects.select_for_update(of=('self',)),pk=ident(request.data.get('property_id')),kind='file',archived_at=None);can_manage(request.user,row)
+        if request.user.role=='expert':require_expert_permission(request.user,'can_manage_visits',row.office_id)
         try:start=parse_datetime(str(request.data.get('starts_at','')));end=parse_datetime(str(request.data.get('ends_at','')))
         except (ValueError,TypeError):raise ValidationError('زمان بازدید معتبر وارد کنید.')
         if not start or not end or timezone.is_naive(start) or timezone.is_naive(end) or start<=timezone.now() or end<=start or end-start>timedelta(hours=12):raise ValidationError('زمان بازدید باید آینده، دارای منطقه زمانی و پایان بعد از شروع باشد.')
@@ -231,7 +235,7 @@ class VisitSlotsView(APIView):
         expert=row.assigned_expert or request.user
         # Serializes slots across an expert as well as a property.
         User.objects.select_for_update(of=('self',)).get(pk=expert.pk)
-        if VisitSlot.objects.filter(active=True,expert=expert,starts_at__lt=end,ends_at__gt=start).exists():raise ValidationError('این زمان با برنامه بازدید کارشناس تداخل دارد.')
+        if VisitSlot.objects.filter(active=True,expert=expert,starts_at__lt=end,ends_at__gt=start).filter(Q(is_public=True)|Q(bookings__status__in=ACTIVE_BOOKINGS)).exists():raise ValidationError('این زمان با برنامه بازدید کارشناس تداخل دارد.')
         slot=VisitSlot.objects.create(property=row,expert=expert,starts_at=start,ends_at=end,capacity=capacity);audit(request.user,'visit.slot.created','visit_slot',slot.pk,property=row)
         return envelope(slot_json(slot),code=201)
 
@@ -254,24 +258,33 @@ class VisitsView(APIView):
         return envelope(results(qs,visit_json,request))
     @transaction.atomic
     def post(self,request):
+        return self.book(request)
+
+    def book(self, request, public_property_id=None):
         feature('visits');User.objects.select_for_update(of=('self',)).get(pk=request.user.pk)
-        professional=request.user.role in ('expert','agency','superadmin') or is_superadmin(request.user)
-        if request.user.role=='expert':require_expert_permission(request.user,'can_manage_visits')
+        professional=public_property_id is None and request.user.role in ('expert','agency') and not is_superadmin(request.user)
+        if professional and request.user.role=='expert':require_expert_permission(request.user,'can_manage_visits')
         if request.data.get('slot_id'):
-            slot=get_object_or_404(VisitSlot.objects.select_for_update(of=('self',)).select_related('property'),pk=ident(request.data.get('slot_id')),active=True)
+            slots = VisitSlot.objects.select_for_update(of=('self',)).select_related('property').filter(active=True, is_public=True, property__kind='file', property__archived_at=None)
+            if public_property_id is not None:
+                feature('files')
+                get_object_or_404(public_rows(), pk=public_property_id, kind='file')
+                slots = slots.filter(property_id=public_property_id)
+            slot=get_object_or_404(slots,pk=ident(request.data.get('slot_id')))
         elif professional:
-            property_row=get_object_or_404(PropertyRecord.objects.select_for_update(of=('self',)),pk=ident(request.data.get('property_id')),kind='file')
+            property_row=get_object_or_404(PropertyRecord,pk=ident(request.data.get('property_id')),kind='file',archived_at=None)
             can_manage(request.user,property_row)
-            start=parse_datetime(str(request.data.get('starts_at','')));end=parse_datetime(str(request.data.get('ends_at','')))
+            try:start=parse_datetime(str(request.data.get('starts_at','')));end=parse_datetime(str(request.data.get('ends_at','')))
+            except (ValueError, TypeError):raise ValidationError('زمان بازدید معتبر وارد کنید.')
             if not start or not end or timezone.is_naive(start) or timezone.is_naive(end) or end<=start:raise ValidationError('زمان بازدید معتبر وارد کنید.')
-            slot=VisitSlot.objects.create(property=property_row,expert=property_row.assigned_expert or request.user,starts_at=start,ends_at=end,capacity=50)
+            slot=VisitSlot.objects.create(property=property_row,expert=property_row.assigned_expert or request.user,starts_at=start,ends_at=end,capacity=50,is_public=False)
         else:raise ValidationError('زمان آزاد بازدید را انتخاب کنید.')
-        view_property(request.user,slot.property_id)
+        if public_property_id is None:view_property(request.user,slot.property_id)
         if slot.starts_at<=timezone.now():raise ValidationError('زمان انتخاب‌شده گذشته است.')
-        old=slot.bookings.filter(visitor=request.user,status__in=['pending','confirmed']).first() if not professional else None
+        old=slot.bookings.filter(visitor=request.user,status__in=ACTIVE_BOOKINGS).first() if not professional else None
         if old:return envelope(visit_json(old))
-        if slot.bookings.filter(status__in=['pending','confirmed']).count()>=slot.capacity:raise ValidationError('ظرفیت این بازه تکمیل شده است.')
-        if not professional and PropertyVisit.objects.filter(visitor=request.user,status__in=['pending','confirmed'],slot__starts_at__lt=slot.ends_at,slot__ends_at__gt=slot.starts_at).exists():raise ValidationError('با بازدید دیگری که رزرو کرده‌اید تداخل دارد.')
+        if slot.bookings.filter(status__in=ACTIVE_BOOKINGS).count()>=slot.capacity:raise ValidationError('ظرفیت این بازه تکمیل شده است.')
+        if not professional and PropertyVisit.objects.filter(visitor=request.user,status__in=ACTIVE_BOOKINGS,slot__starts_at__lt=slot.ends_at,slot__ends_at__gt=slot.starts_at).exists():raise ValidationError('با بازدید دیگری که رزرو کرده‌اید تداخل دارد.')
         name=request.data.get('visitor_name') or request.user.full_name or 'کاربر ملکینو';phone=normalize(request.data.get('visitor_phone') or request.user.phone).replace(' ','').replace('-','')
         if not isinstance(name,str) or not 2<=len(name.strip())<=200 or not re.fullmatch(r'09\d{9}',phone):raise ValidationError('نام و شماره تماس خریدار را معتبر وارد کنید.')
         # The visitor cannot propose an arbitrary date/time. Both values are
@@ -330,6 +343,14 @@ class VisitsView(APIView):
         if row.visitor:notify(row.visitor,'visit','وضعیت بازدید تغییر کرد',link=f'/visits?visit={row.pk}')
         return envelope(visit_json(row))
 
+class PublicVisitBookingView(VisitsView):
+    http_method_names = ['post', 'options']
+
+    @transaction.atomic
+    def post(self, request, pk):
+        return self.book(request, public_property_id=pk)
+
+
 class OffersView(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request):
@@ -379,6 +400,7 @@ class ArchiveView(APIView):
         feature('archives');kind=request.data.get('entity_type');pk=ident(request.data.get('id'));archived=request.data.get('archived')
         if not isinstance(archived,bool):raise ValidationError('وضعیت بایگانی معتبر نیست.')
         if kind=='property':
+            require_estate_write(request.user)
             row=get_object_or_404(scope(request.user).select_for_update(of=('self',)),pk=pk)
             if row.created_by_id!=request.user.pk:can_manage(request.user,row)
             row.archived_at=timezone.now() if archived else None
@@ -386,7 +408,8 @@ class ArchiveView(APIView):
             row.save(update_fields=['archived_at','publication_state','updated_at'])
         elif kind=='activity':
             from .estate_activity_api import visible,can_write
-            can_write(request.user);row=get_object_or_404(visible(request.user).select_for_update(of=('self',)),pk=pk)
+            row=get_object_or_404(visible(request.user).select_for_update(of=('self',)),pk=pk)
+            can_write(request.user,row.kind)
             if row.created_by_id!=request.user.pk and not is_superadmin(request.user):raise PermissionDenied()
             row.data={**row.data,'archive':archived};row.save(update_fields=['data','updated_at'])
         elif kind=='conversation':
@@ -487,7 +510,8 @@ class ActivityAttachmentView(APIView):
     @transaction.atomic
     def post(self,request,pk):
         from .estate_activity_api import visible,can_write
-        can_write(request.user);row=get_object_or_404(visible(request.user).select_for_update(of=('self',)),pk=pk)
+        row=get_object_or_404(visible(request.user).select_for_update(of=('self',)),pk=pk)
+        can_write(request.user,row.kind)
         if row.created_by_id!=request.user.pk and row.assigned_expert_id!=request.user.pk and not is_superadmin(request.user) and row.office_id!=request.user.pk:raise PermissionDenied()
         upload=request.FILES.get('attachment')
         if not upload:raise ValidationError('پیوست را انتخاب کنید.')

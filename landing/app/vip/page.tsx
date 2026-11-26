@@ -1,7 +1,7 @@
 import { Container } from "@mui/material";
-import React from "react";
+import {Suspense} from "react";
 import TitleHeader from "../Components/PropertyDetail/TitleHeader";
-import VipList from "./VipList";
+import FilesList from "../files/FilesList";
 
 export default function page() {
   return (
@@ -22,7 +22,7 @@ export default function page() {
       }}
     >
       <TitleHeader title="لیست فایل های vip" />
-      <VipList />
+      <Suspense fallback={null}><FilesList featured/></Suspense>
     </Container>
   );
 }

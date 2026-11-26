@@ -28,10 +28,10 @@ const MainLayout = ({children}: {children: React.ReactNode}) => {
                 component="main"
                 flexGrow={1}
                 sx={{
-                    ml: {xs: 0, mdl: `${collapsed ? 78 : drawerWidth}px`},
+                    ml: {xs: 0, mdl: `${collapsed ? 102 : drawerWidth + 24}px`},
                     transition: 'width .2s, margin .2s',
                     minWidth: 0,
-                    width: {xs: '100%', mdl: `calc(100% - ${collapsed ? 78 : drawerWidth}px)`},
+                    width: {xs: '100%', mdl: `calc(100% - ${collapsed ? 102 : drawerWidth + 24}px)`},
                 }}
             >
                 <Appbar

@@ -790,7 +790,7 @@ export function Tenants({
                             name="employmentStatus"
                             setData={setTenants}
                             resource={resource}
-                            label="وضعیت اشتغال"
+                            label="وضعیت اشغال"
                             defaultValue={tenants.employmentStatus}
                             options={toSelectOptions(['تخلیه', 'مالک', 'مستاجر'])}
                         />,

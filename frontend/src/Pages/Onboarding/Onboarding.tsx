@@ -1,415 +1,160 @@
-import {useContext} from 'react'
-import {CurrentUserContext} from '../../Core/CurrentUser'
-import PersonAddAltRounded from '@mui/icons-material/PersonAddAltRounded'
-import StorefrontRounded from '@mui/icons-material/StorefrontRounded'
-import './onboarding.css'
-import OfficeLocation from './OfficeLocation'
-import DemoCheckout from './DemoCheckout'
-import type {GatewayOptions} from '../Settings/GatewaySettings'
-import {FormEvent, useEffect, useState} from 'react'
-import {Alert, Avatar, Button, Checkbox, Chip, CircularProgress, Divider, FormControlLabel, MenuItem, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Stack, Step, StepLabel, Stepper, Tab, Tabs, TextField, Typography} from '@mui/material'
+import {FormEvent, useContext, useEffect, useState} from 'react'
+import {Alert, Avatar, Button, Checkbox, Chip, CircularProgress, FormControlLabel, MenuItem, Paper, Step, StepLabel, Stepper, TextField} from '@mui/material'
 import {Link, useSearchParams} from 'react-router-dom'
 import {useSelector} from 'react-redux'
-import {PageHero} from '../../Components/Workspace/PageHero'
+import PersonAddAltRounded from '@mui/icons-material/PersonAddAltRounded'
+import StorefrontRounded from '@mui/icons-material/StorefrontRounded'
+import CheckRounded from '@mui/icons-material/CheckRounded'
+import SearchRounded from '@mui/icons-material/SearchRounded'
+import SendOutlined from '@mui/icons-material/SendOutlined'
+import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined'
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
+import EditOutlined from '@mui/icons-material/EditOutlined'
+import CloseRounded from '@mui/icons-material/CloseRounded'
+import CreditCardOutlined from '@mui/icons-material/CreditCardOutlined'
+import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded'
+import {CurrentUserContext} from '../../Core/CurrentUser'
 import {ACCOUNTS_URL} from '../../Core/APP_URL'
 import api from '../../Core/Request'
 import {selectRole, UserRole} from '../../redux/RoleSlice'
-
-type Plan = {id: string; label: string; price: number; promotions: number; color?: string; description?: string; features?: string[]}
-type Office = {name: string; logo?: string; address: string; active_experts: number; city?: string; district?: string}
-type Application = {
-    id: number; created_at: string; kind: 'expert' | 'office' | 'upgrade'; status: 'pending' | 'await_pay' | 'fix' | 'approved' | 'rejected'
-    tier: string; resume_url?: string; name: string; phone: string; office_name?: string; terms_accepted_at?: string
-    details: {job_title?: string; specialties?: string[]; experience_years?: number; job_details?: string; monthly_price?: number; review_note?: string; payment_reference?: string; focus_areas?: string; property_types?: string}
-    profile?: Record<string, string | boolean | null>
-}
-type State = {
-    demo_gateway: GatewayOptions; own: Application[]; incoming: Application[]; reviewed: Application[]; plans: Plan[]; terms: string
-    subscription?: {office_name?: string; logo?: string; code: string; tier: string; active_tier: string; paid_until?: string; ai_available: boolean; promoted_files: number[]}
-}
+import {SidebarBrandMark} from '../../Components/Drawer/SidebarArtwork'
+import {ActivityAreas, ApplicationHeading, ChoiceChips, DocumentUpload, ExpertiseFields, OfficeIdentity, PlanCards, PlanComparison, SectionTitle, WorkflowJourney} from './ApplicationDesign'
+import {Application, Office, WorkflowState, applicationNames, date, number, profileLabels, statuses} from './workflowTypes'
+import OfficeLocation from './OfficeLocation'
+import DemoCheckout from './DemoCheckout'
+import './onboarding.css'
 
 const applicationsUrl = ACCOUNTS_URL + '/role-applications/'
 const promotionUrl = ACCOUNTS_URL + '/office-promotions/'
-const applicationNames = {expert: 'درخواست همکاری', office: 'درخواست دفتر املاک', upgrade: 'تمدید یا ارتقای اشتراک'}
-const statuses = {pending: 'در انتظار بررسی', await_pay: 'تأیید شده، در انتظار پرداخت', fix: 'نیاز به اصلاح', approved: 'تأیید شده', rejected: 'رد شده'}
-const profileLabels: Record<string, string> = {
-    agency_name: 'نام دفتر', office_province: 'استان', office_city: 'شهر', office_address: 'نشانی', occupancy_type: 'نوع مالکیت',
-    lease_end_date: 'پایان اجاره', landline: 'تلفن ثابت', office_district: 'منطقه', office_neighborhood: 'محله',
-    license_number: 'شماره پروانه', license_expires_at: 'اعتبار پروانه', description: 'توضیحات',
-}
 const fieldErrors = (value: unknown): string => {
     if (typeof value === 'string') return value
     if (Array.isArray(value)) return value.map(fieldErrors).filter(Boolean).join(' ')
-    if (value && typeof value === 'object') return Object.entries(value).map(([key, entry]) => {
-        const detail = fieldErrors(entry)
-        return profileLabels[key] ? profileLabels[key] + '، ' + detail : detail
-    }).filter(Boolean).join(' ')
+    if (value && typeof value === 'object') return Object.entries(value).map(([key, entry]) => (profileLabels[key] ? profileLabels[key] + ': ' : '') + fieldErrors(entry)).join(' ')
     return ''
 }
-const number = (value: number) => value.toLocaleString('fa-IR')
-const date = (value: string) => new Date(value).toLocaleDateString('fa-IR')
+const Status = ({status}: {status: Application['status']}) => <Chip className={'workflow-status status-' + status} size="small" label={statuses[status]}/>
 
 export default function Onboarding() {
     const {user} = useContext(CurrentUserContext)
     const role = useSelector(selectRole)
     const [params] = useSearchParams()
     const entry = role === UserRole.USER ? params.get('request') : null
-    const [section, setSection] = useState<'main'|'history'|'demo'>('main')
-    const [state, setState] = useState<State>()
+    const [mode, setMode] = useState<'expert' | 'office' | 'upgrade' | null>(entry === 'expert' || entry === 'office' ? entry : null)
+    const [section, setSection] = useState('main')
+    const [state, setState] = useState<WorkflowState>()
+    const [busy, setBusy] = useState(false)
     const [error, setError] = useState('')
     const [notice, setNotice] = useState('')
-    const [busy, setBusy] = useState(false)
-    const [mode, setMode] = useState<'expert' | 'office' | 'upgrade' | null>(entry === 'expert' || entry === 'office' ? entry : null)
     const [code, setCode] = useState('')
     const [office, setOffice] = useState<Office>()
     const [confirmed, setConfirmed] = useState(false)
-    const [tenant, setTenant] = useState(false)
-    const [license, setLicense] = useState(false)
     const [tier, setTier] = useState('free')
     const [terms, setTerms] = useState(false)
-    const [reviewFilter, setReviewFilter] = useState('all')
+    const [tenant, setTenant] = useState(false)
+    const [license, setLicense] = useState(false)
+    const [reviewHistory, setReviewHistory] = useState(false)
     const [reviewQuery, setReviewQuery] = useState('')
+    const [reviewFilter, setReviewFilter] = useState('all')
+    const [reviewKind, setReviewKind] = useState('all')
     const [selectedReview, setSelectedReview] = useState<number>()
     const [reviewNote, setReviewNote] = useState('')
     const [reference, setReference] = useState<Record<number, string>>({})
+    const [expandedResume, setExpandedResume] = useState(false)
+    const [files, setFiles] = useState<{id: number; title: string}[]>()
     const [facts, setFacts] = useState('')
     const [copy, setCopy] = useState('')
-    const [files, setFiles] = useState<{id: number; title: string}[]>()
-
-    const load = async () => setState((await api.get<State>(applicationsUrl)).data)
+    const [demoTier, setDemoTier] = useState('pro')
+    const load = async () => setState((await api.get<WorkflowState>(applicationsUrl)).data)
     const run = async (action: () => Promise<void>) => {
-        setBusy(true)
-        setError('')
-        setNotice('')
-        try {
-            await action()
-        } catch (reason: any) {
-            setError(fieldErrors(reason.response?.data) || 'ارتباط با سامانه برقرار نشد.')
-        } finally {
-            setBusy(false)
-        }
+        setBusy(true);setError('');setNotice('')
+        try { await action() } catch (reason: any) {setError(fieldErrors(reason.response?.data) || 'ارتباط با سامانه برقرار نشد. دوباره تلاش کنید.')} finally {setBusy(false)}
     }
-    useEffect(() => { void run(load) }, [role])
-
+    useEffect(() => {void run(load)}, [role])
     const selectMode = (next: typeof mode) => {
-        setMode(next)
-        setTerms(false)
-        setTier(next === 'upgrade' ? (state?.subscription?.tier === 'free' ? 'pro' : state?.subscription?.tier || 'pro') : 'free')
+        setMode(next);setTerms(false)
+        const plans = state?.plans || []
+        setTier(next === 'upgrade' ? (state?.subscription?.active_tier !== 'free' ? state?.subscription?.active_tier || plans.find(plan => plan.price > 0)?.id || '' : plans.find(plan => plan.price > 0)?.id || '') : plans.find(plan => plan.id === 'free')?.id || plans[0]?.id || '')
     }
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
         if (busy) return
         const data = new FormData(event.currentTarget)
+        if (mode === 'expert' && !String(data.get('specialties') || '').trim()) {setError('حداقل یک مهارت را انتخاب کنید.');return}
         void run(async () => {
             if (mode === 'expert') {
-                data.set('kind', mode)
-                data.set('code', code.trim())
-                data.set('confirm_office', String(confirmed))
+                data.set('kind', 'expert');data.set('code', code.trim());data.set('confirm_office', String(confirmed))
                 data.set('specialties', String(data.get('specialties')).split(/[,،]/).map(value => value.trim()).filter(Boolean).join('|'))
+                // Preserve these choices in the API's existing, reviewer-visible resume text.
+                const extra = [['نوع همکاری', data.get('cooperation_types')], ['حوزه فعالیت', data.get('transaction_types')]].filter(([, value]) => value).map(([label, value]) => label + ': ' + value)
+                data.set('job_details', [...extra, String(data.get('job_details') || '')].filter(Boolean).join('\n'))
+                data.delete('cooperation_types');data.delete('transaction_types')
                 const resume = data.get('resume')
                 if (resume instanceof File && !resume.size) data.delete('resume')
                 await api.post(applicationsUrl, data)
             } else if (mode === 'office') {
-                data.set('kind', mode)
-                data.set('tier', tier)
-                data.set('accept_terms', String(terms))
-                data.set('has_business_license', String(license))
+                data.set('kind', 'office');data.set('tier', tier);data.set('accept_terms', String(terms));data.set('has_business_license', String(license))
                 await api.post(applicationsUrl, data)
             } else {
-                await api.post(applicationsUrl, {kind: mode, tier, accept_terms: terms})
+                await api.post(applicationsUrl, {kind: 'upgrade', tier, accept_terms: terms})
             }
-            setMode(null)
-            setNotice('درخواست برای بررسی ارسال شد.')
-            await load()
+            setMode(null);await load();setNotice('درخواست برای بررسی ارسال شد.')
         })
     }
     const decide = (row: Application, decision: string) => run(async () => {
-        await api.post(applicationsUrl + row.id + '/decision/', {
-            decision, payment_reference: row.details.payment_reference, review_note: reviewNote,
-        })
-        setReviewNote('')
-        await load()
-        setNotice(decision === 'approve' && row.tier !== 'free' ? 'درخواست تأیید شد و متقاضی اکنون می‌تواند پرداخت کند.' : 'نتیجهٔ بررسی ثبت شد.')
+        await api.post(applicationsUrl + row.id + '/decision/', {decision, payment_reference: row.details.payment_reference, review_note: reviewNote})
+        setReviewNote('');await load()
+        setNotice(decision === 'approve' && row.kind !== 'expert' && row.tier !== 'free' ? 'درخواست تأیید شد و متقاضی اکنون می‌تواند پرداخت کند.' : 'نتیجهٔ بررسی ثبت شد.')
     })
-    const sendPayment = (row: Application) => run(async () => {
-        await api.post(applicationsUrl + row.id + '/payment/', {payment_reference: reference[row.id]?.trim()})
-        await load()
-        setNotice('شناسه پرداخت برای بررسی ارسال شد.')
-    })
-
-    const [demoDecision, setDemoDecision] = useState<'pending'|'approved'|'rejected'>('pending')
-    const [demoPaid, setDemoPaid] = useState(false)
-    const [demoTier, setDemoTier] = useState('pro')
-    const selectedDemo = state?.plans.find(plan => plan.id === demoTier)
     const pending = state?.own.some(row => row.status === 'pending' || row.status === 'await_pay')
     const awaiting = state?.own.find(row => row.status === 'await_pay')
     const correction = state?.own[0]?.status === 'fix' ? state.own[0] : undefined
-    const reviews = (state?.incoming || []).filter(row => (reviewFilter === 'all' || reviewFilter === row.status)
-        && [row.name, row.profile?.agency_name, row.phone].join(' ').includes(reviewQuery.trim()))
-    const reviewed = reviews.find(row => row.id === selectedReview) || reviews[0]
     const subscription = state?.subscription
-    const planName = (id: string) => state?.plans.find(plan => plan.id === id)?.label || id
-    const title = role === UserRole.AGENCY ? 'درخواست همکاری و اشتراک دفتر' :
-        role === UserRole.SUPERADMIN ? 'درخواست دفتر و اشتراک' : 'ارتقای حساب'
-    const formField = (name: string, label: string, required = true) => <TextField name={name} label={label} required={required} fullWidth size="small"/>
-    return <Stack spacing={2.5} className="onboarding-page">
-        <PageHero title={title} illustration="/assets/estate-hero-v1.webp" description={role === UserRole.USER ? 'با یک دفتر همکاری کنید یا برای راه‌اندازی دفتر خود درخواست بدهید.' : 'وضعیت درخواست‌ها و امکانات فعال را بررسی کنید.'}/>
-        {error && <Alert severity="error">{error}</Alert>}
-        {notice && <Alert severity="success">{notice}</Alert>}
-        {!state && busy && <CircularProgress aria-label="دریافت درخواست‌ها"/>}
-        {!state && !busy && <Button onClick={() => run(load)}>تلاش دوباره</Button>}
-        {state && <Paper variant="outlined" sx={{borderRadius: 3, overflow: 'hidden'}}>
-            <Tabs value={section} onChange={(_, value) => setSection(value)} variant="scrollable" allowScrollButtonsMobile>
-                <Tab value="main" label={role === UserRole.SUPERADMIN ? 'بررسی درخواست‌ها' : 'ثبت و مدیریت درخواست'}/>
-                <Tab value="history" label={role === UserRole.USER ? "درخواست‌های من" : "تاریخچه بررسی"}/>
-                {state.demo_gateway?.enabled && <Tab value="demo" label="محیط آزمایشی"/>}
-            </Tabs>
-        </Paper>}
-        {state && section === 'demo' && selectedDemo && <Paper variant="outlined" sx={{borderRadius: 3, p: 3}}>
-            <Stack spacing={2}>
-                <Typography variant="h6">پیش‌نمایش درخواست دفتر و پرداخت</Typography>
-                <Alert severity="info">دفتر و درخواست زیر نمونه‌اند و وارد صف بررسی نمی‌شوند.</Alert>
-                <Typography>دفتر املاک نمونه قم · قم، منطقهٔ ۳، محلهٔ امام خمینی</Typography>
-                <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
-                    <Chip label={statuses[demoDecision]} color={demoDecision === 'approved' ? 'success' : demoDecision === 'rejected' ? 'error' : 'warning'}/>
-                    {demoDecision === 'pending' ? <>
-                        <Button onClick={() => setDemoDecision('approved')}>تأیید نمونه</Button>
-                        <Button color="error" onClick={() => setDemoDecision('rejected')}>رد نمونه</Button>
-                    </> : <Button onClick={() => {setDemoDecision('pending');setDemoPaid(false)}}>شروع مجدد نمونه</Button>}
-                </Stack>
-                <Divider/>
-                <TextField select label="پلن نمونه" value={demoTier} onChange={event => setDemoTier(event.target.value)}>
-                    {state.plans.filter(plan => plan.price > 0).map(plan => <MenuItem key={plan.id} value={plan.id}>{plan.label}</MenuItem>)}
-                </TextField>
-                {demoDecision === 'approved' && <DemoCheckout gateway={state.demo_gateway} tier={selectedDemo.id} label={selectedDemo.label} amount={selectedDemo.price}
-                    onResult={result => setDemoPaid(result === 'success')}/>}
-                {demoPaid && <Alert severity="success">اشتراک در سناریوی آزمایشی فعال شد.</Alert>}
-            </Stack>
-        </Paper>}
-        {state && section === 'main' && <>
-            {role === UserRole.USER && <>
-                <Paper className="onboarding-identity" variant="outlined">
-                    <Avatar src={typeof user.avatar === "string" ? user.avatar : undefined}>{user.first_name?.[0]}</Avatar>
-                    <Typography fontWeight={800}>سلام {user.first_name} {user.last_name}</Typography>
-                    <Chip label="کاربر عادی" size="small" color="success"/>
-                </Paper>
-                {!mode && <div className="onboarding-choices">
-                    <Paper className="onboarding-choice expert" variant="outlined">
-                        <PersonAddAltRounded/><Typography variant="h6">درخواست تبدیل به کارشناس</Typography>
-                        <Typography color="text.secondary">همکاری به‌عنوان کارشناس در یک دفتر املاک معتبر</Typography>
-                        <Button variant="contained" disabled={pending || busy} onClick={() => selectMode('expert')}>درخواست کارشناسی</Button>
-                    </Paper>
-                    <Paper className="onboarding-choice office" variant="outlined">
-                        <StorefrontRounded/><Typography variant="h6">درخواست تبدیل به املاکی</Typography>
-                        <Typography color="text.secondary">ایجاد دفتر املاک و مدیریت آگهی‌ها و کارشناسان</Typography>
-                        <Button variant="contained" disabled={pending || busy} onClick={() => selectMode('office')}>درخواست املاکی</Button>
-                    </Paper>
+    const planName = (id?: string) => state?.plans.find(plan => plan.id === id)?.label || (id === 'free' ? 'پایه' : id || '—')
+    const rows = (reviewHistory ? state?.reviewed || [] : role === UserRole.AGENCY ? [...(state?.incoming || []), ...(state?.reviewed || [])] : state?.incoming || []).filter(row => (reviewFilter === 'all' || row.status === reviewFilter) && (reviewKind === 'all' || row.kind === reviewKind) && [row.name, row.phone, row.profile?.agency_name, row.profile?.office_city].join(' ').includes(reviewQuery.trim()))
+    const reviewed = rows.find(row => row.id === selectedReview) || rows[0]
+    const ownHistory = <section className="workflow-history"><SectionTitle>وضعیت درخواست‌های قبلی شما</SectionTitle>{state?.own.length ? state.own.map(row => <div className="workflow-history-row" key={row.id}><PersonAddAltRounded/><strong>{applicationNames[row.kind]}</strong><time>{date(row.created_at)}</time><Status status={row.status}/></div>) : <p className="workflow-empty">هنوز درخواستی ثبت نشده است.</p>}</section>
+    const chooseTier = (id: string) => {setTier(id);setMode('upgrade');setTerms(false)}
+    const formField = (name: string, label: string, required = true, initial?: string | boolean | null) => <TextField name={name} label={label} required={required} defaultValue={typeof initial === 'string' ? initial : undefined} size="small" fullWidth/>
+    const hero = <header className="workflow-hero" style={{'--workflow-hero-image': "url('/assets/estate-hero-v1.webp')"} as React.CSSProperties}><div className="workflow-hero-brand"><SidebarBrandMark/><div><strong>ملکینو</strong><small>پلتفرم جامع مدیریت املاک</small></div></div><div className="workflow-hero-copy"><h1>جریان کامل ارتقای نقش و مدیریت همکاری در ملکینو</h1><p>از درخواست کاربر تا تأیید مدیر املاک، مدیریت کارشناسان و اشتراک املاک</p></div></header>
+    const reviewPanel = (row: Application) => {
+        const profile = row.profile || {}
+        const actionable = !reviewHistory && (row.status === 'pending' || row.status === 'await_pay')
+        const required = ['agency_name', 'logo', 'landline', 'office_address', 'office_province', 'office_city', 'office_district', 'office_neighborhood']
+        const completeness = row.kind === 'expert' ? Math.round(['job_title', 'specialties', 'experience_years', 'job_details'].filter(key => row.details[key as keyof typeof row.details] !== undefined && row.details[key as keyof typeof row.details] !== '').length / 4 * 100) : Math.round(required.filter(key => profile[key]).length / required.length * 100)
+        return <section className={'workflow-review-detail ' + (row.kind === 'expert' ? 'expert-detail' : '')} key={row.id}>
+            <SectionTitle>{row.kind === 'expert' ? 'جزئیات درخواست همکاری' : 'جزئیات درخواست دفتر املاک'}</SectionTitle>
+            <div className="workflow-review-detail-body"><div className="workflow-review-copy"><div className="workflow-review-person"><Avatar src={String(profile.logo || '')}>{row.name[0]}</Avatar><div><strong>{String(profile.agency_name || row.name)}</strong><span>درخواست: <Chip size="small" label={row.kind === 'expert' ? 'کارشناس املاک' : planName(row.tier)}/></span></div></div><div className="workflow-review-contact"><bdi>{row.phone}</bdi>{profile.email && <bdi>{String(profile.email)}</bdi>}</div>
+            {row.kind === 'expert' ? <><SectionTitle icon={<EditOutlined/>}>خلاصه رزومه</SectionTitle><p className="workflow-resume-summary">{row.details.job_details || 'توضیحی ثبت نشده است.'}</p><div className="workflow-review-tags"><b>مهارت‌ها:</b>{row.details.specialties?.map(value => <Chip size="small" key={value} label={value}/>)}</div><dl className="workflow-review-facts"><div><dt>مناطق فعالیت:</dt><dd>{row.details.focus_areas || '—'}</dd></div><div><dt>سابقه فعالیت:</dt><dd>{number(row.details.experience_years || 0)} سال</dd></div><div><dt>وضعیت درخواست:</dt><dd><Status status={row.status}/></dd></div></dl></> : <><div className="workflow-progress-box"><strong style={{'--progress': completeness + '%'} as React.CSSProperties}>{number(completeness)}٪</strong><span>تکمیل اطلاعات دفتر</span></div><dl className="workflow-review-facts"><div><dt>پلن انتخابی:</dt><dd>{planName(row.tier)}</dd></div><div><dt>شهر:</dt><dd>{String(profile.office_city || '—')}</dd></div><div><dt>منطقه:</dt><dd>{String(profile.office_district || '—')}</dd></div><div><dt>کد درخواست:</dt><dd><bdi>REQ-{row.id}</bdi></dd></div></dl><div className="workflow-documents"><SectionTitle>مدارک و مستندات</SectionTitle><p><CheckCircleRounded/>اطلاعات دفتر {profile.agency_name ? 'ثبت شده' : 'تکمیل نشده'}</p>{profile.license_image && <a href={String(profile.license_image)} target="_blank" rel="noopener noreferrer"><DescriptionOutlined/>مشاهده پروانه کسب</a>}{profile.logo && <a href={String(profile.logo)} target="_blank" rel="noopener noreferrer"><DescriptionOutlined/>مشاهده لوگوی دفتر</a>}</div></>}
+            </div><aside className="workflow-review-aside">{row.kind === 'expert' ? <><span className="workflow-aside-icon"><PersonAddAltRounded/></span><p>با تأیید این درخواست، نقش کاربر به «کارشناس» تغییر داده شده و به دفتر املاک شما افزوده می‌شود.</p></> : <><SectionTitle>نتیجه بررسی</SectionTitle>{[['اطلاعات دفتر', !!profile.agency_name], ['نشانی دفتر', !!profile.office_address], ['لوگوی دفتر', !!profile.logo], ['پذیرش قوانین', !!row.terms_accepted_at]].map(([label, present]) => <p key={String(label)} className={present ? 'document-present' : ''}>{present ? <CheckCircleRounded/> : <DescriptionOutlined/>}{label}</p>)}</>}</aside></div>
+            {row.kind !== 'expert' && <Alert severity="success">با تأیید این درخواست، دفتر املاک با پلن {planName(row.tier)} {row.status === 'await_pay' ? 'پس از تأیید پرداخت فعال می‌شود.' : 'وارد مرحله بعدی فعال‌سازی می‌شود.'}</Alert>}
+            {row.status === 'await_pay' && <Alert severity="info">{row.details.payment_reference ? 'شناسه پرداخت: ' + row.details.payment_reference : 'متقاضی هنوز شناسه پرداخت ثبت نکرده است.'}</Alert>}
+            {expandedResume && <div className="workflow-expanded-resume"><p>{row.details.job_title} · {number(row.details.experience_years || 0)} سال سابقه</p><p>{row.details.job_details}</p>{Object.entries(profileLabels).map(([key,label]) => profile[key] ? <p key={key}>{label}: {String(profile[key])}</p> : null)}</div>}
+            {actionable && <TextField className="workflow-review-note" label="توضیح اصلاحات" value={reviewNote} onChange={event => setReviewNote(event.target.value)} multiline minRows={1} size="small" fullWidth/>}
+            <div className="workflow-review-actions">{actionable && <><Button variant="contained" startIcon={<CheckRounded/>} disabled={busy || (row.status === 'await_pay' && !row.details.payment_reference)} onClick={() => decide(row, row.status === 'await_pay' ? 'confirm_payment' : 'approve')}>{row.status === 'await_pay' ? 'تأیید دریافت وجه و فعال‌سازی' : row.kind === 'expert' ? 'تأیید همکاری' : 'تأیید درخواست'}</Button><Button className="workflow-danger" startIcon={<CloseRounded/>} disabled={busy} onClick={() => decide(row,'reject')}>رد درخواست</Button>{row.kind !== 'expert' && <Button className="workflow-warning" startIcon={<EditOutlined/>} disabled={busy || !reviewNote.trim()} onClick={() => decide(row,'fix')}>بازگشت برای اصلاح</Button>}</>}{row.kind === 'expert' && <Button variant="outlined" startIcon={<VisibilityOutlined/>} onClick={() => setExpandedResume(value => !value)}>{expandedResume ? 'بستن رزومه کامل' : 'مشاهده رزومه کامل'}</Button>}{row.resume_url && <Button component="a" href={row.resume_url} target="_blank" rel="noopener noreferrer" startIcon={<DescriptionOutlined/>}>دانلود رزومه</Button>}</div>
+        </section>
+    }
+    return <div className="onboarding-page">
+        {hero}
+        {error && <Alert severity="error" role="alert">{error}</Alert>}{notice && <Alert severity="success">{notice}</Alert>}
+        {!state && (busy ? <div className="workflow-loading"><CircularProgress aria-label="دریافت درخواست‌ها"/></div> : <Button onClick={() => run(load)}>تلاش دوباره</Button>)}
+        {state && <>
+            {section !== 'main' && <Button sx={{alignSelf:'flex-start'}} onClick={() => setSection('main')}>بازگشت به درخواست‌ها</Button>}
+            {section === 'main' && <>
+                {role === UserRole.USER && <div className={'workflow-applicant-grid ' + (mode === 'expert' ? confirmed ? 'has-resume' : 'has-lookup' : mode === 'office' ? 'has-office' : '')}>
+                    <Paper component="section" className="workflow-panel workflow-user-panel" variant="outlined"><ApplicationHeading step={1} title="پنل کاربر عادی / ارتقای حساب" subtitle="درخواست ارتقای حساب و همکاری حرفه‌ای در ملکینو" role="کاربر عادی"/><div className="workflow-panel-body"><section className="workflow-user-identity"><SectionTitle>اطلاعات کاربر و همکاری</SectionTitle><div><Avatar src={typeof user.avatar === 'string' ? user.avatar : undefined}>{user.first_name?.[0]}</Avatar><div><strong>سلام {[user.first_name,user.last_name].filter(Boolean).join(' ')}</strong><small>حساب شما در حال حاضر کاربر عادی است.</small></div><Chip className="workflow-role-chip" size="small" label="کاربر عادی"/></div></section><div className="workflow-choice-grid"><section className={'workflow-choice expert ' + (mode === 'expert' ? 'is-chosen' : '')}><span><PersonAddAltRounded/></span><h3>درخواست تبدیل به کارشناس</h3><p>همکاری حرفه‌ای در دفتر املاک و دریافت کد دفتر املاک</p><Button disabled={pending || busy} onClick={() => selectMode('expert')}>درخواست کارشناسی</Button></section><section className={'workflow-choice office ' + (mode === 'office' ? 'is-chosen' : '')}><span><StorefrontRounded/></span><h3>درخواست تبدیل به املاکی</h3><p>ایجاد دفتر املاک و مدیریت آگهی‌ها، کارشناسان و قراردادها</p><Button disabled={pending || busy} onClick={() => selectMode('office')}>درخواست املاکی</Button></section></div>{ownHistory}</div></Paper>
+                    {mode === 'expert' && !pending && <Paper component="section" className="workflow-panel workflow-lookup-panel" variant="outlined"><ApplicationHeading step={2} title="درخواست تبدیل به کارشناس / ورود کد دفتر املاک" subtitle="انتخاب دفتر املاک و ثبت درخواست همکاری به‌عنوان کارشناس" role="کاربر عادی"/><div className="workflow-panel-body"><Stepper alternativeLabel activeStep={confirmed ? 2 : office ? 1 : 0}>{['ورود کد دفتر','تأیید دفتر املاک','تکمیل رزومه'].map(label => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}</Stepper><section className="workflow-code-section"><SectionTitle icon={<StorefrontRounded/>}>ورود کد دفتر املاک</SectionTitle><p>کد اختصاصی دفتر املاک را از مدیر دفتر دریافت و وارد کنید.</p><TextField label="کد دفتر املاک" disabled={busy || confirmed} value={code} onChange={event => {setCode(event.target.value);setOffice(undefined);setConfirmed(false)}} fullWidth size="small" inputProps={{dir:'ltr'}}/>{!office && <Button startIcon={<SearchRounded/>} variant="outlined" disabled={busy || !code.trim()} onClick={() => run(async () => {setOffice((await api.get<Office>(ACCOUNTS_URL + '/office-lookup/', {params:{code:code.trim()}})).data)})}>بررسی کد</Button>}</section>{office && <><OfficeIdentity office={office}/><Alert severity="success">آیا این دفتر املاک را تأیید می‌کنید؟</Alert><div className="workflow-lookup-actions"><Button variant="contained" startIcon={<CheckRounded/>} disabled={confirmed} onClick={() => setConfirmed(true)}>تأیید دفتر و ادامه</Button><Button variant="outlined" startIcon={<SearchRounded/>} disabled={busy} onClick={() => {setOffice(undefined);setConfirmed(false)}}>جستجوی مجدد</Button></div></>}</div></Paper>}
+                    {mode === 'expert' && confirmed && office && !pending && <Paper component="section" className="workflow-panel workflow-resume-panel" variant="outlined"><ApplicationHeading step={3} title="تکمیل رزومه کارشناس" subtitle="ثبت اطلاعات حرفه‌ای و ارسال درخواست همکاری" role="کاربر عادی"/><form aria-label="رزومه کارشناس" className="workflow-panel-body workflow-resume-form" onSubmit={submit}><SectionTitle>اطلاعات حرفه‌ای و همکاری</SectionTitle><div className="workflow-resume-identity"><div className="workflow-resume-basic"><TextField label="نقش در دفتر" name="job_title" value="کارشناس" InputProps={{readOnly:true}} size="small"/><TextField label="سابقه فعالیت" name="experience_years" type="number" required defaultValue={0} inputProps={{min:0,max:80,step:1}} InputProps={{endAdornment:<small>سال</small>}} size="small"/><TextField label="شماره تماس" value={user.phone || ''} InputProps={{readOnly:true}} inputProps={{dir:'ltr'}} size="small"/></div><div className="workflow-resume-office"><Chip size="small" className="workflow-role-chip" label="کاربر عادی"/><OfficeIdentity office={office} compact/></div></div><ChoiceChips name="cooperation_types" label="نوع همکاری" choices={['تمام‌وقت','پاره‌وقت','مشاوره ملکی']}/><ChoiceChips name="transaction_types" label="حوزه فعالیت" choices={['خرید و فروش','رهن و اجاره']}/><ActivityAreas office={office}/><ExpertiseFields/><TextField label="توضیحات" name="job_details" required multiline minRows={2} inputProps={{maxLength:3400}} fullWidth size="small"/><DocumentUpload name="resume" label="بارگذاری رزومه و مدارک" accept="application/pdf,image/*"/><Button type="submit" variant="contained" fullWidth startIcon={<SendOutlined/>} disabled={busy}>ارسال درخواست همکاری</Button></form></Paper>}
+                    {mode === 'office' && !pending && <Paper component="section" className="workflow-panel workflow-office-panel" variant="outlined"><ApplicationHeading step={5} title="درخواست تبدیل به املاکی / پروفایل و انتخاب پلن" subtitle="تکمیل اطلاعات دفتر املاک و انتخاب پلن اشتراک" role="کاربر عادی"/><form aria-label="درخواست دفتر املاک" className="workflow-panel-body workflow-office-form" onSubmit={submit} onInvalidCapture={event => {const details = (event.target as HTMLElement).closest('details');if (details) details.open = true}}><SectionTitle>اطلاعات دفتر املاک</SectionTitle><div className="workflow-office-profile"><DocumentUpload name="logo" label="لوگوی دفتر" accept="image/*" required logo/><div>{formField('agency_name','نام دفتر',true,correction?.profile?.agency_name)}{formField('description','نوع فعالیت',false,correction?.profile?.description)}<OfficeLocation initial={correction?.profile}/></div></div><details className="workflow-office-more"><summary>نشانی و مدارک دفتر</summary><div className="workflow-office-more-fields">{formField('landline','تلفن ثابت',true,correction?.profile?.landline)}{formField('office_address','نشانی دفتر',true,correction?.profile?.office_address)}<TextField select name="occupancy_type" label="نوع مالکیت" value={tenant ? 'tenant' : 'owner'} onChange={event => setTenant(event.target.value === 'tenant')} size="small"><MenuItem value="owner">ملکی</MenuItem><MenuItem value="tenant">اجاره‌ای</MenuItem></TextField>{tenant && <TextField name="lease_end_date" label="تاریخ پایان اجاره" type="date" required InputLabelProps={{shrink:true}} size="small"/>}<FormControlLabel control={<Checkbox checked={license} onChange={event => setLicense(event.target.checked)}/>} label="دفتر پروانه کسب دارد"/>{license && <>{formField('license_number','شماره پروانه')}<TextField name="license_expires_at" label="تاریخ اعتبار پروانه" type="date" required InputLabelProps={{shrink:true}} size="small"/><DocumentUpload name="license_image" label="تصویر پروانه کسب" accept="image/*" required/></>}</div></details><Alert severity="error">در صورت عدم پرداخت، امکانات پلن غیرفعال می‌شوند.</Alert><SectionTitle icon={<CreditCardOutlined/>}>انتخاب پلن اشتراک</SectionTitle><PlanCards plans={state.plans} selected={tier} onSelect={setTier}/><SectionTitle>مقایسه امکانات پلن‌ها</SectionTitle><PlanComparison plans={state.plans}/><FormControlLabel className="workflow-terms" control={<Checkbox checked={terms} onChange={event => setTerms(event.target.checked)}/>} label="قوانین ملکینو را می‌پذیرم."/><small className="workflow-terms-copy">{state.terms}</small><Button type="submit" variant="contained" fullWidth startIcon={<SendOutlined/>} disabled={busy || !terms || !tier}>ارسال درخواست و ارتقای حساب</Button></form></Paper>}
                 </div>}
+                {correction && <Alert severity="warning">{correction.details.review_note || 'اطلاعات درخواست نیاز به اصلاح دارد.'}</Alert>}
+                {awaiting && <Paper className="workflow-panel workflow-payment"><SectionTitle icon={<CreditCardOutlined/>}>درخواست تأیید شد · پرداخت اشتراک {planName(awaiting.tier)}</SectionTitle><strong>{number(awaiting.details.monthly_price || 0)} تومان</strong><p>{state.demo_gateway?.payment_instructions || 'برای دریافت روش واریز، با پشتیبانی ملکینو در تماس باشید.'}</p><TextField label="شناسه پیگیری پرداخت" size="small" value={reference[awaiting.id] ?? awaiting.details.payment_reference ?? ''} onChange={event => setReference({...reference,[awaiting.id]:event.target.value})}/><Button variant="contained" disabled={busy || !reference[awaiting.id]?.trim()} onClick={() => run(async () => {await api.post(applicationsUrl + awaiting.id + '/payment/', {payment_reference:reference[awaiting.id]?.trim()});await load();setNotice('شناسه پرداخت برای بررسی ارسال شد.')})}>ثبت شناسه پرداخت</Button></Paper>}
+                {(role === UserRole.AGENCY || role === UserRole.SUPERADMIN) && <Paper component="section" className="workflow-panel workflow-review-panel"><ApplicationHeading step={role === UserRole.AGENCY ? 4 : 6} title={role === UserRole.AGENCY ? 'پنل املاکی / درخواست‌های همکاری کارشناسان' : 'پنل سوپرادمین / بررسی درخواست املاکی'} subtitle={role === UserRole.AGENCY ? 'مدیریت و بررسی درخواست‌های همکاری کارشناسان در دفتر املاک' : 'بررسی، تأیید یا رد درخواست‌های تبدیل به دفتر املاک'} role={role === UserRole.AGENCY ? 'املاکی' : 'سوپرادمین'}/><div className="workflow-review-grid"><div className="workflow-review-list"><div className="workflow-review-tabs"><Button variant={!reviewHistory ? 'outlined' : 'text'} onClick={() => {setReviewHistory(false);setSelectedReview(undefined)}}>{role === UserRole.AGENCY ? 'درخواست‌های همکاری' : 'درخواست‌های املاکی'} ({number(state.incoming.length + (role === UserRole.AGENCY ? state.reviewed.length : 0))})</Button>{role === UserRole.SUPERADMIN && <Button variant={reviewHistory ? 'outlined' : 'text'} onClick={() => {setReviewHistory(true);setSelectedReview(undefined)}}>تاریخچه ({number(state.reviewed.length)})</Button>}{role === UserRole.AGENCY && <Button component={Link} to="/users/expert">کارشناسان دفتر</Button>}</div><div className="workflow-review-filters"><TextField select label="وضعیت" size="small" value={reviewFilter} onChange={event => setReviewFilter(event.target.value)}><MenuItem value="all">همه وضعیت‌ها</MenuItem>{Object.entries(statuses).map(([key,label]) => <MenuItem key={key} value={key}>{label}</MenuItem>)}</TextField>{role === UserRole.SUPERADMIN && <TextField select label="نوع درخواست" size="small" value={reviewKind} onChange={event => setReviewKind(event.target.value)}><MenuItem value="all">همه درخواست‌ها</MenuItem><MenuItem value="office">درخواست دفتر</MenuItem><MenuItem value="upgrade">ارتقای اشتراک</MenuItem></TextField>}<TextField label="جستجو در درخواست‌ها" size="small" value={reviewQuery} onChange={event => setReviewQuery(event.target.value)} InputProps={{endAdornment:<SearchRounded/>}}/></div><div className="workflow-table-scroll"><table className="workflow-table"><thead><tr>{(role === UserRole.AGENCY ? ['کاربر / متقاضی','نقش درخواست','کد دفتر','تاریخ درخواست','وضعیت',''] : ['دفتر / متقاضی','پلن انتخابی','شهر','تاریخ','وضعیت','']).map((label,index) => <th key={index}>{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr key={row.id} className={reviewed?.id === row.id ? 'is-selected' : ''} onClick={() => {setSelectedReview(row.id);setReviewNote('');setExpandedResume(false)}}><td><div className="workflow-table-person"><Avatar src={String(row.profile?.logo || '')}>{row.name[0]}</Avatar><strong>{String(row.profile?.agency_name || row.name)}</strong></div></td><td><Chip size="small" label={row.kind === 'expert' ? 'کارشناس' : planName(row.tier)}/></td><td>{role === UserRole.AGENCY ? <bdi className="workflow-office-code" title={subscription?.code}>{subscription?.code || '—'}</bdi> : String(row.profile?.office_city || '—')}</td><td><time>{date(row.created_at)}</time></td><td><Status status={row.status}/></td><td><Button aria-label={'مشاهده درخواست ' + row.name}>‹</Button></td></tr>)}</tbody></table></div>{!rows.length && <p className="workflow-empty">درخواستی برای نمایش وجود ندارد.</p>}</div>{reviewed ? reviewPanel(reviewed) : <div className="workflow-review-placeholder"><DescriptionOutlined/><p>برای مشاهده جزئیات، یک درخواست انتخاب کنید.</p></div>}</div>{role === UserRole.SUPERADMIN && <Button className="workflow-plan-admin" component={Link} to="/plans">مدیریت پلن‌ها و تعرفه‌ها</Button>}</Paper>}
+                {subscription && <Paper component="section" className="workflow-panel workflow-subscription-panel"><ApplicationHeading step={7} title="پنل املاکی / ارتقای پلن و مدیریت اشتراک" subtitle="مشاهده وضعیت اشتراک، ارتقا و پرداخت تمدید" role="املاکی"/><div className="workflow-panel-body"><SectionTitle icon={<CreditCardOutlined/>}>وضعیت اشتراک فعلی</SectionTitle><section className="workflow-current-subscription"><Avatar variant="rounded" src={subscription.logo}><StorefrontRounded/></Avatar><div><strong>{subscription.office_name}</strong><dl><div><dt>پلن فعلی:</dt><dd>{planName(subscription.active_tier)}</dd></div><div><dt>تاریخ شروع:</dt><dd>{date(subscription.started_at)}</dd></div><div><dt>تاریخ پایان:</dt><dd>{date(subscription.paid_until)}</dd></div></dl></div><Chip className="workflow-role-chip" size="small" label={subscription.tier === subscription.active_tier ? 'فعال' : 'نیاز به تمدید'}/></section><Button variant="contained" fullWidth startIcon={<CreditCardOutlined/>} disabled={busy || pending} onClick={() => selectMode('upgrade')}>پرداخت و تمدید اشتراک</Button><SectionTitle icon={<CreditCardOutlined/>}>ارتقای پلن اشتراک</SectionTitle><PlanCards plans={state.plans} active={subscription.active_tier} selected={mode === 'upgrade' ? tier : undefined} onSelect={chooseTier} disabledIds={['free', subscription.active_tier]} disabled={busy || pending}/><SectionTitle>مقایسه امکانات پلن‌ها</SectionTitle><PlanComparison plans={state.plans} active={subscription.active_tier}/>{mode === 'upgrade' && !pending && <form className="workflow-renew-form" onSubmit={submit}><FormControlLabel control={<Checkbox checked={terms} onChange={event => setTerms(event.target.checked)}/>} label="قوانین ملکینو را می‌پذیرم."/><small>{state.terms}</small><Button variant="contained" type="submit" disabled={busy || !terms || !tier || tier === 'free'} fullWidth>ارسال درخواست</Button></form>}<details className="workflow-subscription-management"><summary>مدیریت اشتراک و پرداخت‌ها</summary><TextField label="کد دفتر برای همکاری" value={subscription.code} InputProps={{readOnly:true}} size="small" fullWidth/><Button component={Link} to="/users/expert">فهرست کارشناسان</Button><Button variant="outlined" disabled={subscription.active_tier === 'free' || busy} onClick={() => run(async () => setFiles((await api.get(promotionUrl)).data))}>مدیریت فایل‌های ویژه</Button>{files && (!files.length ? <p>دفتر فایل منتشرشده ندارد.</p> : files.map(file => <Button key={file.id} disabled={busy} onClick={() => run(async () => {await api.post(promotionUrl,{file_id:file.id});await load()})}>{subscription.promoted_files.includes(file.id) ? 'حذف از ویژه‌ها' : 'ویژه کردن'} · {file.title}</Button>))}{subscription.active_tier === 'diamond' && <section><SectionTitle>پیشنهاد متن آگهی با هوش مصنوعی</SectionTitle>{subscription.ai_available ? <><TextField label="مشخصات عمومی ملک" inputProps={{maxLength:1500}} value={facts} onChange={event => setFacts(event.target.value)} fullWidth multiline minRows={2} helperText="نشانی دقیق و اطلاعات تماس را وارد نکنید."/><Button disabled={busy || !facts.trim()} onClick={() => run(async () => setCopy((await api.post(ACCOUNTS_URL + '/diamond-ad-copy/', {facts})).data.copy))}>پیشنهاد متن</Button>{copy && <TextField value={copy} onChange={event => setCopy(event.target.value)} label="متن پیشنهادی" fullWidth multiline/>}</> : <p>سرویس هوش مصنوعی در انتظار راه‌اندازی است.</p>}</section>}</details></div></Paper>}
             </>}
-            {correction && <Alert severity="warning">{correction.details.review_note} · فرم اصلاح‌شده را دوباره ارسال کنید.</Alert>}
-            {awaiting && <Paper className="onboarding-identity" variant="outlined">
-                <Stack spacing={1.5} sx={{width:'100%'}}>
-                    <Typography fontWeight={800}>درخواست تأیید شد · پرداخت اشتراک {planName(awaiting.tier)}</Typography>
-                    <Typography>{number(awaiting.details.monthly_price || 0)} تومان</Typography>
-                    <Typography sx={{whiteSpace:'pre-wrap'}}>{state.demo_gateway?.payment_instructions || 'برای دریافت روش واریز، با پشتیبانی ملکینو در تماس باشید.'}</Typography>
-                    {awaiting.details.payment_reference && <Alert severity="info">شناسه برای بررسی ثبت شده است.</Alert>}
-                    <TextField label="شناسه پیگیری پرداخت" size="small" value={reference[awaiting.id] ?? awaiting.details.payment_reference ?? ''} onChange={event => setReference({...reference,[awaiting.id]:event.target.value})}/>
-                    <Button variant="contained" disabled={busy || !reference[awaiting.id]?.trim()} onClick={() => sendPayment(awaiting)}>ثبت شناسه پرداخت</Button>
-                </Stack>
-            </Paper>}
-            {subscription && <Paper variant="outlined" sx={{p: 2.5, borderRadius: 3}}>
-                <Stack spacing={1.5} alignItems="flex-start">
-                    <Stack direction="row" alignItems="center" gap={1.5}>
-                        <Avatar src={subscription.logo || undefined}><StorefrontRounded/></Avatar>
-                        <Typography fontWeight={800}>{subscription.office_name}</Typography>
-                    </Stack>
-                    <Typography fontWeight={800}>پلن فعال دفتر · {planName(subscription.active_tier)}</Typography>
-                    {subscription.paid_until && <Typography>پایان اعتبار {date(subscription.paid_until)}</Typography>}
-                    {subscription.tier !== subscription.active_tier && <Alert severity="warning">اعتبار اشتراک پولی تمام شده است. امکانات پایهٔ دفتر فعال‌اند.</Alert>}
-                    <TextField label="کد دفتر برای همکاری" value={subscription.code} InputProps={{readOnly: true}} inputProps={{dir: 'ltr'}} fullWidth size="small"/>
-                    <Stack direction="row" gap={1} flexWrap="wrap">
-                        <Button component={Link} to="/users/expert" variant="text">فهرست کارشناسان</Button>
-                        <Button variant="contained" disabled={pending || busy} onClick={() => selectMode('upgrade')}>ارتقا یا تمدید پلن</Button>
-                        <Button variant="outlined" disabled={subscription.active_tier === 'free' || busy} onClick={() => run(async () => setFiles((await api.get(promotionUrl)).data))}>مدیریت فایل‌های ویژه</Button>
-                    </Stack>
-                    {subscription.active_tier === 'diamond' && <Stack spacing={1} sx={{width: '100%'}}>
-                        <Typography fontWeight={800}>پیشنهاد متن آگهی با هوش مصنوعی</Typography>
-                        {subscription.ai_available ? <>
-                            <TextField multiline minRows={2} label="مشخصات عمومی ملک" helperText="نشانی دقیق و اطلاعات تماس را وارد نکنید." value={facts} onChange={event => setFacts(event.target.value)} inputProps={{maxLength: 1500}}/>
-                            <Button disabled={busy || !facts.trim()} onClick={() => run(async () => {
-                                setCopy('')
-                                setCopy((await api.post(ACCOUNTS_URL + '/diamond-ad-copy/', {facts})).data.copy)
-                            })}>پیشنهاد متن</Button>
-                            {copy && <TextField multiline minRows={3} label="متن پیشنهادی" value={copy} onChange={event => setCopy(event.target.value)}/>}
-                        </> : <Typography color="text.secondary">سرویس هوش مصنوعی در انتظار راه‌اندازی است.</Typography>}
-                    </Stack>}
-                    {files && subscription.active_tier !== 'free' && <>
-                        {!files.length && <Typography>دفتر فایل منتشرشده ندارد.</Typography>}
-                        {files.map(file => <Button key={file.id} disabled={busy} onClick={() => run(async () => {
-                            await api.post(promotionUrl, {file_id: file.id})
-                            await load()
-                        })}>{subscription.promoted_files.includes(file.id) ? 'حذف از ویژه‌ها' : 'ویژه کردن'} · {file.title}</Button>)}
-                    </>}
-                </Stack>
-            </Paper>}
-            {mode && !pending && <Paper variant="outlined" sx={{p: 2.5, borderRadius: 3}}>
-                <Stack spacing={2} component="form" onSubmit={submit}>
-                    <div className="onboarding-panel-heading"><Typography variant="h6">{applicationNames[mode]}</Typography><Chip size="small" label={role==='agency'?'املاکی':'کاربر عادی'}/></div>
-                    {mode === 'expert' ? <>
-                        <Stepper alternativeLabel activeStep={confirmed ? 2 : office ? 1 : 0} sx={{py: 2}}>
-                            {['ورود کد دفتر','تأیید دفتر املاک','تکمیل رزومه'].map(label => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
-                        </Stepper>
-                        {!confirmed && <Stack direction={{xs: 'column', sm: 'row'}} gap={1}>
-                            <TextField label="کد دفتر املاک" disabled={busy} value={code} onChange={event => {
-                                setCode(event.target.value)
-                                setOffice(undefined)
-                                setConfirmed(false)
-                            }} size="small" fullWidth inputProps={{dir: 'ltr'}}/>
-                            <Button disabled={!code.trim() || busy} variant="outlined" onClick={() => run(async () => {
-                                setConfirmed(false)
-                                setOffice((await api.get<Office>(ACCOUNTS_URL + '/office-lookup/', {params: {code: code.trim()}})).data)
-                            })}>بررسی کد</Button>
-                        </Stack>}
-                        {office && <>
-                            <Stack direction="row" alignItems="center" gap={2}>
-                                <Avatar src={office.logo || undefined}>{office.name[0]}</Avatar>
-                                <Stack>
-                                    <Typography fontWeight={800}>{office.name}</Typography>
-                                    <Typography>{office.address}</Typography>
-                                    <Typography>{number(office.active_experts)} کارشناس فعال · {[office.city,office.district].filter(Boolean).join(" / ")}</Typography>
-                                </Stack>
-                            </Stack>
-                            {!confirmed ? <Button variant="contained" onClick={() => setConfirmed(true)}>تأیید دفتر و ادامه</Button> : <Button onClick={() => {setConfirmed(false);setOffice(undefined)}}>انتخاب دفتر دیگر</Button>}
-                        </>}
-                        {confirmed && <>
-                            <TextField label="متقاضی" value={[user.first_name,user.last_name,user.phone].filter(Boolean).join(' · ')} InputProps={{readOnly:true}}/>
-                            {formField('focus_areas', 'مناطق فعالیت', false)}
-                            {formField('property_types', 'تخصص نوع ملک', false)}
-                            <TextField name="resume" label="فایل رزومه (PDF یا تصویر)" type="file" InputLabelProps={{shrink:true}} inputProps={{accept:'application/pdf,image/*'}}/>
-                            {formField('job_title', 'عنوان شغلی')}
-                            {formField('specialties', 'تخصص‌ها (جداشده با ویرگول)')}
-                            <TextField name="experience_years" label="سابقه به سال" type="number" required inputProps={{min: 0, max: 80, step: 1}}/>
-                            <TextField name="job_details" label="رزومه و سوابق کاری" multiline minRows={4} required inputProps={{maxLength: 4000}}/>
-                        </>}
-                    </> : <>
-                        {mode === 'office' && <>
-                            {formField('agency_name', 'نام دفتر')}
-                            {formField('landline', 'تلفن ثابت')}
-                            {formField('office_address', 'نشانی دفتر')}
-                            <OfficeLocation initial={correction?.profile}/>
-                            <TextField select name="occupancy_type" label="نوع مالکیت" value={tenant ? 'tenant' : 'owner'} onChange={event => setTenant(event.target.value === 'tenant')}>
-                                <MenuItem value="owner">ملکی</MenuItem><MenuItem value="tenant">اجاره‌ای</MenuItem>
-                            </TextField>
-                            {tenant && <TextField name="lease_end_date" label="تاریخ پایان اجاره" type="date" required InputLabelProps={{shrink: true}}/>}
-                            <TextField name="logo" label="لوگوی دفتر" type="file" required InputLabelProps={{shrink: true}} inputProps={{accept: 'image/*'}}/>
-                            <FormControlLabel control={<Checkbox checked={license} onChange={event => setLicense(event.target.checked)}/>} label="دفتر پروانه کسب دارد"/>
-                            {license && <>
-                                {formField('license_number', 'شماره پروانه')}
-                                <TextField name="license_expires_at" label="تاریخ اعتبار پروانه" type="date" required InputLabelProps={{shrink: true}}/>
-                                <TextField name="license_image" label="تصویر پروانه" type="file" required InputLabelProps={{shrink: true}} inputProps={{accept: 'image/*'}}/>
-                            </>}
-                            <TextField name="description" label="معرفی دفتر" multiline minRows={3}/>
-                        </>}
-                        <Typography fontWeight={800}>انتخاب پلن همکاری</Typography>
-                        <div className="onboarding-plans" role="group" aria-label="پلن دفتر">
-                            {state.plans.filter(plan => mode !== 'upgrade' || plan.id !== 'free').map(plan =>
-                                <Button style={{"--plan-accent":plan.color || "#246bfd"} as React.CSSProperties} key={plan.id} className={'onboarding-plan ' + plan.id} variant={tier === plan.id ? 'contained' : 'outlined'}
-                                    aria-pressed={tier === plan.id} onClick={() => setTier(plan.id)}>
-                                    <Stack spacing={.5}><strong>{plan.id==="free"?"♧":plan.id==="diamond"?"♢":"☆"} {plan.label}</strong><span>{plan.price ? number(plan.price) + ' تومان در ماه' : 'بدون هزینه'}</span>
-                                    <span>{plan.description}</span>
-                                    <span>{plan.promotions ? number(plan.promotions) + ' فایل ویژهٔ هم‌زمان' : 'مدیریت پایه دفتر'}</span>
-                                    {(plan.features || []).map(feature => <span key={feature}>✓ {feature}</span>)}
-                                    {plan.id === 'diamond' && <span>پیشنهاد متن آگهی با هوش مصنوعی</span>}</Stack>
-                                </Button>)}
-                        </div>
-                        <Typography color="text.secondary">{state.terms}</Typography>
-                        <FormControlLabel control={<Checkbox checked={terms} onChange={event => setTerms(event.target.checked)}/>} label="قوانین ملکینو را می‌پذیرم."/>
-                    </>}
-                    <Stack direction="row" gap={1}>
-                        <Button type="submit" variant="contained" disabled={busy || (mode === 'expert' ? !confirmed : !terms)}>ارسال درخواست</Button>
-                        <Button disabled={busy} onClick={() => setMode(null)}>انصراف</Button>
-                    </Stack>
-                </Stack>
-            </Paper>}
-            {(role === UserRole.AGENCY || role === UserRole.SUPERADMIN) && <>
-                {role === UserRole.SUPERADMIN && <Button component={Link} to="/plans" sx={{alignSelf:'flex-start'}}>مدیریت پلن‌ها و تعرفه‌ها</Button>}
-                <Typography variant="h6">{role === UserRole.AGENCY ? 'درخواست‌های همکاری' : 'در صف بررسی'}</Typography>
-                <div className="onboarding-review">
-                    <Paper variant="outlined" className="onboarding-review-list">
-                        <Stack direction={{xs:'column',sm:'row'}} gap={1}>
-                            <TextField size="small" label="جست‌وجوی درخواست" value={reviewQuery} onChange={event => setReviewQuery(event.target.value)}/>
-                            <TextField select size="small" label="وضعیت" value={reviewFilter} onChange={event => setReviewFilter(event.target.value)}>
-                                <MenuItem value="all">همه</MenuItem><MenuItem value="pending">{statuses.pending}</MenuItem><MenuItem value="await_pay">{statuses.await_pay}</MenuItem>
-                            </TextField>
-                        </Stack>
-                        {!reviews.length && <Typography sx={{p: 2}}>درخواستی برای نمایش وجود ندارد.</Typography>}
-                        <TableContainer>
-                            <Table size="small">
-                                <TableHead><TableRow>{['متقاضی / دفتر','نوع درخواست','تاریخ','وضعیت',''].map(label => <TableCell key={label}>{label}</TableCell>)}</TableRow></TableHead>
-                                <TableBody>{reviews.map(row => <TableRow key={row.id} hover selected={reviewed?.id === row.id}
-                                    onClick={() => {setSelectedReview(row.id);setReviewNote('')}} sx={{cursor:'pointer'}}>
-                                    <TableCell><Stack direction="row" alignItems="center" gap={1}>
-                                        <Avatar src={String(row.profile?.logo || '')} sx={{width:32,height:32}}>{row.name[0]}</Avatar>
-                                        <Typography fontSize={13} fontWeight={700}>{String(row.profile?.agency_name || row.name)}</Typography>
-                                    </Stack></TableCell>
-                                    <TableCell>{applicationNames[row.kind]}</TableCell>
-                                    <TableCell sx={{whiteSpace:'nowrap'}}>{date(row.created_at)}</TableCell>
-                                    <TableCell><Chip size="small" label={statuses[row.status]} color={row.status==='await_pay'?'success':'warning'}/></TableCell>
-                                    <TableCell><Button aria-label={'مشاهده درخواست '+row.name}>‹</Button></TableCell>
-                                </TableRow>)}</TableBody>
-                            </Table>
-                        </TableContainer>
-                    </Paper>
-                    {reviewed && [reviewed].map(row => <Paper key={row.id} className="onboarding-review-detail" variant="outlined">
-                        <Stack spacing={1.5} alignItems="flex-start">
-                        <Typography variant="h6">جزئیات درخواست</Typography>
-                        <div className="onboarding-review-progress">
-                            <strong>{Math.round((row.profile ? Object.values(row.profile).filter(Boolean).length / Object.keys(row.profile).length : 1) * 100).toLocaleString('fa-IR')}٪</strong>
-                            <span>اطلاعات ثبت‌شده برای بررسی</span>
-                        </div>
-                        <Typography fontWeight={800}>{applicationNames[row.kind]} · {row.name} · {row.phone}</Typography>
-                        {row.kind === 'expert' ? <>
-                            <Typography>{row.details.job_title} · {number(row.details.experience_years || 0)} سال سابقه</Typography>
-                            <Typography>{row.details.specialties?.join('، ')}</Typography>
-                            <Typography sx={{whiteSpace: 'pre-wrap'}}>{row.details.job_details}</Typography>
-                            <Typography>{[row.details.focus_areas,row.details.property_types].filter(Boolean).join(' · ')}</Typography>
-                            {row.resume_url && <Button component="a" href={row.resume_url} target="_blank" rel="noopener noreferrer">دانلود رزومه</Button>}
-                        </> : <>
-                            <Typography>پلن {planName(row.tier)} · {number(row.details.monthly_price || 0)} تومان ماهانه</Typography>
-                            {row.terms_accepted_at && <Typography>پذیرش قوانین در {date(row.terms_accepted_at)}</Typography>}
-                            {row.profile?.logo && <Avatar src={String(row.profile.logo)}/>}
-                            {Object.entries(profileLabels).map(([key, label]) => row.profile?.[key] ?
-                                <Typography key={key}>{label} · {key === 'occupancy_type' ? (row.profile[key] === 'owner' ? 'ملکی' : 'اجاره‌ای') : String(row.profile[key])}</Typography> : null)}
-                            {row.profile?.license_image && <Button component="a" href={String(row.profile.license_image)} target="_blank" rel="noopener noreferrer">مدرک پروانه کسب</Button>}
-                        </>}
-                        {row.status === 'await_pay' && <Alert severity="info">
-                            {row.details.payment_reference ? 'شناسه پرداخت ثبت‌شده · ' + row.details.payment_reference : 'متقاضی هنوز شناسه پرداخت ثبت نکرده است.'}
-                        </Alert>}
-                        <TextField label="توضیح اصلاحات" size="small" value={reviewNote} onChange={event => setReviewNote(event.target.value)}/>
-                        <Stack direction="row" gap={1} flexWrap="wrap">
-                            {row.status === 'pending' ? <Button variant="contained" disabled={busy} onClick={() => decide(row, 'approve')}>تأیید درخواست</Button>
-                                : <Button variant="contained" disabled={busy || !row.details.payment_reference} onClick={() => decide(row, 'confirm_payment')}>تأیید دریافت وجه و فعال‌سازی</Button>}
-                            <Button color="warning" disabled={busy || !reviewNote.trim()} onClick={() => decide(row, 'fix')}>نیاز به اصلاح</Button>
-                            <Button color="error" disabled={busy} onClick={() => decide(row, 'reject')}>رد درخواست</Button>
-                        </Stack>
-                        </Stack>
-                    </Paper>)}
-                </div>
-            </>}
+            {section === 'history' && <Paper className="workflow-panel"><div className="workflow-panel-body">{ownHistory}</div></Paper>}
+            {section === 'demo' && state.demo_gateway?.enabled && <Paper className="workflow-panel"><div className="workflow-panel-body"><SectionTitle>پیش‌نمایش پرداخت اشتراک</SectionTitle><Alert severity="info">این پرداخت آزمایشی است و روی اعتبار اشتراک واقعی اثر ندارد.</Alert><TextField select label="پلن نمونه" value={demoTier} onChange={event => setDemoTier(event.target.value)}>{state.plans.filter(plan => plan.price > 0).map(plan => <MenuItem key={plan.id} value={plan.id}>{plan.label}</MenuItem>)}</TextField>{state.plans.filter(plan => plan.id === demoTier).map(plan => <DemoCheckout key={plan.id} gateway={state.demo_gateway} tier={plan.id} label={plan.label} amount={plan.price}/>)}</div></Paper>}
         </>}
-        {state && section === 'history' && <Paper variant="outlined" sx={{borderRadius: 3, p: 3}}>
-            {(state.reviewed || []).map(row => <Stack key={row.id} direction="row" gap={1} alignItems="center" sx={{mb:1}}>
-                <Typography>{row.name} · {applicationNames[row.kind]} · {date(row.created_at)}</Typography>
-                <Chip label={statuses[row.status]} size="small"/>
-            </Stack>)}
-            {!state.own.length && !state.reviewed?.length && <Typography>درخواستی ثبت نشده است.</Typography>}
-            {state.own.length > 0 && <Stack spacing={1}>
-                <Typography variant="h6">درخواست‌های من</Typography>
-                {state.own.map(row => <Stack key={row.id} direction="row" alignItems="center" gap={1} flexWrap="wrap">
-                    <Typography>{applicationNames[row.kind]} {row.office_name} · {date(row.created_at)}</Typography>
-                    <Chip label={statuses[row.status]} size="small" color={row.status === 'approved' ? 'success' : row.status === 'pending' ? 'warning' : 'default'}/>
-                </Stack>)}
-            </Stack>}
-        </Paper>}
-    </Stack>
+        <WorkflowJourney/>
+        {state?.demo_gateway?.enabled && section === 'main' && <Button sx={{alignSelf:'flex-start'}} onClick={() => setSection('demo')}>محیط آزمایشی</Button>}
+    </div>
 }

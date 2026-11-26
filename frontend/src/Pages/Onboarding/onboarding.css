@@ -1,138 +1,352 @@
-.onboarding-page .onboarding-identity {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 18px;
-    border-radius: 16px;
-    background: linear-gradient(125deg, #f3f6ff, #fff);
-}
-.onboarding-choices, .onboarding-plans {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr));
-    gap: 14px;
-}
-.onboarding-page .onboarding-choice {
-    padding: 22px;
-    border-radius: 18px;
+.onboarding-page {
+    --workflow-ink: #14204f;
+    --workflow-muted: #64719a;
+    --workflow-line: #d5dffc;
+    direction: rtl;
+    color: var(--workflow-ink);
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    gap: 20px;
+    max-width: 1640px;
+    margin: 0 auto;
+    padding: 4px 8px 24px;
+    min-width: 0;
+    background: radial-gradient(ellipse at 40% 30%, #e8eeff90, transparent 65%);
 }
-.onboarding-choice.expert {background: linear-gradient(145deg, #edf3ff, #fff)}
-.onboarding-choice.office {background: linear-gradient(145deg, #fff0f6, #fff)}
-.onboarding-choice.expert > svg {color: #246bfd; font-size: 32px}
-.onboarding-choice.office > svg {color: #c92d70; font-size: 32px}
-.onboarding-page .onboarding-plan {
-    border-radius: 16px;
-    padding: 16px;
-    min-height: 100px;
+.onboarding-page * { box-sizing: border-box; }
+.onboarding-page p { font-size: 14px; line-height: 1.9; }
+.onboarding-page a { color: #2556e4; }
+.workflow-hero {
+    display: flex;
+    align-items: center;
+    min-height: 112px;
+    border-radius: 22px;
+    border: 1px solid #fff;
+    overflow: hidden;
+    color: white;
+    background: linear-gradient(to left, #214680 2%, #4873c3e8 38%, #96b2ef70 70%, transparent 87%), var(--workflow-hero-image) left 50% / cover no-repeat;
+    box-shadow: 0 4px 12px #416bb018;
 }
-.onboarding-review {
-    display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-    gap: 16px;
-    align-items: start;
+.workflow-hero-brand { display: flex; align-items: center; gap: 10px; align-self: stretch; padding: 17px 18px; border-left: 1px solid #c2d4ff60; border-radius: 0 0 0 55px; background: #12367e50; min-width: 164px; }
+.workflow-hero-brand > svg { width: 48px; height: 48px; flex-shrink: 0; }
+.workflow-hero-brand strong { display: block; font-size: 25px; font-weight: 900; }
+.workflow-hero-brand small { display: block; font-size: 11px; color: #e2eaff; margin-top: 4px; white-space: nowrap; }
+.workflow-hero-copy { padding: 15px 20px; text-shadow: 0 1px 2px #416bb030; }
+.workflow-hero h1 { margin: 0; font-size: 22px; line-height: 1.8; font-weight: 900; }
+.workflow-hero p { margin: 3px 0 0; font-size: 14px; color: #edf4ff; }
+.workflow-page-tabs { display: flex; gap: 8px; align-self: flex-start; padding: 4px; background: #f9fbff; border: 1px solid #dde5fc; border-radius: 12px; }
+.onboarding-page .MuiButton-root { border-radius: 9px; font-size: 14px; line-height: 1.8; min-height: 36px; font-weight: 700; text-transform: none; }
+.onboarding-page .MuiButton-contained { color: #fff; border: 1px solid #538dff; background: linear-gradient(#5597ff, #1763ff 55%, #0740de); box-shadow: inset 0 1px 2px #ffffffb0, 0 3px 7px #1555e42b; }
+.onboarding-page .MuiButton-contained:hover { background: linear-gradient(#3984ff, #0848ec); }
+.onboarding-page .MuiButton-contained.Mui-disabled { background: #e1e7f4; color: #7a88a6; border-color: #d5dff1; box-shadow: none; }
+.onboarding-page .MuiButton-outlined { border-color: #c4d3fa; background: linear-gradient(#fff, #f0f4ff); color: #223e91; box-shadow: inset 0 1px 0 #fff; }
+.onboarding-page .MuiButton-startIcon { margin-inline: 0 6px; }
+.onboarding-page .MuiButton-startIcon svg { font-size: 20px; }
+.onboarding-page .MuiAlert-root { border-radius: 10px; padding: 3px 10px; font-size: 14px; line-height: 1.8; align-items: center; }
+.onboarding-page .MuiAlert-standardSuccess { color: #22623d; background: linear-gradient(100deg, #e2f7e7, #ccebdc); border: 1px solid #c4e6d0; }
+.onboarding-page .MuiAlert-standardError { color: #ae3156; background: #ffe9ef; border: 1px solid #f6cbd7; }
+.onboarding-page .MuiAlert-message { padding: 5px 0; }
+.onboarding-page .MuiInputLabel-root { position: static; transform: none; font-size: 14px; line-height: 1.8; color: #384878; margin-bottom: 4px; max-width: 100%; }
+.onboarding-page .MuiOutlinedInput-root { background: linear-gradient(#fff, #f5f7ff); border-radius: 7px; font-size: 14px; min-width: 0; }
+.onboarding-page .MuiInputBase-input { padding: 7px 10px; line-height: 1.8; }
+.onboarding-page .MuiOutlinedInput-notchedOutline { top: 0; border-color: #cad7f6; }
+.onboarding-page .MuiOutlinedInput-notchedOutline legend { display: none; }
+.onboarding-page .MuiFormHelperText-root { font-size: 12px; }
+.onboarding-page .MuiFormControlLabel-label { font-size: 14px; }
+.onboarding-page .MuiFormControlLabel-root { margin-inline: 0 8px; }
+.onboarding-page .MuiChip-root { font-size: 12px; height: 25px; border-radius: 9px; }
+.onboarding-page .MuiCheckbox-root { padding: 4px; margin-inline-end: 3px; }
+.onboarding-page .MuiCheckbox-root .MuiSvgIcon-root { font-size: 21px; }
+.onboarding-page .workflow-panel.MuiPaper-root { padding: 7px; border-radius: 19px; background: linear-gradient(135deg, #f9fbff, #e9f0ff); border: 1px solid #fff; box-shadow: inset 0 0 0 4px #ffffffb8, 0 4px 9px #3370d929; min-width: 0; }
+.onboarding-panel-heading { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; border-radius: 12px; padding: 9px 7px 11px; background: linear-gradient(to left, #dce6ff, #f1f4ff); min-width: 0; }
+.workflow-heading-title { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.workflow-heading-title h2 { font-size: 15px; font-weight: 900; line-height: 1.8; margin: 0; }
+.workflow-heading-title p { font-size: 12px; color: var(--workflow-muted); margin: 4px 0 0; line-height: 1.9; }
+.workflow-step { display: grid; place-items: center; flex-shrink: 0; width: 30px; height: 30px; border: 2px solid #fff; border-radius: 50%; color: white; font-size: 17px; background: linear-gradient(135deg, #7facff, #1257f1 75%); box-shadow: 0 3px 8px #3565d232, inset 0 1px 1px #fff9; }
+.onboarding-panel-heading > .MuiChip-root { flex-shrink: 0; color: #305cec; background: #f6f8ff; border-color: #c6d6ff; font-size: 11px; height: 23px; }
+.onboarding-panel-heading > .MuiChip-root .MuiChip-icon { color: #3563ff; font-size: 17px; }
+.workflow-panel-body { display: flex; flex-direction: column; gap: 14px; padding: 12px 6px 8px; min-width: 0; }
+.workflow-section-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; margin: 0; color: #1d2a5a; line-height: 1.9; }
+.workflow-section-title > svg { color: #3965ff; font-size: 20px; flex-shrink: 0; }
+.workflow-applicant-grid { display: grid; grid-template-columns: minmax(0, 460px); gap: 16px; align-items: stretch; }
+.workflow-applicant-grid.has-lookup { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 1040px; }
+.workflow-applicant-grid.has-resume { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.workflow-applicant-grid.has-office { grid-template-columns: minmax(300px, .9fr) minmax(0, 1.6fr); }
+.workflow-user-identity { padding: 10px; border: 1px solid #dce5fc; background: #f7f9ffb3; border-radius: 12px; }
+.workflow-user-identity > .workflow-section-title { justify-content: flex-start; margin-bottom: 6px; font-size: 14px; }
+.workflow-user-identity > div { display: flex; gap: 9px; align-items: center; }
+.workflow-user-identity .MuiAvatar-root { width: 46px; height: 46px; border: 3px solid white; }
+.workflow-user-identity > div > div:nth-child(2) { flex: 1; min-width: 0; }
+.workflow-user-identity strong { display: block; font-size: 14px; }
+.workflow-user-identity small { display: block; font-size: 11px; color: #6d7799; line-height: 1.8; margin-top: 3px; }
+.onboarding-page .workflow-role-chip { color: #2c7b4b; background: #d9f3e3; border-radius: 11px; font-size: 11px; }
+.workflow-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.workflow-choice { display: flex; flex-direction: column; align-items: center; padding: 12px 9px; border: 1px solid #cddcff; border-radius: 12px; text-align: center; background: linear-gradient(135deg, #f9fbff, #e6edff); min-width: 0; box-shadow: 0 3px 6px #4569bc0b; }
+.workflow-choice.office { border-color: #ead4e7; background: linear-gradient(135deg, #fffafd, #f8e7f3); }
+.workflow-choice > span { width: 47px; height: 47px; display: grid; place-items: center; border-radius: 50%; background: #dce6ff; color: #1f55f0; border: 4px solid #f6f9ff; }
+.workflow-choice.office > span { color: #dc5b99; background: #ffdeed; border-color: #fff7fb; }
+.workflow-choice > span > svg { font-size: 29px; }
+.workflow-choice h3 { font-size: 14px; font-weight: 800; line-height: 1.9; margin: 8px 0 3px; }
+.workflow-choice p { font-size: 12px; color: #657394; line-height: 1.9; margin: 0 0 14px; }
+.onboarding-page .workflow-choice .MuiButton-root { font-size: 12px; padding: 3px 8px; min-height: 30px; width: 100%; margin-top: auto; color: #2353ef; background: #ccdcff; }
+.onboarding-page .workflow-choice.office .MuiButton-root { background: #f2cce3; color: #923475; }
+.workflow-choice.is-chosen { outline: 1px solid #819ef8; outline-offset: 1px; }
+.workflow-history { border: 1px solid #dce4fa; border-radius: 12px; background: #f8faffaa; padding: 10px; }
+.workflow-history > h3 { margin-bottom: 9px; }
+.workflow-history-row { display: flex; align-items: center; gap: 7px; padding: 10px 5px; border-top: 1px solid #e3e9fa; font-size: 12px; }
+.workflow-history-row > svg { font-size: 19px; color: #3970ff; flex-shrink: 0; }
+.workflow-history-row > strong { font-size: 12px; font-weight: 600; flex: 1; }
+.workflow-history-row time { font-size: 11px; color: #6b799c; white-space: nowrap; }
+.workflow-history-row .MuiChip-root { font-size: 10px; }
+.workflow-status { border: 1px solid transparent; }
+.onboarding-page .status-pending { background: #fff0cf; color: #a56f14; }
+.onboarding-page .status-await_pay { background: #e4eeff; color: #3167d4; }
+.onboarding-page .status-approved { background: #d9f3e5; color: #267d53; }
+.onboarding-page .status-rejected { background: #ffe3eb; color: #cf3b5c; }
+.onboarding-page .status-fix { background: #f0e5ff; color: #9257d8; }
+.workflow-empty { text-align: center; color: #7a86a6; padding: 12px 4px; }
+.workflow-lookup-panel .MuiStepper-root { border: 1px solid #d6e2fc; background: #f7f9ff; border-radius: 11px; padding: 12px 0; margin-bottom: 0; }
+.workflow-lookup-panel .MuiStepLabel-label { font-size: 12px; margin-top: 5px; line-height: 1.8; }
+.workflow-lookup-panel .MuiStepIcon-root { font-size: 23px; color: #c8d3e9; }
+.workflow-lookup-panel .MuiStepIcon-root.Mui-active, .workflow-lookup-panel .MuiStepIcon-root.Mui-completed { color: #2463ff; }
+.workflow-lookup-panel .MuiStepConnector-root { top: 11px; }
+.workflow-code-section { padding: 12px; border: 1px solid #dae3fc; border-radius: 12px; background: #f9fbffb3; display: flex; flex-direction: column; gap: 11px; }
+.workflow-code-section p { margin: 0; font-size: 12px; color: #6c789a; }
+.workflow-office { padding: 13px 12px; border: 1px solid #d0dcfa; border-radius: 12px; background: linear-gradient(135deg, #f9fbff, #e5edff); }
+.workflow-office-name { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.workflow-office-name .MuiAvatar-root { width: 53px; height: 53px; border-radius: 9px; border: 2px solid white; color: #4567b9; background: #d8e4ff; }
+.workflow-office-name strong { flex: 1; font-size: 19px; font-weight: 900; text-align: center; }
+.workflow-office-facts { display: flex; flex-direction: column; gap: 5px; }
+.workflow-office-facts p { display: flex; align-items: center; gap: 7px; padding: 4px 6px; margin: 0; font-size: 12px; border-radius: 5px; background: #e4ebfc; }
+.workflow-office-facts svg { font-size: 17px; flex-shrink: 0; color: #455c98; }
+.workflow-office-facts p span { display: inline-block; height: 10px; border-left: 1px solid #a3b5dd; }
+.workflow-lookup-actions { display: flex; gap: 9px; margin-top: 16px; }
+.workflow-lookup-actions .MuiButton-root { flex: 1; font-size: 13px; white-space: nowrap; }
+.workflow-resume-identity { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 10px; }
+.workflow-resume-basic { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.workflow-resume-basic .MuiFormControl-root { flex-direction: row; align-items: center; gap: 7px; }
+.workflow-resume-basic .MuiInputLabel-root { width: 83px; flex-shrink: 0; margin: 0; font-size: 12px; }
+.workflow-resume-basic .MuiInputBase-root { flex: 1; font-size: 13px; }
+.workflow-resume-basic .MuiInputBase-input { padding: 4px 6px; min-width: 0; }
+.workflow-resume-office { display: flex; flex-direction: column; gap: 9px; align-items: center; }
+.workflow-office.compact { padding: 8px 4px; width: 100%; }
+.workflow-office.compact .workflow-office-name { flex-direction: column; gap: 5px; margin: 0; }
+.workflow-office.compact strong { font-size: 12px; line-height: 1.8; }
+.workflow-office.compact .MuiAvatar-root { width: 48px; height: 45px; }
+.workflow-chip-field, .workflow-skills { border: 0; padding: 0; margin: 0; min-width: 0; }
+.workflow-chip-field legend, .workflow-skills legend { font-size: 14px; font-weight: 700; padding: 0 0 5px; }
+.workflow-chip-field em, .workflow-skills em { color: #e06083; font-style: normal; }
+.workflow-chip-field > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.workflow-chip-field .MuiChip-root { flex: 1; min-width: 0; background: linear-gradient(#fff, #f0f4ff); border: 1px solid #cbd7f5; color: #657399; font-size: 12px; height: 29px; }
+.workflow-chip-field .MuiChip-label { padding-inline: 6px; }
+.workflow-chip-field .MuiChip-root.chosen { color: #345be6; border-color: #a8bdff; background: #e9efff; box-shadow: inset 0 1px 0 #fff; }
+.workflow-chip-field .MuiChip-icon { font-size: 17px; color: #3266ff; }
+.workflow-skills > div { display: flex; flex-wrap: wrap; justify-content: space-between; }
+.workflow-skills .MuiFormControlLabel-label { font-size: 12px; }
+.workflow-areas .MuiAutocomplete-root .MuiOutlinedInput-root { padding: 2px 5px; }
+.workflow-areas .MuiChip-root { height: 24px; background: #e9efff; color: #3d5cd0; }
+.application-upload-field > label { display: block; font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+.application-upload { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px dashed #94aff4; padding: 10px; border-radius: 7px; color: #8394c0; background: #f8faff; min-height: 55px; }
+.application-upload > svg { font-size: 27px; flex-shrink: 0; color: #6b8cff; }
+.application-upload span { font-size: 12px; line-height: 1.7; }
+.application-upload small { display: block; font-size: 11px; color: #8b98b6; }
+.application-upload input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.application-upload:focus-within { outline: 2px solid #5b8aff; outline-offset: 2px; }
+.workflow-uploaded-file { display: flex; gap: 8px; align-items: center; padding: 5px 8px; border: 1px solid #c6d6f9; border-radius: 7px; background: linear-gradient(#fff, #eef3ff); margin-top: 8px; }
+.workflow-uploaded-file > svg { font-size: 23px; color: #e46d90; }
+.workflow-uploaded-file > div { flex: 1; min-width: 0; }
+.workflow-uploaded-file bdi { display: block; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workflow-uploaded-file small { display: block; font-size: 11px; color: #8b98b6; }
+.workflow-uploaded-file .MuiIconButton-root { color: #ed627d; }
+.application-upload-error { color: #b82e57; font-size: 12px; line-height: 1.8; }
+.workflow-office-profile { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 14px; align-items: start; }
+.workflow-office-profile > div:last-child { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.workflow-logo-upload .application-upload { flex-direction: column; min-height: 125px; text-align: center; }
+.workflow-logo-upload .application-upload > img { width: 70px; height: 65px; object-fit: contain; border-radius: 8px; }
+.onboarding-location { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.workflow-office-more { border: 1px solid #d9e2fb; border-radius: 8px; background: #f7faff; padding: 9px 11px; font-size: 13px; }
+.workflow-office-more summary { cursor: pointer; color: #526597; line-height: 1.9; }
+.workflow-office-more-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.workflow-office-more-fields .application-upload-field { grid-column: 1 / -1; }
+.onboarding-plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.onboarding-page .onboarding-plan { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 11px 7px 8px; border: 1px solid #bdd5ff; background: linear-gradient(135deg, #fff, #e9f0ff); color: #2c5bda; text-align: center; border-radius: 12px; min-width: 0; }
+.onboarding-page .onboarding-plan.free { color: #42915f; border-color: #b9d4bf; background: linear-gradient(#fff, #e6f4e9); }
+.onboarding-page .onboarding-plan.diamond { color: #9654df; border-color: #d5b8ff; background: linear-gradient(#fff, #eee3ff); }
+.onboarding-page .onboarding-plan[aria-pressed=true] { outline: 2px solid currentColor; outline-offset: 1px; }
+.workflow-plan-name { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.workflow-plan-name svg { font-size: 22px; }
+.workflow-plan-name strong { font-size: 17px; }
+.workflow-plan-price { font-size: 12px; color: #263964; line-height: 1.8; }
+.workflow-plan-caption { font-size: 11px; font-weight: 400; line-height: 1.8; color: #6d7594; }
+.workflow-plan-action { border: 1px solid #bfd4ff; border-radius: 6px; background: #dce9ff; padding: 3px; margin-top: auto; font-size: 11px; }
+.onboarding-plan.free .workflow-plan-action { border-color: #e9d080; color: #8c6718; background: #ffefb8; }
+.onboarding-plan.diamond .workflow-plan-action { border-color: #c49cf5; color: #fff; background: linear-gradient(#c08cff, #8a44ed); }
+.application-comparison-scroll { overflow-x: auto; min-width: 0; }
+.application-comparison-scroll table { border-collapse: collapse; width: 100%; font-size: 12px; table-layout: fixed; }
+.application-comparison-scroll caption { text-align: right; font-size: 0; height: 0; overflow: hidden; }
+.application-comparison-scroll th, .application-comparison-scroll td { text-align: center; padding: 7px 4px; border-bottom: 1px solid #e2e8f8; font-weight: 500; }
+.application-comparison-scroll th:first-child { width: 40%; text-align: right; font-weight: 600; color: #51648b; }
+.application-comparison-scroll thead { background: linear-gradient(#f3f6ff, #e2eaff); color: #3566e4; }
+.application-comparison-scroll .plan-diamond { background: #eee1ff; color: #9754df; }
+.application-comparison-scroll .plan-free { background: #e3f4e7; color: #4b9b66; }
+.application-comparison-scroll svg { font-size: 17px; color: #9ba8c5; vertical-align: middle; }
+.application-comparison-scroll svg.feature-enabled { color: #46a76d; }
+.workflow-terms-copy, .workflow-renew-form > small { color: #7582a3; font-size: 12px; line-height: 1.9; }
+.workflow-review-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(310px, 1fr); gap: 12px; padding-top: 9px; align-items: start; }
+.workflow-review-list, .workflow-review-detail { padding: 11px; border: 1px solid #d9e4fb; border-radius: 12px; background: linear-gradient(135deg, #fdfdffb8, #f0f5ffb8); min-width: 0; }
+.workflow-review-tabs { display: flex; gap: 7px; margin-bottom: 12px; flex-wrap: wrap; }
+.workflow-review-tabs .MuiButton-root { min-height: 29px; padding: 3px 12px; font-size: 13px; }
+.workflow-review-filters { display: flex; align-items: end; gap: 8px; margin-bottom: 8px; }
+.workflow-review-filters .MuiTextField-root { flex: 1; min-width: 0; }
+.workflow-review-filters .MuiTextField-root:last-child { flex: 1.4; }
+.workflow-review-filters .MuiInputLabel-root { font-size: 12px; }
+.workflow-review-filters .MuiInputBase-root { font-size: 12px; }
+.workflow-table-scroll { overflow: auto; }
+.workflow-table { border-collapse: separate; border-spacing: 0 6px; width: 100%; min-width: 570px; font-size: 12px; }
+.workflow-table th { padding: 7px 5px; background: linear-gradient(#f5f7ff, #dfe7fa); font-weight: 700; white-space: nowrap; }
+.workflow-table td { padding: 5px; background: #f4f7ff; }
+.workflow-table tr:nth-child(even) td { background: #edf2ff; }
+.workflow-table .is-selected td { background: #dfe8ff; border-top: 1px solid #bfd1ff; border-bottom: 1px solid #bfd1ff; }
+.workflow-table td:first-child, .workflow-table th:first-child { border-radius: 0 8px 8px 0; }
+.workflow-table td:last-child, .workflow-table th:last-child { border-radius: 8px 0 0 8px; }
+.workflow-table-person { display: flex; gap: 7px; align-items: center; white-space: nowrap; }
+.workflow-table-person .MuiAvatar-root { width: 29px; height: 29px; border: 2px solid white; font-size: 13px; }
+.workflow-table-person strong { font-size: 12px; font-weight: 700; }
+.workflow-table time { font-size: 11px; white-space: nowrap; }
+.workflow-table .MuiChip-root { font-size: 10px; height: 21px; }
+.workflow-table td:nth-child(2) .MuiChip-root { color: #476cae; border: 1px solid #b9ccf6; background: #f7faff; }
+.workflow-table .MuiButton-root { min-width: 24px; min-height: 24px; padding: 0; font-size: 20px; line-height: 1; border: 1px solid #d6e1fc; background: #f8faff; color: #3e579a; }
+.workflow-office-code { display: block; max-width: 95px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+.workflow-review-detail > .workflow-section-title { justify-content: space-between; flex-direction: row-reverse; font-size: 14px; margin-bottom: 9px; }
+.workflow-review-detail-body { display: grid; grid-template-columns: minmax(0, 1fr) 112px; gap: 12px; }
+.workflow-review-person { display: flex; align-items: center; gap: 10px; }
+.workflow-review-person .MuiAvatar-root { width: 46px; height: 46px; border: 3px solid white; }
+.workflow-review-person > div:last-child { display: flex; flex-direction: column; gap: 4px; }
+.workflow-review-person strong { font-size: 14px; }
+.workflow-review-person span { font-size: 12px; }
+.workflow-review-person .MuiChip-root { font-size: 10px; background: #f8e9df; color: #966b4e; }
+.workflow-review-contact { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: #50648d; padding: 8px 0; }
+.workflow-review-copy > .workflow-section-title { font-size: 14px; margin: 4px 0; }
+.workflow-resume-summary { margin: 0; color: #56698f; white-space: pre-wrap; max-height: 95px; overflow: auto; font-size: 12px !important; }
+.workflow-review-tags { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 9px; font-size: 12px; }
+.workflow-review-tags .MuiChip-root { font-size: 10px; height: 22px; background: #e8edfc; color: #61739d; }
+.workflow-review-facts { margin: 9px 0; font-size: 12px; }
+.workflow-review-facts > div { display: flex; gap: 8px; line-height: 1.9; margin-top: 3px; }
+.workflow-review-facts dt { font-weight: 700; white-space: nowrap; }
+.workflow-review-facts dd { margin: 0; color: #596a90; overflow-wrap: anywhere; }
+.workflow-review-aside { align-self: center; padding: 14px 8px; border-radius: 10px; background: linear-gradient(140deg, #c3d5ff, #e2e8ff); text-align: center; }
+.workflow-review-aside p { font-size: 12px; line-height: 1.9; margin: 8px 0 0; }
+.workflow-aside-icon { display: grid; place-items: center; height: 42px; width: 42px; border-radius: 50%; margin: auto; background: #e3ebff; color: #265aff; }
+.workflow-aside-icon svg { font-size: 28px; }
+.workflow-review-note { margin: 10px 0 !important; }
+.workflow-review-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.workflow-review-actions .MuiButton-root { flex: 1; font-size: 12px; min-height: 32px; padding: 3px 7px; white-space: nowrap; }
+.onboarding-page .workflow-danger { color: #e05c79; background: #fff0f3; border: 1px solid #f2b7c8; }
+.onboarding-page .workflow-warning { color: #a67c28; background: #fff1d6; border: 1px solid #eaca84; }
+.workflow-progress-box { display: flex; align-items: center; gap: 12px; margin: 10px 0; padding: 10px; background: #f2f6ff; border-radius: 9px; }
+.workflow-progress-box > strong { display: grid; place-items: center; width: 70px; height: 70px; flex-shrink: 0; border-radius: 50%; background: radial-gradient(closest-side, white 77%, transparent 80%), conic-gradient(#5fbf6b var(--progress), #dbe2f7 0); font-size: 23px; }
+.workflow-progress-box > span { font-size: 12px; }
+.workflow-documents .workflow-section-title { font-size: 13px; }
+.workflow-documents p, .workflow-documents a { display: flex; align-items: center; gap: 5px; font-size: 12px; margin: 3px 0; }
+.workflow-documents svg { font-size: 16px; color: #4cab64; }
+.workflow-review-aside .workflow-section-title { font-size: 13px; }
+.workflow-review-aside p { display: flex; align-items: flex-start; gap: 4px; text-align: start; }
+.workflow-review-aside p svg { font-size: 16px; flex-shrink: 0; color: #8d9cbd; }
+.workflow-review-aside p.document-present svg { color: #4ca761; }
+.workflow-expanded-resume { border: 1px dashed #c6d6f9; border-radius: 8px; padding: 10px; margin-top: 10px; }
+.workflow-expanded-resume p { white-space: pre-wrap; font-size: 13px; margin: 5px 0; }
+.workflow-review-placeholder { padding: 40px 16px; text-align: center; color: #8c9cbd; }
+.workflow-review-placeholder > svg { font-size: 45px; }
+.onboarding-page .workflow-plan-admin { margin-top: 9px; font-size: 12px; }
+.workflow-subscription-panel { max-width: 740px; width: 100%; }
+.workflow-current-subscription { display: flex; align-items: center; gap: 14px; padding: 12px; background: #f9fbffb3; border: 1px solid #dae5fc; border-radius: 12px; }
+.workflow-current-subscription > .MuiAvatar-root { width: 75px; height: 75px; border: 3px solid white; border-radius: 12px; background: #dfe9ff; color: #3768ce; }
+.workflow-current-subscription > div:nth-child(2) { flex: 1; min-width: 0; }
+.workflow-current-subscription strong { font-size: 17px; }
+.workflow-current-subscription dl { font-size: 13px; margin: 7px 0 0; color: #5a6b90; }
+.workflow-current-subscription dl > div { display: flex; gap: 7px; line-height: 1.9; }
+.workflow-current-subscription dd { margin: 0; }
+.workflow-current-subscription > .MuiChip-root { align-self: flex-start; }
+.workflow-subscription-management { border: 1px solid #cad8fa; border-radius: 9px; padding: 12px; background: #f4f8ff; }
+.workflow-subscription-management summary { cursor: pointer; font-size: 14px; font-weight: 800; color: #315be5; }
+.workflow-subscription-management > .MuiFormControl-root { margin-top: 12px; }
+.workflow-subscription-management p { font-size: 13px; }
+.workflow-renew-form { display: flex; flex-direction: column; gap: 9px; padding: 12px; border: 1px solid #c8d8ff; border-radius: 9px; background: #f5f8ff; }
+.workflow-payment { display: flex; flex-direction: column; gap: 12px; padding: 18px !important; max-width: 740px; }
+.workflow-payment p { white-space: pre-wrap; margin: 0; }
+.application-journey { display: flex; align-items: center; gap: 14px; border: 1px solid #d4e1ff; border-radius: 23px; padding: 16px 14px; background: linear-gradient(135deg, #f9fbff, #e4edff); box-shadow: 0 4px 9px #3b6dbd15; margin-top: 4px; }
+.application-journey > strong { font-size: 15px; border-radius: 16px; background: linear-gradient(#8aa8e2, #4262a0); color: white; padding: 7px 13px; white-space: nowrap; }
+.application-journey > div { flex: 1; display: flex; align-items: center; gap: 9px; position: relative; min-width: 0; }
+.application-journey > div + div::before { content: '‹'; font-size: 23px; color: #7896d1; margin-inline-end: 5px; }
+.application-journey > div > span { display: grid; place-items: center; flex-shrink: 0; width: 37px; height: 37px; border-radius: 50%; border: 2px solid #fff; color: #3d78fa; background: #e4ecff; box-shadow: 0 3px 7px #447acc18; }
+.application-journey > div:nth-child(4) > span { color: #deac4a; background: #fff1d3; }
+.application-journey p { margin: 0; font-size: 12px; }
+.application-journey p small { display: block; font-size: 11px; color: #6a7ca5; }
+.workflow-loading { padding: 40px; text-align: center; }
+.onboarding-page button:focus-visible, .onboarding-page a:focus-visible, .onboarding-page summary:focus-visible { outline: 2px solid #597fff; outline-offset: 3px; }
+@media (max-width: 1350px) {
+    .workflow-applicant-grid.has-resume { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .workflow-applicant-grid.has-resume .workflow-user-panel { grid-column: 1 / -1; }
+    .workflow-applicant-grid.has-resume .workflow-user-panel .workflow-panel-body { display: grid; grid-template-columns: 1fr 1fr; }
+    .workflow-applicant-grid.has-resume .workflow-user-panel .workflow-history { grid-column: 1 / -1; }
+    .workflow-review-grid { grid-template-columns: minmax(0, 1fr); }
+    .workflow-review-detail-body { grid-template-columns: minmax(0, 1fr) 180px; }
+    .application-journey { flex-wrap: wrap; }
+    .application-journey > strong { width: 100%; text-align: center; background: none; color: #4e6d9f; padding: 0; }
 }
-.onboarding-page .onboarding-review-list, .onboarding-page .onboarding-review-detail {
-    padding: 16px;
-    border-radius: 16px;
+@media (max-width: 800px) {
+    .workflow-hero-brand { min-width: 125px; padding: 15px 10px; gap: 6px; }
+    .workflow-hero-brand strong { font-size: 20px; }
+    .workflow-hero-brand > svg { width: 39px; }
+    .workflow-hero-brand small { font-size: 9px; }
+    .workflow-hero h1 { font-size: 18px; }
+    .workflow-hero p { font-size: 12px; }
+    .workflow-hero-copy { padding: 12px; }
+    .workflow-applicant-grid.has-office { grid-template-columns: minmax(0, 1fr); }
+    .workflow-applicant-grid.has-lookup { grid-template-columns: minmax(0, 1fr); }
+    .application-journey > div { min-width: 28%; }
 }
-.onboarding-review-list > button {
-    justify-content: space-between;
-    margin-block-start: 8px;
+@media (max-width: 600px) {
+    .onboarding-page { padding: 0 5px 16px; gap: 14px; }
+    .workflow-hero { min-height: 115px; border-radius: 16px; }
+    .workflow-hero-brand { display: none; }
+    .workflow-hero-copy { max-width: 90%; }
+    .workflow-hero h1 { font-size: 19px; }
+    .workflow-applicant-grid.has-resume { grid-template-columns: minmax(0, 1fr); }
+    .workflow-applicant-grid.has-resume .workflow-user-panel .workflow-panel-body { display: flex; }
+    .workflow-heading-title h2 { font-size: 14px; }
+    .workflow-heading-title p { font-size: 11px; }
+    .workflow-step { width: 27px; height: 27px; font-size: 15px; }
+    .onboarding-panel-heading { gap: 5px; padding: 8px 4px; }
+    .onboarding-panel-heading > .MuiChip-root { font-size: 10px; }
+    .workflow-panel-body { padding: 11px 4px 5px; }
+    .workflow-history-row { flex-wrap: wrap; }
+    .workflow-review-detail-body { grid-template-columns: minmax(0, 1fr) 105px; }
+    .workflow-review-list, .workflow-review-detail { padding: 9px; }
+    .workflow-review-filters { flex-wrap: wrap; }
+    .workflow-review-filters .MuiTextField-root { flex-basis: 40%; }
+    .workflow-review-filters .MuiTextField-root:last-child { flex-basis: 100%; }
+    .workflow-office-profile { grid-template-columns: 90px minmax(0, 1fr); gap: 10px; }
+    .onboarding-location { gap: 8px; }
+    .onboarding-page .MuiInputBase-input { font-size: 16px; }
+    .workflow-resume-basic .MuiInputBase-input { font-size: 14px; }
+    .workflow-current-subscription { gap: 8px; padding: 9px; }
+    .workflow-current-subscription strong { font-size: 14px; }
+    .workflow-current-subscription > .MuiAvatar-root { width: 55px; height: 55px; }
+    .workflow-plan-name strong { font-size: 15px; }
+    .workflow-plan-price { font-size: 11px; }
+    .workflow-plan-caption { font-size: 10px; }
+    .workflow-plan-action { font-size: 10px; }
+    .application-journey { padding: 12px; gap: 12px; }
+    .application-journey > div { min-width: 42%; }
+    .application-journey > div + div::before { display: none; }
+    .application-journey p { font-size: 11px; }
+    .workflow-office-more-fields { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-width: 780px) {
-    .onboarding-review {grid-template-columns: minmax(0, 1fr)}
-}
-.onboarding-location {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
-    gap: 12px;
-}
+@media (prefers-reduced-motion: reduce) { .onboarding-page * { transition: none !important; animation: none !important; } }
+.onboarding-page .onboarding-plan.Mui-disabled { opacity: .9; color: #527193; }
+.onboarding-page .onboarding-plan.Mui-disabled .workflow-plan-action { background: #eef3fb; color: #7a8ba4; border-color: #d4deef; }
 
-.onboarding-page {
-    background: radial-gradient(ellipse at top, #eff2ff 0%, transparent 65%);
-    padding: 6px;
-}
-.onboarding-page .MuiPaper-root {
-    border-color: #dbe2ff;
-    background-image: linear-gradient(145deg, #ffffffef, #f3f5ff9c);
-    box-shadow: 0 5px 16px #3153aa0b, inset 0 1px 0 #fff;
-}
-.onboarding-page .MuiButton-contained {
-    background: linear-gradient(180deg, #3c80ff, #0952ff 75%, #0345df);
-    box-shadow: 0 4px 10px #246bfd30, inset 0 1px 2px #ffffff80;
-    border-radius: 9px;
-}
-.onboarding-page .MuiOutlinedInput-root {border-radius: 9px; background: #ffffffb0}
-.onboarding-page .MuiOutlinedInput-notchedOutline {border-color: #dbe2f8}
-.onboarding-page .MuiInputLabel-root {font-size: 13px}
-.onboarding-page .MuiTypography-h6 {font-size: 16px; font-weight: 800; color: #15225a}
-.onboarding-page .onboarding-choice {
-    align-items: center;
-    text-align: center;
-    min-height: 235px;
-    justify-content: space-between;
-}
-.onboarding-choice > svg {
-    padding: 12px;
-    box-sizing: content-box;
-    border-radius: 50%;
-    box-shadow: inset 0 0 0 6px #ffffff80;
-}
-.onboarding-choice.expert > svg {background: #e1eaff}
-.onboarding-choice.office > svg {background: #ffe0ef}
-.onboarding-choice.office .MuiButton-root {background: #f6c5df; color: #8d2865; box-shadow: none}
-.onboarding-page .onboarding-plan {border-color: var(--plan-accent); color: var(--plan-accent)}
-.onboarding-page .onboarding-plan[aria-pressed=true] {background: color-mix(in srgb, var(--plan-accent) 12%, white); box-shadow: inset 0 0 0 1px var(--plan-accent)}
-.onboarding-plan strong {font-size: 19px}
-.onboarding-plan span {font-size: 12px}
-.onboarding-panel-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px;
-    border-radius: 10px;
-    background: linear-gradient(100deg, #f9fbff, #e3eaff);
-    border-bottom: 1px solid #c9d7ff;
-}
-.onboarding-page .onboarding-review {direction: ltr; grid-template-columns: minmax(260px, .85fr) minmax(0, 1.5fr)}
-.onboarding-review-list {grid-column: 2; grid-row: 1; direction: rtl}
-.onboarding-review-detail {grid-column: 1; grid-row: 1; direction: rtl}
-.onboarding-review .MuiTableCell-root {font-size: 12px; border-color: #e4eaff}
-.onboarding-review .MuiTableHead-root {background: #f0f4ff}
-.onboarding-review .MuiChip-root {font-size: 11px}
-.onboarding-review-progress {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    padding: 12px;
-    width: 100%;
-    box-sizing: border-box;
-    border-radius: 12px;
-    background: #eef2ff;
-}
-.onboarding-review-progress strong {
-    border: 5px solid #a8bfff;
-    border-radius: 50%;
-    min-width: 48px;
-    height: 48px;
-    display: grid;
-    place-items: center;
-    color: #255bce;
-}
-@media (max-width: 900px) {
-    .onboarding-page .onboarding-review {grid-template-columns: minmax(0, 1fr)}
-    .onboarding-review-list {grid-column: 1; grid-row: 1}
-    .onboarding-review-detail {grid-column: 1; grid-row: 2}
-}
-.onboarding-page > .MuiStack-root:first-child {
-    min-height: 130px;
-    margin-bottom: 0;
-}
-.onboarding-page > .MuiStack-root:first-child img {
-    height: 150px;
-    width: 235px;
-}
-.onboarding-page > .MuiStack-root:first-child h1 {font-size: 25px}
+.onboarding-page .MuiOutlinedInput-root.MuiInputBase-multiline { padding: 8px 10px; }
+.onboarding-page .MuiInputBase-inputMultiline { padding: 0; }
+.workflow-resume-form { gap: 10px; }

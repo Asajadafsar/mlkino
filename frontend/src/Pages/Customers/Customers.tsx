@@ -650,7 +650,7 @@ export function Customers({
                             name="employmentStatus"
                             setData={setCustomers}
                             resource={resource}
-                            label="وضعیت اشتغال"
+                            label="وضعیت اشغال"
                             defaultValue={customers.employmentStatus}
                             options={toSelectOptions(['تخلیه', 'مالک', 'مستاجر'])}
                         />,

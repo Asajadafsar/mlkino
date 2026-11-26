@@ -16,9 +16,33 @@ from .settings_api import envelope, is_superadmin, http_url
 FLOORS = {'طبقه اول', 'طبقه آخر', 'پیلوت', 'فرقی نمی‌کند', 'سایر طبقات'}
 NUMBERS = {'area','totalPrice','pricePerMeter','rent','mortgagePrice','monthlyRent','latitude','longitude','buildYear','roomCount','totalFloor','floor','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','monthlyCharge','monthlyChargeFrom','monthlyChargeTo'}
 FIELDS = NUMBERS | {'contractType','propertyType','landUse','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','ownerNationalId','ownerNationalCode','customerName','customerPhone','customerPhone2','customerJob','customerNationalId','customerNationalCode','description','internalNote','images','virtualTourLink','floorPreferences','requesterType','title','work_phone','workPhone','virtualTourUrl','otherLink','external_links'}
+PARTY_IDS = {'ownerNationalId', 'ownerNationalCode', 'customerNationalId', 'customerNationalCode'}
+FIELDS -= PARTY_IDS
+PROPERTY_TYPES = {'آپارتمان', 'باغ ویلا', 'ساختمان کلنگی', 'ساختمان ویلایی', 'تجاری', 'اداری', 'ساختمان یکجا', 'زمین', 'صنعتی', 'پیش فروش'}
+LAND_USES = {'مسکونی', 'تجاری', 'اداری', 'کشاورزی', 'باغی', 'اوقاف', 'مسکن ملی'}
+LEGACY_TYPES = {'ویلا': 'ساختمان ویلایی', 'ویلایی': 'ساختمان ویلایی', 'سوله': 'صنعتی', 'کشاورزی': 'زمین'}
+DIRECTIONS = {'شمال': 'شمالی', 'جنوب': 'جنوبی'}
 
 def normalize(value):
-    return str('' if value is None else value).translate(str.maketrans('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩يك','01234567890123456789یک')).replace('\u200c',' ').strip().lower()
+    return str('' if value is None else value).translate(str.maketrans('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩يك−','01234567890123456789یک-')).replace('\u200c',' ').strip().lower()
+
+def property_type(value):
+    normalized = normalize(value)
+    return LEGACY_TYPES.get(normalized, normalized)
+
+def record_field(data, key):
+    if key == 'propertyType':
+        return property_type(data.get(key))
+    if key == 'landUse' and normalize(data.get('propertyType')) == 'کشاورزی':
+        return data.get(key) or 'کشاورزی'
+    if key == 'direction':
+        value = data.get(key)
+        return DIRECTIONS.get(normalize(value), value)
+    return data.get(key)
+
+def require_estate_write(user):
+    if is_superadmin(user):
+        raise PermissionDenied('دسترسی سوپرادمین در این بخش فقط برای مشاهده است.')
 
 def scope(user):
     qs = PropertyRecord.objects.all()
@@ -39,13 +63,30 @@ def validate_payload(request, kind, previous=None):
         except (TypeError,ValueError): raise ValidationError('اطلاعات فرم معتبر نیست.')
     else: incoming=request.data
     if not isinstance(incoming,dict): raise ValidationError('اطلاعات فرم معتبر نیست.')
-    data={**(previous or {}), **{key:value for key,value in incoming.items() if key in FIELDS}}
+    data={**{key:value for key,value in (previous or {}).items() if key not in PARTY_IDS}, **{key:value for key,value in incoming.items() if key in FIELDS}}
     for key in (('contractType','propertyType') if incoming.get('publicationStatus')=='draft' else ('contractType','propertyType','city')):
         if not isinstance(data.get(key),str) or not data[key].strip(): raise ValidationError({key:'این فیلد الزامی است.'})
     if data['contractType'] not in ('فروش','رهن و اجاره'): raise ValidationError({'contractType':'نوع معامله معتبر نیست.'})
     for key in (FIELDS-NUMBERS-{'district','neighborhood','amenities','images','virtualTourLink','external_links','floorPreferences'}) & data.keys():
         if data[key] is None: data[key]=''
         if not isinstance(data[key],str) or len(data[key])>10000: raise ValidationError({key:'متن معتبر وارد کنید.'})
+    land_use = record_field(data, 'landUse')
+    data['propertyType'] = property_type(data['propertyType'])
+    if data['propertyType'] not in PROPERTY_TYPES and data['propertyType'] != property_type((previous or {}).get('propertyType')):
+        raise ValidationError({'propertyType':'نوع ملک معتبر انتخاب کنید.'})
+    if data['propertyType'] == 'زمین' and land_use:
+        if normalize(land_use) not in LAND_USES:
+            raise ValidationError({'landUse':'کاربری زمین معتبر انتخاب کنید.'})
+        data['landUse'] = normalize(land_use)
+    else:
+        data.pop('landUse', None)
+    direction = record_field(data, 'direction')
+    if direction and direction not in ('شمالی', 'جنوبی') and direction != (previous or {}).get('direction'):
+        raise ValidationError({'direction':'جهت شمالی یا جنوبی انتخاب کنید.'})
+    if direction:
+        data['direction'] = direction
+    if normalize(data.get('heating')).replace(' ', '') == 'کولرآبی':
+        data.pop('heating', None)
     links=data.get('virtualTourLink',{})
     if links and (not isinstance(links,dict) or any(k not in ('eitaa','telegram','instagram') or not isinstance(v,str) or v and not http_url(v) for k,v in links.items())): raise ValidationError({'virtualTourLink':'لینک تور مجازی باید یک نشانی وب معتبر باشد.'})
     if data.get('workPhone'):data['work_phone']=data['workPhone']
@@ -68,8 +109,13 @@ def validate_payload(request, kind, previous=None):
         if value in ('',None): data.pop(key);continue
         try: number=float(normalize(value).replace(',',''))
         except (ValueError,TypeError): raise ValidationError({key:'عدد معتبر وارد کنید.'})
-        if not math.isfinite(number) or number<0 or number>1e16: raise ValidationError({key:'عدد خارج از محدوده است.'})
+        if not math.isfinite(number) or abs(number)>1e16 or (number<0 and key!='floor'): raise ValidationError({key:'عدد خارج از محدوده است.'})
+        if key in ('floor', 'totalFloor') and not number.is_integer():
+            raise ValidationError({key:'شماره و تعداد طبقات باید عدد صحیح باشد.'})
         data[key]=int(number) if number.is_integer() else number
+    if kind == 'file' and data.get('totalFloor') is not None and data.get('floor', 0) > data['totalFloor']:
+        if not previous or any(str(data.get(key)) != str(previous.get(key)) for key in ('floor', 'totalFloor')):
+            raise ValidationError({'floor':'شماره طبقه نباید بیشتر از تعداد کل طبقات باشد.'})
     for key in ['area','totalPrice','mortgagePrice','monthlyRent','monthlyCharge']:
         lo,hi=data.get(key+'From'),data.get(key+'To')
         if lo is not None and hi is not None and lo>hi: raise ValidationError({key+'To':'حداکثر نباید کمتر از حداقل باشد.'})
@@ -103,11 +149,6 @@ def validate_payload(request, kind, previous=None):
                 if row and selected and not any(normalize(x.get('district')) in selected for x in row): raise ValidationError({'neighborhood':'محله با منطقه انتخاب‌شده مطابقت ندارد.'})
     if data.get('requesterType') not in (None,'customer','owner'):raise ValidationError({'requesterType':'نوع درخواست‌کننده معتبر نیست.'})
     for prefix in ('owner','customer'):
-        national=data.get(prefix+'NationalId') or data.get(prefix+'NationalCode')
-        if national:
-            from accounts.validators import validate_iranian_national_code
-            try:data[prefix+'NationalId']=validate_iranian_national_code(normalize(national).replace(' ',''))
-            except Exception:raise ValidationError({prefix+'NationalId':'کد ملی معتبر ۱۰ رقمی وارد کنید.'})
         phone=data.get(prefix+'Phone')
         if phone:
             from accounts.validators import validate_iranian_mobile
@@ -138,7 +179,10 @@ def validate_payload(request, kind, previous=None):
     return data
 
 def serialize(row,user=None):
-    result={**row.data,**({'requesterName':row.created_by.full_name,'requesterPhone':row.created_by.phone} if row.kind=='request' else {}),'id':row.pk,'created_at':row.created_at.isoformat(),'updated_at':row.updated_at.isoformat(),'publication_state':row.publication_state,'assigned_expert_id':row.assigned_expert_id,'office_id':row.office_id,'featured':row.featured,'archived':bool(row.archived_at)}
+    result={**{key:value for key,value in row.data.items() if key not in PARTY_IDS},**({'requesterName':row.created_by.full_name,'requesterPhone':row.created_by.phone} if row.kind=='request' else {}),'id':row.pk,'created_at':row.created_at.isoformat(),'updated_at':row.updated_at.isoformat(),'publication_state':row.publication_state,'assigned_expert_id':row.assigned_expert_id,'office_id':row.office_id,'featured':row.featured,'archived':bool(row.archived_at)}
+    for key in ('propertyType', 'direction', 'landUse'):
+        if (value := record_field(row.data, key)) is not None:
+            result[key] = value
     if user is not None:
         from .models import PropertyPin
         result['pinned']=PropertyPin.objects.filter(user=user,property=row).exists()
@@ -156,11 +200,14 @@ class PropertyListView(APIView):
         audience=params.get('requesterType')
         if audience: rows=[r for r in rows if r.data.get('requesterType','customer')==audience]
         search=normalize(params.get('search'))
-        if search: rows=[r for r in rows if search in normalize(' '.join(str(v) for k,v in r.data.items() if k not in ('images','virtualTourLink')))]
-        for key in ['propertyType','contractType','province','county','city','district','neighborhood','status','roomCount','buildYear','floor','landUse','documentType']:
-            expected=normalize(params.get(key))
+        if search: rows=[r for r in rows if search in normalize(' '.join(str(v) for k,v in r.data.items() if k not in PARTY_IDS | {'images','virtualTourLink'}))]
+        for key in ['propertyType','contractType','province','county','city','district','neighborhood','status','roomCount','buildYear','totalFloor','floor','landUse','documentType']:
+            expected=property_type(params.get(key)) if key == 'propertyType' else normalize(params.get(key))
             if expected:
-                rows=[r for r in rows if any(expected==normalize(v) for v in (r.data.get(key) if isinstance(r.data.get(key),list) else [r.data.get(key)]))]
+                def matches(row):
+                    value = record_field(row.data, key)
+                    return any(expected == normalize(item) for item in (value if isinstance(value, list) else [value]))
+                rows = [row for row in rows if matches(row)]
         if params.get('office'):
             rows = [row for row in rows if str(row.office_id) == params['office']]
         if params.get('recordId'):
@@ -173,10 +220,16 @@ class PropertyListView(APIView):
             rows = [row for row in rows if desired.issubset(row.data.get('amenities') or [])]
         def within_bound(row,prefix,suffix,amount):
             field='area' if prefix=='area' else ('mortgagePrice' if row.data.get('contractType')=='رهن و اجاره' else 'totalPrice')
-            low=row.data.get(field,row.data.get(field+'From'))
-            high=row.data.get(field,row.data.get(field+'To'))
-            if low is None and high is None:return False
-            return (high is None or high>=amount) if suffix=='From' else (low is None or low<=amount)
+            value = row.data.get(field, row.data.get(field + suffix))
+            if field not in row.data:
+                value = row.data.get(field + ('To' if suffix == 'From' else 'From'))
+                if value is None:
+                    return row.data.get(field + suffix) is not None
+            try:
+                number = float(normalize(value).replace(',', ''))
+            except ValueError:
+                return False
+            return number >= amount if suffix == 'From' else number <= amount
         for prefix in ('area','price'):
             for suffix in ('From','To'):
                 raw=params.get(prefix+suffix)
@@ -196,12 +249,13 @@ class PropertyListView(APIView):
         if pinned in ('true','1'):rows=[r for r in rows if r.pins.filter(user=request.user).exists()]
         total=len(rows);return envelope({'results':[serialize(r,request.user) for r in rows[(page-1)*size:page*size]],'total_results':total,'has_more':page*size<total,'stats':stats})
     def post(self,request,kind):
-        if kind=='file' and request.user.role not in ('superadmin','agency','expert') and not is_superadmin(request.user): raise PermissionDenied('ثبت فایل برای این نقش مجاز نیست.')
+        require_estate_write(request.user)
+        if kind=='file' and request.user.role not in ('agency','expert'): raise PermissionDenied('ثبت فایل برای این نقش مجاز نیست.')
         from .workflow_services import dispatch,feature,audit,workspace,require_expert_permission,touch_contact
         feature('files' if kind=='file' else 'requests')
         if request.user.role=='expert':require_expert_permission(request.user,'can_manage_files' if kind=='file' else 'can_manage_requests')
         data=validate_payload(request,kind)
-        professional=request.user.role in ('agency','expert','superadmin') or is_superadmin(request.user)
+        professional=request.user.role in ('agency','expert')
         data['source']='panel' if professional else 'landing'
         if kind=='request':data['selfServiceRequest']=not professional;data['requesterType']='customer'
         row=PropertyRecord.objects.create(kind=kind,created_by=request.user,data=data,office_id=workspace(request.user) if request.user.role in ('agency','expert') else None,assigned_expert=request.user if request.user.role=='expert' else None)
@@ -219,13 +273,14 @@ class PropertyDetailView(APIView):
             require_expert_permission(request.user,'can_manage_files' if kind=='file' else 'can_manage_requests',row.office_id)
         return envelope(serialize(row,request.user))
     def patch(self,request,kind,pk):
+        require_estate_write(request.user)
         row=get_object_or_404(scope(request.user),kind=kind,pk=pk)
         if request.user.role=='expert':
             from .workflow_services import require_expert_permission
             require_expert_permission(request.user,'can_manage_files' if kind=='file' else 'can_manage_requests',row.office_id)
-        if request.user.role not in ('agency','expert') and not is_superadmin(request.user):
+        if request.user.role not in ('agency','expert'):
             if row.assigned_expert_id:raise PermissionDenied('این پرونده به کارشناس سپرده شده است؛ تغییرات را با مسئول پرونده هماهنگ کنید.')
-        if row.created_by_id!=request.user.pk and row.assigned_expert_id!=request.user.pk and not (request.user.role=='agency' and row.office_id==request.user.pk) and not is_superadmin(request.user): raise PermissionDenied('ویرایش این پرونده مجاز نیست.')
+        if row.created_by_id!=request.user.pk and row.assigned_expert_id!=request.user.pk and not (request.user.role=='agency' and row.office_id==request.user.pk): raise PermissionDenied('ویرایش این پرونده مجاز نیست.')
         row.data=validate_payload(request,kind,row.data);row.save(update_fields=['data','updated_at'])
         if row.data.get('publicationStatus')=='pending':
             from .workflow_services import dispatch

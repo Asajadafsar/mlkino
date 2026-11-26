@@ -1,4 +1,4 @@
-import {Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography} from '@mui/material'
+import {Button, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography} from '@mui/material'
 import {Link} from 'react-router-dom'
 import type {CityPoint} from './DashboardMap'
 
@@ -7,7 +7,7 @@ export const layerLabels: Record<string, string> = {
     agencies: 'دفاتر املاک', experts: 'کارشناسان', users: 'کاربران',
 }
 
-export default function DashboardResults({rows, demo, total}: {rows: CityPoint[]; demo: boolean; total: number}) {
+export default function DashboardResults({rows, demo, total, onSelect}: {rows: CityPoint[]; demo: boolean; total: number; onSelect?: (point:CityPoint)=>void}) {
     if (!rows.length) return <Typography sx={{p: 2}}>موردی با فیلترهای انتخاب‌شده پیدا نشد.</Typography>
     const routeFor = (row: CityPoint) => {
         if (!row.id || demo) return undefined
@@ -18,7 +18,7 @@ export default function DashboardResults({rows, demo, total}: {rows: CityPoint[]
     return <Stack spacing={1}>
         <TableContainer>
             <Table size="small">
-                <TableHead><TableRow>{['عنوان', 'نوع', 'محدوده', 'دفتر', 'حضور'].map(label => <TableCell key={label}>{label}</TableCell>)}</TableRow></TableHead>
+                <TableHead><TableRow>{['عنوان', 'نوع', 'محدوده', 'دفتر', 'حضور', 'جزئیات'].map(label => <TableCell key={label}>{label}</TableCell>)}</TableRow></TableHead>
                 <TableBody>{rows.map(row => {
                     const route = routeFor(row)
                     return <TableRow key={row.kind + '-' + row.id}>
@@ -27,7 +27,7 @@ export default function DashboardResults({rows, demo, total}: {rows: CityPoint[]
                         <TableCell>{[row.province, row.city, row.district, row.neighborhood].filter(Boolean).join('، ') || 'ثبت نشده'}</TableCell>
                         <TableCell>{row.office || '—'}</TableCell>
                         <TableCell>{row.online === undefined ? '—' : row.online ? 'آنلاین' : 'آفلاین'}</TableCell>
-                    </TableRow>
+                    <TableCell><Button onClick={()=>onSelect?.(row)} aria-label={'جزئیات '+(row.title||row.city)}>مشاهده جزئیات</Button></TableCell></TableRow>
                 })}</TableBody>
             </Table>
         </TableContainer>

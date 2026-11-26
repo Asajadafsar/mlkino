@@ -128,7 +128,7 @@ const NewActivity = () => {
                 <Divider />
 
                 <Stack p={0.75}>
-                    {addOptions.filter(item=>item.link!=='users/create'||role==='superadmin').map((item) => (
+                    {addOptions.filter(item=>item.link==='users/create'?role==='superadmin':['agency','expert'].includes(role||'')).map((item) => (
                         <MenuItem
                             key={item.link}
                             onClick={() =>

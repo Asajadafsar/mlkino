@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from .models import EstateActivity, AgencyExpertLink
 from .settings_api import envelope, is_superadmin, http_url
-from .property_api import normalize
+from .property_api import normalize, require_estate_write
 
 STATUSES={'follow-ups':{'در حال پیگیری','انجام شده','نیازمند اقدام'},'contracts':{'فعال','در انتظار امضا','لغو شده','پایان یافته','پیش‌نویس','در حال بررسی','نهایی','بایگانی‌شده','لغوشده'}}
 FIELDS={'file_name','status','expert_name','full_name','phone_number','date','description','meeting_manager','contract_datetime','agreed_price','price_difference','owner_commission','buyer_commission','image','contract_type','visitStatus','nextStatus','statusDescription','archive','property_id','party_ids','party_id','expert_id','office_id','assignee_id','due_at','priority','call_result','result','notes','visit_id'}
@@ -27,7 +27,9 @@ def visible(user):
         return qs.filter((Q(created_by=user)|Q(assigned_expert=user))&(Q(office__isnull=True)|Q(office=user)|Q(office_id__in=offices))|Q(office_id__in=finance))
     return qs.filter(Q(office_id__in=finance)|Q(parties__user=user)).distinct()
 
-def can_write(user):
+def can_write(user, kind=None):
+    if kind == 'contracts':
+        require_estate_write(user)
     if not is_superadmin(user) and user.role not in ('agency','expert'):raise PermissionDenied('ثبت و ویرایش این بخش برای نقش شما مجاز نیست.')
     if user.role=='expert':
         from .workflow_services import require_expert_permission
@@ -67,7 +69,7 @@ class EstateActivityListView(APIView):
     def get(self,request,kind):return envelope({'results':[serialize(row) for row in visible(request.user).filter(kind=kind)],'total_results':visible(request.user).filter(kind=kind).count()})
     @transaction.atomic
     def post(self,request,kind):
-        can_write(request.user)
+        can_write(request.user,kind)
         data=clean(request.data,kind)
         if kind=='follow-ups' and not data.get('expert_name'):data['expert_name']=request.user.full_name
         row=EstateActivity.objects.create(kind=kind,created_by=request.user,data=data)
@@ -79,7 +81,7 @@ class EstateActivityDetailView(APIView):
     def get(self,request,kind,pk):return envelope(serialize(get_object_or_404(visible(request.user),kind=kind,pk=pk)))
     @transaction.atomic
     def patch(self,request,kind,pk):
-        can_write(request.user);row=get_object_or_404(visible(request.user),kind=kind,pk=pk)
+        can_write(request.user,kind);row=get_object_or_404(visible(request.user),kind=kind,pk=pk)
         if row.created_by_id!=request.user.pk and not is_superadmin(request.user):raise PermissionDenied('ویرایش این پرونده مجاز نیست.')
         row.data=clean(request.data,kind,row.data);link_activity(row,request.user,row.data);row.save(update_fields=['data','updated_at'])
         return envelope(serialize(row),message='تغییرات ذخیره شد.')

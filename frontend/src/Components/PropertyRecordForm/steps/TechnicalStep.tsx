@@ -32,12 +32,12 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                         name="roomCount"
                         setData={setProperty}
                         resource={resource}
-                        label="تعداد اتاق"
+                        label="تعداد خواب"
                         defaultValue={property.roomCount}
                         thousandSeparator
                     />,
 
-                    // وضعیت اشتغال و حمام در «آگهی» لازم نیستند
+                    // وضعیت اشغال و حمام در «آگهی» لازم نیستند
                     ...(mode !== 'file'
                         ? []
                         : [
@@ -46,7 +46,7 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                                   name="occupancyStatus"
                                   setData={setProperty}
                                   resource={resource}
-                                  label="وضعیت اشتغال"
+                                  label="وضعیت اشغال"
                                   defaultValue={property.occupancyStatus}
                                   options={toSelectOptions(OCCUPANCY_OPTIONS)}
                               />,
@@ -137,13 +137,23 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                             name="totalFloor"
                             setData={setProperty}
                             resource={resource}
-                            label="طبقه کل"
+                            label="تعداد کل طبقات"
                             defaultValue={property.totalFloor}
                             thousandSeparator
                         />
                     ),
-
-                  
+                    ...(mode === 'file' ? [
+                        <CustomTextField
+                            key="floor"
+                            name="floor"
+                            setData={setProperty}
+                            resource={resource}
+                            label="شماره طبقه"
+                            defaultValue={property.floor}
+                            thousandSeparator
+                            helperText="طبقات زیرزمین منفی، همکف ۰ و طبقات بالای همکف مثبت‌اند."
+                        />,
+                    ] : []),
                 ].filter(element=>!isLand||!['roomCount','occupancyStatus','bathroom','heating','cooling','flooring','facade','totalFloor','floor','floorPreferences'].includes(String(element.key)))}
             />
 

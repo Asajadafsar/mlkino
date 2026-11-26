@@ -515,7 +515,7 @@ export default function PropertyDetails(props: PropertyDetailsProps) {
                       icon={DescriptionIcon}
                     />
                     <InfoRow
-                      label="وضعیت اشتغال"
+                      label="وضعیت اشغال"
                       value={d.occupancyStatus}
                       icon={HomeWorkIcon}
                     />

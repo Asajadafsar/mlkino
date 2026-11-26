@@ -27,7 +27,9 @@ class WorkflowTests(TestCase):
     def test_publication_requires_real_permission_and_public_projection_hides_pii(self):
         r=self.client.get('/panel/public/catalog/');self.assertEqual(r.data['data']['total_results'],0)
         self.assertEqual(self.post(f'workflows/properties/{self.row.pk}/publish/',{'publish':True},self.buyer).status_code,403)
-        self.assertEqual(self.post(f'workflows/properties/{self.row.pk}/publish/',{'publish':True},self.admin).status_code,200)
+        self.assertEqual(self.post(f'workflows/properties/{self.row.pk}/publish/',{'publish':True},self.admin).status_code,403)
+        self.row.assigned_expert=self.expert;self.row.office=self.agency;self.row.save()
+        self.assertEqual(self.post(f'workflows/properties/{self.row.pk}/publish/',{'publish':True},self.agency).status_code,200)
         r=self.client.get(f'/panel/public/catalog/{self.row.pk}/');d=r.data['data'];self.assertEqual(r.status_code,200)
         for key in ('ownerPhone','ownerName','internalNote','address','requesterPhone'):self.assertNotIn(key,d)
         self.assertEqual(self.client.get('/panel/public/catalog/',{'areaFrom':'200','areaTo':'100'}).status_code,400)
@@ -93,6 +95,47 @@ class WorkflowTests(TestCase):
         self.login(self.expert);self.assertEqual(self.client.patch(f'/panel/workflows/visits/{bid}/',{'status':'confirmed'},format='json').status_code,200)
         self.login(self.buyer);self.assertEqual(self.client.patch(f'/panel/workflows/visits/{bid}/',{'status':'cancelled'},format='json').status_code,200)
         self.assertEqual(self.post('workflows/visits/',{'slot_id':sid},self.owner).status_code,201)
+
+    def test_landing_books_only_available_public_slots_for_the_selected_file(self):
+        self.row.assigned_expert = self.expert
+        self.row.office = self.agency
+        self.row.publication_state = 'published'
+        self.row.save()
+        start = timezone.now() + timedelta(days=2)
+        end = start + timedelta(hours=1)
+        slot_data = {'property_id': self.row.pk, 'starts_at': start.isoformat(), 'ends_at': end.isoformat()}
+        scheduled = self.post('workflows/visit-slots/', slot_data, self.expert)
+        slot_id = scheduled.data['data']['id']
+        other = PropertyRecord.objects.create(kind='file', created_by=self.agency, publication_state='published')
+        different = VisitSlot.objects.create(property=other, expert=self.expert, starts_at=start, ends_at=end)
+        private = VisitSlot.objects.create(property=self.row, expert=self.expert, starts_at=start, ends_at=end, is_public=False)
+        prefix = f'/panel/public/catalog/{self.row.pk}/'
+        self.client.force_authenticate(None)
+        listed = self.client.get(prefix + 'visit-slots/')
+        self.assertEqual(listed.data['data']['results'], [{'id': slot_id, 'starts_at': start.isoformat(), 'ends_at': end.isoformat()}])
+        self.assertIn(self.client.post(prefix + 'visits/', {'slot_id': slot_id}, format='json').status_code, (401, 403))
+        self.login(self.buyer)
+        for invalid, status in [({'starts_at': start.isoformat()}, 400), ({'slot_id': private.pk}, 404), ({'slot_id': different.pk}, 404)]:
+            self.assertEqual(self.client.post(prefix + 'visits/', invalid, format='json').status_code, status)
+        booked = self.client.post(prefix + 'visits/', {'slot_id': slot_id, 'preferred_time': '03:00'}, format='json')
+        self.assertEqual(booked.status_code, 201, booked.data)
+        self.assertEqual(booked.data['data']['preferred_time'], f'{timezone.localtime(start):%H:%M}-{timezone.localtime(end):%H:%M}')
+        self.assertEqual(self.client.get(prefix + 'visit-slots/').data['data']['results'], [])
+        self.login(self.owner)
+        self.assertEqual(self.client.post(prefix + 'visits/', {'slot_id': slot_id}, format='json').status_code, 400)
+        self.row.publication_state = 'draft'
+        self.row.save(update_fields=['publication_state'])
+        self.assertEqual(self.client.get(prefix + 'visit-slots/').status_code, 404)
+
+    def test_superadmin_views_other_workspaces_without_creating_or_editing_records(self):
+        contact = CRMContact.objects.create(workspace=self.agency, name='مالک', phone='09121112233', roles=['owner'])
+        request = PropertyRecord.objects.create(kind='request', created_by=self.buyer, data=self.row.data)
+        self.login(self.admin)
+        for resource, pk in [('files', self.row.pk), ('requests', request.pk), ('workflows/contacts', contact.pk)]:
+            with self.subTest(resource=resource):
+                self.assertEqual(self.client.get(f'/panel/{resource}/{pk}/').status_code, 200)
+                self.assertEqual(self.client.post(f'/panel/{resource}/', {}, format='json').status_code, 403)
+                self.assertEqual(self.client.patch(f'/panel/{resource}/{pk}/', {}, format='json').status_code, 403)
     def test_financial_balancing_posting_reversal_and_decimal_snapshot(self):
         import uuid
         data={'kind':'invoice','amount':'100.01','direction':'debit','entries':[{'account':'cash','debit':'100.01','credit':'0'},{'account':'income','credit':'100.01','debit':'0'}]}

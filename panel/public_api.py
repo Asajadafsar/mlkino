@@ -3,18 +3,19 @@ from decimal import Decimal,InvalidOperation
 from django.utils import timezone
 from accounts.models import OfficeSubscription
 from django.shortcuts import get_object_or_404
-from django.db.models import Q,Exists,OuterRef,F
+from django.db.models import Q,Exists,OuterRef,F,Count
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
-from .models import PropertyRecord,AgencyExpertLink
+from .models import PropertyRecord,AgencyExpertLink,VisitSlot
 from .settings_api import envelope
 from .settings_runtime import system_settings
-from .property_api import normalize
+from .property_api import normalize, property_type, record_field
 from .geography_api import IranLocationsView,MapTileView
 from .workflow_services import feature
 
-SAFE_FIELDS=('title','propertyType','contractType','province','city','district','neighborhood','area','totalPrice','mortgagePrice','monthlyRent','roomCount','images','latitude','longitude','description','documentType','amenities','buildYear','totalFloor','floor','external_links','image_variants','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','floorPreferences')
+SAFE_FIELDS=('title','propertyType','landUse','contractType','province','city','district','neighborhood','area','totalPrice','mortgagePrice','monthlyRent','roomCount','images','latitude','longitude','description','documentType','amenities','buildYear','totalFloor','floor','external_links','image_variants','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','floorPreferences')
+ACTIVE_BOOKINGS = ('pending', 'confirmed')
 def public_rows():
     membership=AgencyExpertLink.objects.filter(agency_id=OuterRef('office_id'),expert_id=OuterRef('assigned_expert_id'))
     promotions = OfficeSubscription.objects.filter(promoted_files=OuterRef('pk'), office_id=OuterRef('office_id'),
@@ -24,6 +25,9 @@ def public_rows():
 
 def public_serialize(row):
     result={k:row.data[k] for k in SAFE_FIELDS if k in row.data}
+    for key in ('propertyType', 'landUse'):
+        if (value := record_field(row.data, key)) is not None:
+            result[key] = value
     if row.kind=='file':
         for key in ('areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo'):result.pop(key,None)
     # Internal notes, precise postal/address and owner details are never projected.
@@ -47,9 +51,14 @@ def numeric(value,key):
 def filter_catalog(rows,params):
     search=normalize(params.get('search',''))
     if search:rows=[r for r in rows if search in normalize(' '.join(str(r.data.get(k,'')) for k in ('title','description','province','city','district','neighborhood','propertyType')))]
-    for key in ('propertyType','contractType','province','city','district','neighborhood','documentType','roomCount','totalFloor','floor'):
-        wanted={normalize(x) for x in params.get(key,'').split('|') if x}
-        if wanted:rows=[r for r in rows if wanted&{normalize(x) for x in (r.data.get(key) if isinstance(r.data.get(key),list) else [r.data.get(key)])}]
+    for key in ('propertyType','landUse','contractType','province','city','district','neighborhood','documentType','roomCount','buildYear','totalFloor','floor'):
+        transform = property_type if key == 'propertyType' else normalize
+        wanted={transform(x) for x in params.get(key,'').split('|') if x}
+        if wanted:
+            def matches(row):
+                value = record_field(row.data, key)
+                return bool(wanted & {normalize(x) for x in (value if isinstance(value, list) else [value])})
+            rows = [row for row in rows if matches(row)]
     for key in ('office','expert'):
         if params.get(key):
             try:pk=int(params[key])
@@ -57,6 +66,9 @@ def filter_catalog(rows,params):
             rows=[r for r in rows if (r.office_id if key=='office' else r.assigned_expert_id or r.created_by_id)==pk]
     if params.get('amenities'):
         wanted=set(params['amenities'].split('|'));rows=[r for r in rows if wanted<=set(r.data.get('amenities',[]))]
+    if params.get('roomsFrom'):
+        minimum = numeric(params['roomsFrom'], 'roomsFrom')
+        rows = [row for row in rows if row.data.get('roomCount') is not None and numeric(row.data['roomCount'], 'roomCount') >= minimum]
     for prefix in ('price','area','buildYear'):
         lo=numeric(params[prefix+'From'],prefix+'From') if params.get(prefix+'From') not in (None,'') else None
         hi=numeric(params[prefix+'To'],prefix+'To') if params.get(prefix+'To') not in (None,'') else None
@@ -115,6 +127,23 @@ class PublicCatalogView(APIView):
             return envelope({'results':[public_serialize(r) for r in rows],'total_results':count,'page':page,'page_size':size,'has_more':page*size<count})
         rows=filter_catalog(list(qs),request.query_params)
         return envelope({'results':[public_serialize(r) for r in rows[(page-1)*size:page*size]],'total_results':len(rows),'page':page,'page_size':size,'has_more':page*size<len(rows)})
+
+class PublicVisitSlotsView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, pk):
+        feature('files')
+        feature('visits')
+        row = get_object_or_404(public_rows(), pk=pk, kind='file')
+        slots = VisitSlot.objects.filter(property=row, active=True, is_public=True, starts_at__gt=timezone.now())
+        slots = slots.annotate(reserved=Count('bookings', filter=Q(bookings__status__in=ACTIVE_BOOKINGS))).filter(reserved__lt=F('capacity'))
+        response = envelope({'results': [
+            {'id': pk, 'starts_at': start.isoformat(), 'ends_at': end.isoformat()}
+            for pk, start, end in slots.values_list('pk', 'starts_at', 'ends_at')
+        ]})
+        response['Cache-Control'] = 'no-store'
+        return response
 
 class PublicConfigView(APIView):
     permission_classes=[AllowAny];authentication_classes=[]

@@ -1,6 +1,7 @@
 import {UserRole} from '../redux/RoleSlice'
 
 export function canAccessUserRoute(role: UserRole | string | null, pathname: string, permissions?: {can_finance?: boolean}) {
+    if (role === UserRole.SUPERADMIN && /^\/(files|requests|owners-requests|customers-requests|contracts|customers|owners)\/create\/?$/.test(pathname)) return false
     if (pathname === '/role-applications') return role === UserRole.USER || role === UserRole.AGENCY || role === UserRole.SUPERADMIN
     if (['/plans','/plan-capabilities'].some(path=>pathname===path||pathname.startsWith(path+'/'))) return role===UserRole.SUPERADMIN
     if (['/routing-settings','/workspace-roles'].includes(pathname)) return role === UserRole.SUPERADMIN

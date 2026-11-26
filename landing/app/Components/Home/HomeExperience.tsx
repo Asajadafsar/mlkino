@@ -11,7 +11,8 @@ import NotificationsNoneRounded from "@mui/icons-material/NotificationsNoneRound
 import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
 import PeopleOutlineRounded from "@mui/icons-material/PeopleOutlineRounded";
 import DescriptionOutlined from "@mui/icons-material/DescriptionOutlined";
-import { PROPERTIES, REQUESTS } from "@/app/Core/listings";
+import {PROPERTIES, REQUESTS} from "@/app/Core/listings";
+import {usePublicFiles} from "@/app/Core/usePublicFiles";
 import { formatNumber } from "../Card/cardFileUtils";
 import InfiniteListingFeed from "../Card/InfiniteListingFeed";
 import PropertySearch, { DealTabs } from "./PropertySearch";
@@ -33,6 +34,8 @@ export default function HomeExperience() {
   const router = useRouter();
   const [deal, setDeal] = useState("buy");
   const [active, setActive] = useState("vip");
+  const files = usePublicFiles(active === "vip" ? "featured=1&page_size=48" : "page_size=48");
+  const fileFeed = (label: string) => <InfiniteListingFeed items={files?.data?.items.length ? files.data.items : PROPERTIES} label={label}/>;
 
   return <div className={styles.page}>
     <section className={styles.hero} aria-label="ملکینو، مدیریت هوشمند املاک">
@@ -56,12 +59,12 @@ export default function HomeExperience() {
     <div className={styles.sections}>
       <section className={`${styles.panel} ${styles.featuredPanel}`} data-active={active === "vip"} aria-label="فایل‌های ویژه">
         <h2><WorkspacePremiumOutlined />فایل‌های ویژه</h2>
-        {active === "vip" && <InfiniteListingFeed items={PROPERTIES} label="فهرست پیمایشی فایل‌های ویژه" />}
+        {active === "vip" && fileFeed("فهرست پیمایشی فایل‌های ویژه")}
         <Link className={styles.viewAll} href="/vip">مشاهده همه فایل‌های ویژه <ArrowBackRounded /></Link>
       </section>
       <section className={styles.panel} data-active={active === "files"} aria-label="فایل‌های ملکی">
         <h2><ApartmentOutlined />فایل‌های ملکی</h2>
-        {active === "files" && <InfiniteListingFeed items={PROPERTIES} label="فهرست پیمایشی فایل‌های ملکی" />}
+        {active === "files" && fileFeed("فهرست پیمایشی فایل‌های ملکی")}
         <Link className={styles.viewAll} href="/files">مشاهده همه فایل‌های ملکی <ArrowBackRounded /></Link>
       </section>
       <section className={`${styles.panel} ${styles.requestsPanel}`} data-active={active === "requests"} aria-label="درخواست‌های ملکی">

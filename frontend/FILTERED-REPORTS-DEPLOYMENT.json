@@ -1,0 +1,35 @@
+{
+  "frontend_release": "20261125-filtered-reports2",
+  "backend_release": "20261125-filtered-reports",
+  "status": "deployed",
+  "url": "https://mlkino.com/panel/dashboard",
+  "previous_frontend": "build-release-20261125-dashboard-reference",
+  "active_frontend": "build-release-20261125-filtered-reports2",
+  "backend_backup": "/var/backups/mlkino/20261125-filtered-reports-backend",
+  "checks": {
+    "frontend_tests": 53,
+    "backend_tests": 20,
+    "production_build": "passed",
+    "public_files_sha256_matched": 58,
+    "nginx_served_files_sha256_matched": 58,
+    "public_routes": "dashboard and role-applications passed",
+    "authenticated_read_only_report_and_explorer_smoke": "passed",
+    "database_schema_unchanged": true,
+    "browser_visual_qa": "not performed"
+  },
+  "features": [
+    "Full-width explorer with map/list/form modes, shared filters, details and paginated results",
+    "Independent location/property/creator/office/expert/price/area filters per report",
+    "Province/county/city/district/neighborhood and office/expert comparisons",
+    "Multi-region file creation trends and table display",
+    "Server-calculated property distribution and current/previous performance",
+    "No implicit Tehran market filter",
+    "Superadmin aggregate request and contract reports; ordinary role-scoped recent lists retained for offices"
+  ],
+  "constraints": [
+    "Exact coordinates are displayed only when authorized and recorded; approximate city/district/neighborhood precision is identified.",
+    "Map points are limited to 500 per filtered response; paginated lists include all matching rows and unmapped records.",
+    "Multi-region records can contribute to several geographic groups; report totals are counted once.",
+    "Contracts without a linked property are excluded from property-type, price and area filters."
+  ]
+}

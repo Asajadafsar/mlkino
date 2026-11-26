@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from .property_api import scope,normalize,serialize
+from .property_api import scope,normalize,serialize,property_type,record_field
 from .estate_activity_api import visible
 from .models import AgencyExpertLink
 from .settings_api import envelope,is_superadmin
@@ -21,10 +21,14 @@ LOCATION_FIELDS = ('province', 'city', 'district', 'neighborhood')
 
 
 def matches(data, q, *, estate=True):
-    fields = LOCATION_FIELDS + (('propertyType', 'contractType', 'status', 'roomCount', 'buildYear', 'floor', 'landUse', 'documentType', 'occupancyStatus', 'bathroom', 'heating', 'cooling', 'flooring', 'facade', 'direction') if estate else ())
+    if q.get('county'):
+        from .analytics_api import county_name
+        if normalize(q['county']) != normalize(data.get('county') or county_name(data.get('province', ''), data.get('city', ''))):
+            return False
+    fields = LOCATION_FIELDS + (('propertyType', 'contractType', 'status', 'roomCount', 'buildYear', 'totalFloor', 'floor', 'landUse', 'documentType', 'occupancyStatus', 'bathroom', 'heating', 'cooling', 'flooring', 'facade', 'direction') if estate else ())
     for key in fields:
-        wanted = normalize(q.get(key))
-        actual = data.get(key)
+        wanted = property_type(q.get(key)) if key == 'propertyType' else normalize(q.get(key))
+        actual = record_field(data, key)
         if wanted and wanted not in [normalize(x) for x in (actual if isinstance(actual, list) else [actual])]:
             return False
     if not estate:
@@ -99,6 +103,9 @@ class DashboardEstateView(APIView):
             ids={user.pk}
             if user.role=='agency':ids.update(AgencyExpertLink.objects.filter(agency=user).values_list('expert_id',flat=True))
             people=people.filter(pk__in=ids)
+        if request.query_params.get('report') == '1':
+            from .dashboard_reporting import report
+            return envelope(report(request, records, activities, people))
         counts={k:{'total':0,'recent':0,'previous':0} for k in ('files','requests','agencies','active_agencies','customers','experts','followups','contracts')}
         trend={str(start+timedelta(days=i)):0 for i in range(30)};distribution=Counter();regions=Counter()
         def add(key,date):
@@ -130,6 +137,9 @@ class DashboardEstateView(APIView):
         if q.get('areaFrom', 0) > q.get('areaTo', float('inf')):
             return envelope(message='بازه متراژ معتبر وارد کنید.', code=400)
         office_id = q.get('office')
+        expert_id = q.get('expert')
+        if any(value and not value.isdigit() for value in (office_id, expert_id)):
+            return envelope(message='شناسه دفتر یا کارشناس معتبر نیست.', code=400)
         files, rows = [], []
         layers = set(q.get('map_layers', 'files').split('|')) & {'files', 'requests', 'contracts', 'agencies', 'experts', 'users'}
         if not is_superadmin(user):
@@ -157,7 +167,7 @@ class DashboardEstateView(APIView):
                 rows[-1]['online'] = int(extra['online'])
 
         for row in records:
-            if row.archived_at or office_id and str(row.office_id) != office_id:
+            if row.archived_at or office_id and str(row.office_id) != office_id or expert_id and (row.created_by.role != 'expert' or str(row.created_by_id) != expert_id):
                 continue
             place = {**row.data, 'id': row.pk, 'creatorRole': row.created_by.role}
             if not matches(place, q):
@@ -167,17 +177,25 @@ class DashboardEstateView(APIView):
             append('files' if row.kind == 'file' else 'requests', row.pk,
                    row.data.get('title') or row.data.get('propertyType') or 'ملک', place,
                    exact=row.kind == 'file' and (row.publication_state == 'published' or row.created_by_id == user.pk or user.role == 'agency'),
+                   propertyType=row.data.get('propertyType'), area=row.data.get('area'), contractType=row.data.get('contractType'), totalPrice=row.data.get('totalPrice'), mortgagePrice=row.data.get('mortgagePrice'),
                    office=(getattr(getattr(row.office, 'agency_profile', None), 'agency_name', '') if row.office else ''))
         for row in activities:
+            if expert_id and (row.created_by.role != 'expert' or str(row.created_by_id) != expert_id):
+                continue
             if row.kind != 'contracts' or office_id and (not row.property or str(row.property.office_id) != office_id):
                 continue
             place = row.property.data if row.property else {field: getattr(row.created_by, field, '') for field in LOCATION_FIELDS}
-            if matches(place, q, estate=False):
-                append('contracts', row.pk, row.data.get('title') or row.data.get('contractType') or 'قرارداد', place)
+            if matches({**place, 'creatorRole': row.created_by.role}, q, estate=bool(row.property)):
+                append('contracts', row.pk, row.data.get('title') or row.data.get('contractType') or 'قرارداد', place, exact=bool(row.property and (row.property.publication_state == 'published' or row.property.created_by_id == user.pk or user.role == 'agency')),
+                       propertyType=place.get('propertyType'), area=place.get('area'), contractType=place.get('contractType'), totalPrice=place.get('totalPrice'))
         expert_offices = dict(AgencyExpertLink.objects.order_by('-id').values_list('expert_id','agency_id'))
         office_places = {office.pk: office_place(office) for office in offices}
         for person in people:
             kind = {'agency':'agencies','expert':'experts','user':'users'}[person.role]
+            if expert_id and (person.role != 'expert' or str(person.pk) != expert_id):
+                continue
+            if q.get('creatorRoles') and person.role not in q['creatorRoles'].split('|'):
+                continue
             if kind not in layers or not person.is_active or person.account_status != 'active':
                 continue
             office_key = person.pk if kind == 'agencies' else expert_offices.get(person.pk)
@@ -192,6 +210,8 @@ class DashboardEstateView(APIView):
                 continue
             title = getattr(person.agency_profile, 'agency_name', '') if kind == 'agencies' and hasattr(person, 'agency_profile') else person.full_name
             append(kind, person.pk, title or 'بدون نام', place, exact=kind == 'agencies', online=online)
+        if q.get('paginate') == '1' and (not q.get('page', '1').isdigit() or int(q.get('page', '1')) < 1):
+            return envelope(message='شماره صفحه معتبر نیست.', code=400)
         matching = len(rows)
         points = [row for row in rows if 'latitude' in row][:500]
         if q.get('detail') != '1':
@@ -209,9 +229,9 @@ class DashboardEstateView(APIView):
                     status = 'online' if point['online'] else 'offline'
                     group[status] = group.get(status, 0) + 1
             points = list(aggregates.values())
-        map_data = {'rows': rows[:500], 'points': points, 'matching_items': matching, 'mapped_items': sum(point['count'] for point in points),
+        map_data = {'rows': rows[max(0, int(q.get('page', 1))-1)*100:max(0, int(q.get('page', 1))-1)*100+100] if q.get('paginate') == '1' else rows[:500], 'points': points, 'matching_items': matching, 'mapped_items': sum(point['count'] for point in points),
                     'matching_files': len(files), 'mapped_files': sum(row.get('files', 0) for row in points),
-                    'offices': office_options}
+                    'offices': office_options, 'page_size': 100, 'page': int(q.get('page', 1)) if q.get('paginate') == '1' else 1, 'has_more': int(q.get('page', 1))*100 < matching if q.get('paginate') == '1' else matching > 500}
         if q.get('demo') == '1':
             from .dashboard_demo import dashboard_demo
             map_data = dashboard_demo(q, layers, matches, presence)

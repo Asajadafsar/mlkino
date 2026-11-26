@@ -770,9 +770,6 @@ export default function CardFileHorizontal({
         open={visitModalOpen}
         onClose={() => setVisitModalOpen(false)}
         property={data}
-        onSubmit={async (payload) => {
-          console.log("Visit request:", { ...payload, propertyId: data.id });
-        }}
       />
     </>
   );
