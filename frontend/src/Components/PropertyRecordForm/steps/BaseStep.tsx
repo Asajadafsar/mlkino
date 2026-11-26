@@ -4,7 +4,6 @@ import {PropertyLocationFields} from '../../Location/PropertyLocationFields'
 import {Box,FormControlLabel,InputAdornment,Switch} from '@mui/material'
 
 import {
-    DOCUMENT_TYPE_OPTIONS,
     PROPERTY_TYPE_OPTIONS,
     STATUS_OPTIONS,
 } from '../constants'
@@ -83,7 +82,7 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                     name="propertyType"
                     setData={setProperty}
                     resource={resource}
-                    label="نوع ملک"
+                    label="نوع ملک (الزامی)"
                     defaultValue={property.propertyType}
                     options={propertyTypeOptions}
                 />,
@@ -184,7 +183,7 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                               name="address"
                               setData={setProperty}
                               resource={resource}
-                              label="آدرس"
+                              label="آدرس (الزامی)"
                               defaultValue={property.address}
                               multiline
                               minRows={3}
@@ -192,7 +191,6 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                       ]),
                 ...(mode === 'file'
                     ? [<Box key="propertyMap" sx={{gridColumn:'1 / -1',width:'100%'}}><OfficeMap placeLabel="ملک" value={{...property,office_address:property.address}} onChange={next=>setProperty(previous=>({...previous,latitude:next.latitude,longitude:next.longitude}))}/></Box>,
-                          <CustomTextField key="workPhone" name="workPhone" setData={setProperty} resource={resource} label="شماره تماس کاری کارشناس (الزامی برای انتشار)" defaultValue={property.workPhone ?? property.work_phone ?? ''} />,
                           <FormControlLabel key="allowOnlineChat" label="گفتگوی آنلاین برای این فایل" control={<Switch
                               checked={property.allowOnlineChat !== false}
                               onChange={(_, checked) => setProperty(previous => ({...previous, allowOnlineChat: checked}))}

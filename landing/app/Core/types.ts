@@ -139,6 +139,8 @@ export type PropertyType = {
 
     agencyName?: string
 
+    documentTypeOther?: string
+    technical?: Record<string, unknown>
     contactPhone?: string
     allowOnlineChat?: boolean
 

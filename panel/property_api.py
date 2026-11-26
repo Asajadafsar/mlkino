@@ -3,6 +3,7 @@ import json
 import math
 import re
 import uuid
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.core.files.storage import default_storage
@@ -11,11 +12,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from .models import PropertyRecord, AgencyExpertLink
+from .property_technical import clean_technical
 from .settings_api import envelope, is_superadmin, http_url
 
 FLOORS = {'طبقه اول', 'طبقه آخر', 'پیلوت', 'فرقی نمی‌کند', 'سایر طبقات'}
 NUMBERS = {'area','totalPrice','pricePerMeter','rent','mortgagePrice','monthlyRent','latitude','longitude','buildYear','roomCount','totalFloor','floor','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','monthlyCharge','monthlyChargeFrom','monthlyChargeTo'}
-FIELDS = NUMBERS | {'contractType','propertyType','landUse','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','ownerNationalId','ownerNationalCode','customerName','customerPhone','customerPhone2','customerJob','customerNationalId','customerNationalCode','description','internalNote','images','virtualTourLink','floorPreferences','requesterType','title','work_phone','workPhone','virtualTourUrl','otherLink','external_links'}
+FIELDS = NUMBERS | {'contractType','propertyType','landUse','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','ownerNationalId','ownerNationalCode','customerName','customerPhone','customerPhone2','customerJob','customerNationalId','customerNationalCode','description','internalNote','images','virtualTourLink','floorPreferences','requesterType','title','documentTypeOther','technical','virtualTourUrl','otherLink','external_links'}
 PARTY_IDS = {'ownerNationalId', 'ownerNationalCode', 'customerNationalId', 'customerNationalCode'}
 FIELDS -= PARTY_IDS
 PROPERTY_TYPES = {'آپارتمان', 'باغ ویلا', 'ساختمان کلنگی', 'ساختمان ویلایی', 'تجاری', 'اداری', 'ساختمان یکجا', 'زمین', 'صنعتی', 'پیش فروش'}
@@ -57,35 +59,45 @@ def scope(user):
     offices=AgencyExpertLink.objects.filter(expert=user).values_list('agency_id',flat=True)
     return qs.filter(Q(created_by=user)|Q(assigned_expert=user)).filter(Q(office__isnull=True)|Q(office=user)|Q(office_id__in=offices))
 
-def property_work_phone(data):
-    from django.core.exceptions import ValidationError as InvalidPhone
-    from accounts.validators import validate_iranian_mobile
-
-    try:
-        return validate_iranian_mobile(data.get('work_phone') or data.get('workPhone'))
-    except InvalidPhone:
+def property_contact(row):
+    if row.kind != 'file':
         return None
+    return row.assigned_expert or (
+        row.created_by if row.created_by.role in ('expert', 'agency') else (
+            row.office if row.office and row.office.role == 'agency' else None
+        )
+    )
 
 
-def require_property_work_phone(data):
-    if not property_work_phone(data):
-        raise ValidationError({'workPhone': 'برای انتشار فایل، شماره تماس کاری کارشناس الزامی است.'})
+def require_file_fields(data):
+    required = {
+        'area': 'متراژ',
+        'address': 'آدرس',
+        'ownerName': 'نام مالک',
+        'ownerPhone': 'شماره موبایل مالک',
+    }
+    missing = {key: f'{label} الزامی است.' for key, label in required.items()
+               if not data.get(key) or not str(data[key]).strip()}
+    if data.get('contractType') == 'رهن و اجاره':
+        if not (data.get('mortgagePrice') or data.get('monthlyRent')):
+            missing['mortgagePrice'] = 'مبلغ رهن یا اجاره الزامی است.'
+    elif not data.get('totalPrice'):
+        missing['totalPrice'] = 'قیمت ملک الزامی است.'
+    if missing:
+        raise ValidationError(missing)
 
 
-def validate_payload(request, kind, previous=None):
+def validate_payload(request, kind, previous=None, *, require_complete=False):
     if 'payload' in request.data:
         try: incoming=json.loads(request.data['payload'])
         except (TypeError,ValueError): raise ValidationError('اطلاعات فرم معتبر نیست.')
     else: incoming=request.data
     if not isinstance(incoming,dict): raise ValidationError('اطلاعات فرم معتبر نیست.')
-    writable_fields = FIELDS
-    if kind == 'file' and request.user.role not in ('expert', 'agency'):
-        writable_fields = FIELDS - {'workPhone', 'work_phone'}
-    data={**{key:value for key,value in (previous or {}).items() if key not in PARTY_IDS}, **{key:value for key,value in incoming.items() if key in writable_fields}}
+    data={**{key:value for key,value in (previous or {}).items() if key not in PARTY_IDS}, **{key:value for key,value in incoming.items() if key in FIELDS}}
     for key in (('contractType','propertyType') if incoming.get('publicationStatus')=='draft' else ('contractType','propertyType','city')):
         if not isinstance(data.get(key),str) or not data[key].strip(): raise ValidationError({key:'این فیلد الزامی است.'})
     if data['contractType'] not in ('فروش','رهن و اجاره'): raise ValidationError({'contractType':'نوع معامله معتبر نیست.'})
-    for key in (FIELDS-NUMBERS-{'district','neighborhood','amenities','images','virtualTourLink','external_links','floorPreferences'}) & data.keys():
+    for key in (FIELDS-NUMBERS-{'district','neighborhood','amenities','images','virtualTourLink','external_links','floorPreferences','technical'}) & data.keys():
         if data[key] is None: data[key]=''
         if not isinstance(data[key],str) or len(data[key])>10000: raise ValidationError({key:'متن معتبر وارد کنید.'})
     land_use = record_field(data, 'landUse')
@@ -112,19 +124,12 @@ def validate_payload(request, kind, previous=None):
             if not isinstance(incoming['allowOnlineChat'], bool):
                 raise ValidationError({'allowOnlineChat': 'وضعیت گفتگو باید روشن یا خاموش باشد.'})
             data['allowOnlineChat'] = incoming['allowOnlineChat']
-    if {'workPhone', 'work_phone'} & writable_fields & incoming.keys():
-        phone = incoming.get('workPhone', incoming.get('work_phone'))
-        data['workPhone'] = data['work_phone'] = phone or ''
     external=dict(data.get('external_links') or {})
     for src,target in [('virtualTourUrl','virtual_tour'),('otherLink','other')]:
         if data.get(src):external[target]=data[src]
     if external:data['external_links']=external
     external=data.get('external_links',{})
     if external and (not isinstance(external,dict) or len(external)>8 or any(k not in ('eitaa','telegram','instagram','virtual_tour','other') or not isinstance(v,str) or len(v)>2000 or not http_url(v) for k,v in external.items())):raise ValidationError({'external_links':'لینک خارجی معتبر نیست.'})
-    if data.get('work_phone'):
-        from accounts.validators import validate_iranian_mobile
-        try:data['work_phone']=validate_iranian_mobile(data['work_phone'])
-        except Exception:raise ValidationError({'work_phone':'شماره تماس کاری معتبر نیست.'})
     images=data.get('images',[])
     if not isinstance(images,list) or len(images)>15 or any(not isinstance(v,str) or not http_url(v) for v in images): raise ValidationError({'images':'تصاویر معتبر نیستند.'})
     if data['contractType'] != 'رهن و اجاره':
@@ -138,6 +143,26 @@ def validate_payload(request, kind, previous=None):
         if key in ('floor', 'totalFloor') and not number.is_integer():
             raise ValidationError({key:'شماره و تعداد طبقات باید عدد صحیح باشد.'})
         data[key]=int(number) if number.is_integer() else number
+    if data.get('documentType') != 'سایر':
+        data.pop('documentTypeOther', None)
+    elif ('documentType' in incoming or 'documentTypeOther' in incoming) and not data.get('documentTypeOther', '').strip():
+        raise ValidationError({'documentTypeOther': 'نوع سند را وارد کنید.'})
+    if len(data.get('documentTypeOther', '')) > 120:
+        raise ValidationError({'documentTypeOther': 'نوع سند حداکثر ۱۲۰ نویسه است.'})
+    if 'technical' in data:
+        if isinstance(incoming.get('technical'), dict) and previous and property_type(previous.get('propertyType')) == data['propertyType']:
+            data['technical'] = {**(previous.get('technical') or {}), **incoming['technical']}
+        data['technical'] = clean_technical(data['propertyType'], data['technical'], data) if kind == 'file' else {}
+        prices = data['technical'].get('floorPrices', [])
+        by_floor = data['technical'].get('priceMode') == 'floor'
+        if data['contractType'] == 'فروش' and (by_floor or not data.get('totalPrice')):
+            if prices and len(prices) == data.get('totalFloor') and all(prices):
+                data['totalPrice'] = sum(prices)
+                data['pricePerMeter'] = round(data['totalPrice'] / data['area']) if data.get('area') else 0
+            elif by_floor:
+                data.pop('totalPrice', None)
+    if kind == 'file' and require_complete and incoming.get('publicationStatus') != 'draft':
+        require_file_fields(data)
     if kind == 'file' and data.get('totalFloor') is not None and data.get('floor', 0) > data['totalFloor']:
         if not previous or any(str(data.get(key)) != str(previous.get(key)) for key in ('floor', 'totalFloor')):
             raise ValidationError({'floor':'شماره طبقه نباید بیشتر از تعداد کل طبقات باشد.'})
@@ -205,6 +230,10 @@ def validate_payload(request, kind, previous=None):
 
 def serialize(row,user=None):
     result={**{key:value for key,value in row.data.items() if key not in PARTY_IDS},**({'requesterName':row.created_by.full_name,'requesterPhone':row.created_by.phone} if row.kind=='request' else {}),'id':row.pk,'created_at':row.created_at.isoformat(),'updated_at':row.updated_at.isoformat(),'publication_state':row.publication_state,'assigned_expert_id':row.assigned_expert_id,'office_id':row.office_id,'featured':row.featured,'archived':bool(row.archived_at)}
+    if row.kind == 'file':
+        contact = property_contact(row)
+        result.pop('work_phone', None)
+        result['workPhone'] = contact.phone if contact else None
     for key in ('propertyType', 'direction', 'landUse'):
         if (value := record_field(row.data, key)) is not None:
             result[key] = value
@@ -273,18 +302,20 @@ class PropertyListView(APIView):
         pinned=params.get('pinned')
         if pinned in ('true','1'):rows=[r for r in rows if r.pins.filter(user=request.user).exists()]
         total=len(rows);return envelope({'results':[serialize(r,request.user) for r in rows[(page-1)*size:page*size]],'total_results':total,'has_more':page*size<total,'stats':stats})
+    @transaction.atomic
     def post(self,request,kind):
         require_estate_write(request.user)
         if kind=='file' and request.user.role not in ('agency','expert'): raise PermissionDenied('ثبت فایل برای این نقش مجاز نیست.')
         from .workflow_services import dispatch,feature,audit,workspace,require_expert_permission,touch_contact
         feature('files' if kind=='file' else 'requests')
         if request.user.role=='expert':require_expert_permission(request.user,'can_manage_files' if kind=='file' else 'can_manage_requests')
-        data=validate_payload(request,kind)
+        data=validate_payload(request,kind,require_complete=True)
         professional=request.user.role in ('agency','expert')
         data['source']='panel' if professional else 'landing'
         if kind=='request':data['selfServiceRequest']=not professional;data['requesterType']='customer'
         row=PropertyRecord.objects.create(kind=kind,created_by=request.user,data=data,office_id=workspace(request.user) if request.user.role in ('agency','expert') else None,assigned_expert=request.user if request.user.role=='expert' else None)
-        if professional:touch_contact(row,request.user)
+        if professional and (kind != 'file' or data.get('ownerPhone')):
+            touch_contact(row,request.user)
         audit(request.user,'property.created','property',row.pk,property=row)
         if kind=='request' and data.get('publicationStatus')!='draft':dispatch(row.pk,request.user)
         return envelope(serialize(row,request.user),message='اطلاعات ثبت شد.',code=201)
@@ -297,9 +328,10 @@ class PropertyDetailView(APIView):
             from .workflow_services import require_expert_permission
             require_expert_permission(request.user,'can_manage_files' if kind=='file' else 'can_manage_requests',row.office_id)
         return envelope(serialize(row,request.user))
+    @transaction.atomic
     def patch(self,request,kind,pk):
         require_estate_write(request.user)
-        row=get_object_or_404(scope(request.user),kind=kind,pk=pk)
+        row=get_object_or_404(scope(request.user).select_for_update(of=('self',)),kind=kind,pk=pk)
         if request.user.role=='expert':
             from .workflow_services import require_expert_permission
             require_expert_permission(request.user,'can_manage_files' if kind=='file' else 'can_manage_requests',row.office_id)
@@ -307,12 +339,22 @@ class PropertyDetailView(APIView):
             if row.assigned_expert_id:raise PermissionDenied('این پرونده به کارشناس سپرده شده است؛ تغییرات را با مسئول پرونده هماهنگ کنید.')
         if row.created_by_id!=request.user.pk and row.assigned_expert_id!=request.user.pk and not (request.user.role=='agency' and row.office_id==request.user.pk): raise PermissionDenied('ویرایش این پرونده مجاز نیست.')
         data = validate_payload(request, kind, row.data)
-        if kind == 'file' and row.publication_state == 'published' and (
-            property_work_phone(row.data) or 'allowOnlineChat' in data
+        old_data = row.data
+        if kind == 'file' and (
+            old_data.get('publicationStatus') == 'draft' and data.get('publicationStatus') == 'pending'
+            or all(old_data.get(key) for key in ('ownerName', 'ownerPhone', 'address', 'area'))
         ):
-            require_property_work_phone(data)
+            require_file_fields(data)
         row.data = data
         row.save(update_fields=['data','updated_at'])
+        if kind == 'file' and request.user.role in ('expert', 'agency') and data.get('ownerPhone') and any(
+            data.get(key) != old_data.get(key) for key in ('ownerName', 'ownerPhone', 'ownerPhone2', 'ownerJob')
+        ):
+            from .workflow_services import touch_contact
+            contact = touch_contact(row, row.assigned_expert or request.user)
+            old_contact = old_data.get('partyContactId')
+            if old_contact and old_contact != contact.pk:
+                row.crm_contacts.remove(old_contact)
         if row.data.get('publicationStatus')=='pending':
             from .workflow_services import dispatch
             dispatch(row.pk,request.user)

@@ -24,7 +24,8 @@ export type PropertyType = {
     latitude?: number|null
     longitude?: number|null
     workPhone?: string
-    work_phone?: string
+    technical?: Record<string, string | boolean | number | string[] | (number | null)[] | {area: number; count: number}[]>
+    documentTypeOther?: string
     allowOnlineChat?: boolean
     virtualTourUrl?: string
     otherLink?: string

@@ -18,7 +18,7 @@ from .settings_models import PanelSettings
 from .workflow_services import (workspaces,workspace,audit,feature,dispatch,respond,policy,ROUTING_DEFAULTS,
     EXPERT_PERMISSION_DEFAULTS,expert_permissions,require_expert_permission,touch_contact,dispatch_visit,respond_visit,
     visit_office_id,calculate_visit_commission)
-from .property_api import scope,serialize as property_serialize,validate_payload,normalize,require_estate_write,property_work_phone,require_property_work_phone
+from .property_api import scope,serialize as property_serialize,validate_payload,normalize,require_estate_write,property_contact,require_file_fields
 from .public_api import public_serialize,public_rows,ACTIVE_BOOKINGS
 from .finance_api import money
 from .workflow_pagination import filtered,paginate
@@ -167,7 +167,7 @@ class OwnerSubmissionView(APIView):
     @transaction.atomic
     def post(self,request):
         require_estate_write(request.user)
-        feature('files');d=validate_payload(request,'file');d['requesterType']='owner';d['ownerSubmission']=True;d['source']='landing'
+        feature('files');d=validate_payload(request,'file',require_complete=True);d['requesterType']='owner';d['ownerSubmission']=True;d['source']='landing'
         draft=d.get('publicationStatus')=='draft'
         row=PropertyRecord.objects.create(kind='file',created_by=request.user,data=d,publication_state='draft' if draft else 'pending')
         audit(request.user,'property.owner.submitted','property',row.pk,property=row)
@@ -183,9 +183,11 @@ class PropertyPublishView(APIView):
         if not isinstance(publish,bool):raise ValidationError('وضعیت انتشار معتبر نیست.')
         if row.archived_at:raise ValidationError('ابتدا پرونده را از بایگانی بازیابی کنید.')
         if publish:
-            validate_payload(request, row.kind, row.data)
+            validated = validate_payload(request, row.kind, row.data)
             if row.kind == 'file':
-                require_property_work_phone(row.data)
+                require_file_fields(validated)
+                if not property_contact(row):
+                    raise ValidationError('ابتدا کارشناس مسئول فایل را مشخص کنید.')
         row.publication_state='published' if publish else 'draft';row.data={**row.data,'publicationStatus':row.publication_state};row.save(update_fields=['publication_state','data','updated_at']);audit(request.user,'property.publication','property',row.pk,property=row,status=row.publication_state)
         return envelope(property_serialize(row))
 class FavoritesView(APIView):
@@ -548,7 +550,8 @@ class PropertyContactView(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request,pk):
         row=view_property(request.user,pk)
-        phone = property_work_phone(row.data)
+        contact = property_contact(row)
+        phone = contact.phone if contact else None
         if not phone:
-            raise ValidationError('شماره کاری قابل تماس برای این ملک ثبت نشده است.')
+            raise ValidationError('شماره تماس کارشناس برای این ملک در دسترس نیست.')
         response=envelope({'phone':phone,'property_id':row.pk});response['Cache-Control']='private, no-store';return response

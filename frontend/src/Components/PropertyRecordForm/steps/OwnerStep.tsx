@@ -15,7 +15,7 @@ export function OwnerStep({property, setProperty, resource, mode = 'file'}: Step
 
     return <GridProducer sx={{marginBottom: '16px'}} data={fields.map(([suffix, label]) => {
         const name = `${prefix}${suffix}` as const
-        return <CustomTextField key={name} name={name} setData={setProperty} resource={resource} label={label}
+        return <CustomTextField key={name} name={name} setData={setProperty} resource={resource} label={!request && (suffix === 'Name' || suffix === 'Phone') ? `${label} (الزامی)` : label}
             defaultValue={property[name]} inputProps={suffix.startsWith('Phone') ? {inputMode: 'tel'} : undefined}/>
     })}/>
 }

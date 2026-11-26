@@ -1,3 +1,4 @@
+import {DocumentFields, FileTechnicalFields} from './FileTechnicalFields'
 import {useContext} from 'react'
 import {FieldScope,fieldVisible} from '../FieldScope'
 import {FloorChoices} from '../components/CheckboxChoices'
@@ -22,8 +23,12 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
     const isLand=['زمین','زمین و کلنگی','کشاورزی'].includes(property.propertyType)
     const fieldScope=useContext(FieldScope)
     const {settings}=usePanelSettings()
+    if (mode === 'file' && property.propertyType !== 'آپارتمان') {
+        return <FileTechnicalFields property={property} setProperty={setProperty}/>
+    }
     return (
         <>
+            <DocumentFields property={property} setProperty={setProperty}/>
             <GridProducer
                 sx={{marginBottom: '16px'}}
                 data={[

@@ -105,6 +105,7 @@ export function FinancialStep({property, setProperty, resource, mode}: ModeStepP
     const isMortgageRentFile = property.contractType === 'رهن و اجاره' && mode === 'file'
     const budgetType: BudgetType = (property.budgetType as BudgetType) || 'رهن و اجاره'
     const showMortgagePrice = !isMortgageRentFile || budgetType !== 'اجاره کامل'
+    const priceByFloor = mode === 'file' && property.propertyType === 'ساختمان یکجا' && property.technical?.priceMode === 'floor'
     const showMonthlyRent = !isMortgageRentFile || budgetType !== 'رهن کامل'
 
     return (
@@ -127,7 +128,7 @@ export function FinancialStep({property, setProperty, resource, mode}: ModeStepP
                         name="area"
                         setData={setProperty}
                         resource={resource}
-                        label="متراژ"
+                        label="متراژ (الزامی)"
                         defaultValue={property.area}
                         thousandSeparator
                         endIcon={<InputAdornment position="end">متر</InputAdornment>}
@@ -136,7 +137,7 @@ export function FinancialStep({property, setProperty, resource, mode}: ModeStepP
 
                 /* ---------------- فروش ---------------- */
 
-                ...(property.contractType === 'فروش'
+                ...(property.contractType === 'فروش' && !priceByFloor
                     ? [
                           mode === 'request' ? (
                               <RangeField
@@ -154,7 +155,7 @@ export function FinancialStep({property, setProperty, resource, mode}: ModeStepP
                                   name="totalPrice"
                                   setData={setProperty}
                                   resource={resource}
-                                  label="قیمت کل"
+                                  label="قیمت کل (الزامی)"
                                   defaultValue={property.totalPrice}
                                   thousandSeparator
                                   endIcon={<InputAdornment position="end">تومان</InputAdornment>}
