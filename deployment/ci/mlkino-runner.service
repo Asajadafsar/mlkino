@@ -7,7 +7,7 @@ Wants=network-online.target
 User=mlkino-deploy
 Group=mlkino-deploy
 WorkingDirectory=/var/lib/mlkino-runner
-Environment=ACTIONS_RUNNER_HOOK_JOB_STARTED=/usr/local/libexec/mlkino-runner-job-start
+Environment=ACTIONS_RUNNER_HOOK_JOB_STARTED=/usr/local/libexec/mlkino-runner-job-start.sh
 ExecStart=/var/lib/mlkino-runner/runsvc.sh
 Restart=on-failure
 RestartSec=10
