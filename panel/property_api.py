@@ -234,6 +234,7 @@ def serialize(row,user=None):
         contact = property_contact(row)
         result.pop('work_phone', None)
         result['workPhone'] = contact.phone if contact else None
+        result['contact_user_id'] = contact.pk if contact else None
     for key in ('propertyType', 'direction', 'landUse'):
         if (value := record_field(row.data, key)) is not None:
             result[key] = value

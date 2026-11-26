@@ -1,7 +1,8 @@
 import api from '../../Core/Request'
+import {apiErrorMessage} from '../../Core/ApiError'
 export type WorkflowRow={id:number;[key:string]:any}
 export const workflowUrl=(resource:string)=>`workflows/${resource}/`
-export const workflowError=(error:any)=>error.response?.data?.message||error.response?.data?.errors?.[0]?.message||error.message||'ارتباط با سرور برقرار نشد؛ دوباره تلاش کنید.'
+export const workflowError=(error:unknown)=>apiErrorMessage(error,'ارتباط با سرور برقرار نشد؛ دوباره تلاش کنید.')
 export function unpack<T=any>(response:any):T{return response.data.data}
 export const persianNumber=(value:any)=>value===null||value===undefined||value===''?'—':Number.isFinite(Number(value))?Number(value).toLocaleString('fa-IR'):String(value)
 export const dateTime=(value:any)=>{if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?'—':date.toLocaleString('fa-IR',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Tehran'})}

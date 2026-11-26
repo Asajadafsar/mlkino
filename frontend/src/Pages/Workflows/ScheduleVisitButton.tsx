@@ -1,25 +1,27 @@
-import {useState, useEffect, type FormEvent} from 'react'
+import {useEffect, useState, type FormEvent} from 'react'
 import {Link} from 'react-router-dom'
-import {Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography} from '@mui/material'
+import {Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography} from '@mui/material'
 import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined'
 import DatePickerFilter from '../../Components/Filter/DatePicker'
 import {dateTimeIso} from '../../Core/PersianDate'
 import {DataProvider} from '../../Core/DataProvider'
+import {workflowError} from './workflowClient'
 
 type Slot = {id: number; starts_at: string; ends_at: string}
+type Day = {key: number; date: string | null; start: string; end: string}
+const emptyDay = (key: number): Day => ({key, date: null, start: '', end: ''})
+const zone = 'Asia/Tehran'
 const visitDate = new Intl.DateTimeFormat('fa-IR', {
-    timeZone: 'Asia/Tehran', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    timeZone: zone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
 })
-const visitTime = new Intl.DateTimeFormat('fa-IR', {timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit'})
 
 export function ScheduleVisitButton({propertyId}: {propertyId: number}) {
     const [open, setOpen] = useState(false)
-    const [start, setStart] = useState<string | null>(null)
-    const [end, setEnd] = useState<string | null>(null)
+    const [days, setDays] = useState([emptyDay(0)])
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState('')
-    const [saved, setSaved] = useState(false)
+    const [saved, setSaved] = useState(0)
     const [slots, setSlots] = useState<Slot[]>([])
     const [listError, setListError] = useState(false)
     useEffect(() => {
@@ -32,53 +34,68 @@ export function ScheduleVisitButton({propertyId}: {propertyId: number}) {
         return () => {active = false}
     }, [open, propertyId, saved])
 
+    const change = (key: number, patch: Partial<Day>) => {
+        setError('')
+        setDays(current => current.map(day => day.key === key ? {...day, ...patch} : day))
+    }
+
     const save = async (event: FormEvent) => {
         event.preventDefault()
         if (saving) return
-        const starts_at = dateTimeIso(start || '')
-        const ends_at = dateTimeIso(end || '')
-        if (!starts_at || !ends_at || +new Date(starts_at) <= Date.now() || +new Date(ends_at) <= +new Date(starts_at)) {
-            setError('زمان شروع باید در آینده و زمان پایان بعد از شروع باشد.')
-            return
-        }
-        setSaving(true)
         setError('')
+        setSaving(true)
         try {
-            await DataProvider.post('workflows/visit-slots/', {data: {property_id: propertyId, starts_at, ends_at}})
-            setSaved(true)
-            setStart(null)
-            setEnd(null)
-        } catch (reason: any) {
-            setError(reason.message || 'ثبت زمان بازدید انجام نشد.')
+            const slots = days.map((day, index) => {
+                if (!day.date || !day.start || !day.end) throw new Error(`تاریخ و ساعت‌های بازهٔ ${index + 1} را وارد کنید.`)
+                const starts_at = dateTimeIso(`${day.date} ${day.start}`, zone)
+                const ends_at = dateTimeIso(`${day.date} ${day.end}`, zone)
+                if (+new Date(starts_at) <= Date.now() || +new Date(ends_at) <= +new Date(starts_at)) {
+                    throw new Error(`بازهٔ ${index + 1}: زمان شروع باید در آینده و پایان بعد از شروع باشد.`)
+                }
+                return {starts_at, ends_at}
+            })
+            await DataProvider.post('workflows/visit-slots/', {data: {property_id: propertyId, slots}})
+            setSaved(count => count + 1)
+            setDays([emptyDay(0)])
+        } catch (reason) {
+            setError(workflowError(reason))
         } finally {
             setSaving(false)
         }
     }
 
     return <>
-        <Button variant="outlined" startIcon={<EventAvailableOutlined/>} onClick={() => {setError(''); setSaved(false); setOpen(true)}}>تعیین زمان بازدید</Button>
+        <Button variant="outlined" startIcon={<EventAvailableOutlined/>} onClick={() => {setError(''); setSaved(0); setOpen(true)}}>تعیین زمان بازدید</Button>
         <Dialog open={open} onClose={() => !saving && setOpen(false)} fullWidth maxWidth="sm">
             <form onSubmit={save}>
                 <DialogTitle>تعیین زمان بازدید</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{pt: 1}}>
+                        <Typography variant="body2">برای هر روز تاریخ و ساعت شروع و پایان را به وقت تهران وارد کنید. بازه‌ها پس از انتشار فایل در لندینگ قابل رزرو هستند.</Typography>
                         {error && <Alert severity="error">{error}</Alert>}
-                        {saved && <Alert severity="success">زمان بازدید ثبت شد.</Alert>}
-                        <DatePickerFilter mode="controlled" item={{label: 'تاریخ و ساعت شروع'}} withTime required value={start} onChange={value => {setSaved(false); setStart(value)}}/>
+                        {saved > 0 && !error && <Alert severity="success">زمان‌های بازدید ثبت شدند.</Alert>}
+                        {days.map((day, index) => <Stack key={day.key} spacing={1}>
+                            <DatePickerFilter mode="controlled" item={{label: `تاریخ بازدید ${index + 1}`}} required value={day.date} onChange={date => change(day.key, {date})}/>
+                            <Stack direction="row" spacing={1}>
+                                <TextField type="time" required fullWidth label={`شروع ${index + 1}`} InputLabelProps={{shrink: true}} value={day.start} onChange={event => change(day.key, {start: event.target.value})}/>
+                                <TextField type="time" required fullWidth label={`پایان ${index + 1}`} InputLabelProps={{shrink: true}} value={day.end} onChange={event => change(day.key, {end: event.target.value})}/>
+                                {days.length > 1 && <Button disabled={saving} onClick={() => setDays(current => current.filter(item => item.key !== day.key))}>حذف</Button>}
+                            </Stack>
+                        </Stack>)}
+                        <Button disabled={saving || days.length >= 30} onClick={() => setDays(current => [...current, emptyDay(current[current.length - 1].key + 1)])}>افزودن روز یا بازهٔ دیگر</Button>
                         {listError && <Alert severity="warning">فهرست زمان‌های ثبت‌شده دریافت نشد.</Alert>}
                         {slots.length > 0 && <Stack gap={0.5} aria-label="زمان‌های آیندهٔ بازدید">
                             <Typography fontWeight={700}>زمان‌های آیندهٔ ثبت‌شده</Typography>
                             {slots.map(slot => <Typography key={slot.id} variant="body2">
-                                {visitDate.format(new Date(slot.starts_at))} تا {visitTime.format(new Date(slot.ends_at))}
+                                {visitDate.format(new Date(slot.starts_at))} تا {visitDate.format(new Date(slot.ends_at))}
                             </Typography>)}
                         </Stack>}
-                        <DatePickerFilter mode="controlled" item={{label: 'تاریخ و ساعت پایان'}} withTime required value={end} onChange={value => {setSaved(false); setEnd(value)}}/>
                     </Stack>
                 </DialogContent>
                 <DialogActions>
                     <Button disabled={saving} component={Link} to={`/visit-slots?property=${propertyId}`}>مشاهده زمان‌های ثبت‌شده</Button>
                     <Button disabled={saving} onClick={() => setOpen(false)}>بستن</Button>
-                    <Button disabled={saving || !start || !end} type="submit" variant="contained">ثبت زمان</Button>
+                    <Button disabled={saving} type="submit" variant="contained">ثبت زمان‌ها</Button>
                 </DialogActions>
             </form>
         </Dialog>

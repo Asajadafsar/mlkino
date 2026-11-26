@@ -27,6 +27,8 @@ import StraightenRoundedIcon from "@mui/icons-material/StraightenRounded";
 import KingBedRoundedIcon from "@mui/icons-material/KingBedRounded";
 import LayersRoundedIcon from "@mui/icons-material/LayersRounded";
 import { useRouter } from "next/navigation";
+import {setFileFavorite} from "@/app/Core/favoriteAction";
+import {useLandingSession} from "@/app/Core/Session";
 import {isListingBodyClick} from "@/app/Core/listings";
 import { getPropertyTypeIcon } from "./PropertyTypeIcon";
 import VisitRequestModal from "./VisitRequestModal";
@@ -181,6 +183,9 @@ export default function CardFileHorizontal({
   mode = "file",
 }: CardFileProps) {
   const [bookmarked, setBookmarked] = React.useState(initialBookmarked);
+  const [favoriteFeedback, setFavoriteFeedback] = React.useState("");
+  const [favoritePending, setFavoritePending] = React.useState(false);
+  const {user} = useLandingSession();
   const [visitModalOpen, setVisitModalOpen] = React.useState(false);
   const router = useRouter();
 
@@ -192,11 +197,22 @@ export default function CardFileHorizontal({
   const virtualTourUrl: string | undefined =
     (data as any).virtualTourUrl || (data as any).tourUrl;
 
-  const handleBookmarkClick = (e: React.MouseEvent) => {
+  const handleBookmarkClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (favoritePending || mode === "request") return;
+    if (!user) {setFavoriteFeedback("برای ذخیرهٔ فایل وارد حساب شوید."); return;}
     const next = !bookmarked;
-    setBookmarked(next);
-    onBookmarkToggle?.(next);
+    setFavoritePending(true);
+    setFavoriteFeedback("");
+    try {
+      await setFileFavorite(data.id, next);
+      setBookmarked(next);
+      onBookmarkToggle?.(next);
+    } catch (error) {
+      setFavoriteFeedback(error instanceof Error ? error.message : "عملیات علاقه‌مندی انجام نشد.");
+    } finally {
+      setFavoritePending(false);
+    }
   };
 
   const handleDetails = () => {
@@ -768,6 +784,7 @@ export default function CardFileHorizontal({
         </Box>
       </Card>
 
+      {favoriteFeedback && <p role="status">{favoriteFeedback}</p>}
       <VisitRequestModal
         key={visitModalOpen ? "open" : "closed"}
         open={visitModalOpen}

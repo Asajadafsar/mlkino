@@ -1,5 +1,22 @@
 import axios, {AxiosError, AxiosInstance, AxiosRequestConfig} from 'axios'
 import {ACCOUNTS_URL} from './APP_URL'
+import {getCsrfToken} from './Csrf'
+import {apiErrorMessage} from './ApiError'
+
+async function refreshSession() {
+    const post = async (force = false) => axios.post(`${ACCOUNTS_URL}/token/refresh/`, null, {
+        withCredentials: true, timeout: 15000, xsrfCookieName: '',
+        headers: {'X-CSRFToken': await getCsrfToken(force)},
+    })
+    try {
+        return await post()
+    } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 403 && error.response.data?.error_code === 'csrf_failed') {
+            return post(true)
+        }
+        throw error
+    }
+}
 
 let refreshPromise: Promise<unknown> | null = null
 
@@ -10,9 +27,7 @@ export function installSessionRefresh(client: AxiosInstance) {
             request._retry = true
             try {
                 if (!refreshPromise) {
-                    refreshPromise = axios.post(`${ACCOUNTS_URL}/token/refresh/`, null, {
-                        withCredentials: true, timeout: 15000,
-                    }).finally(() => {refreshPromise = null})
+                    refreshPromise = refreshSession().finally(() => {refreshPromise = null})
                 }
                 await refreshPromise
                 return client(request)
@@ -20,8 +35,7 @@ export function installSessionRefresh(client: AxiosInstance) {
                 return Promise.reject(refreshError)
             }
         }
-        const message = error.response?.data?.message || error.response?.data?.detail
-        if (typeof message === 'string') error.message = message
+        error.message = apiErrorMessage(error, 'دریافت پاسخ از سرور انجام نشد. دوباره تلاش کنید.')
         return Promise.reject(error)
     })
 }

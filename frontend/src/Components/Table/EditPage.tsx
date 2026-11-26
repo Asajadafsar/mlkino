@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { DataProvider } from '../../Core/DataProvider'
 import { setUtil } from '../../redux/UtilSlice'
 import {useContext, useState} from 'react'
+import {ResetUserPasswordButton} from './ResetUserPasswordButton'
 import {CurrentUserContext} from '../../Core/CurrentUser'
 
 export function EditPage(props) {
@@ -27,6 +28,10 @@ export function EditPage(props) {
     const params = useParams()
     const {user, setUser} = useContext(CurrentUserContext)
     const [saving, setSaving] = useState(false)
+    const managedUserId = Number(params.id || formDetails.id)
+    const canResetPassword = resource === 'users' && user.role === 'superadmin' &&
+        !user.managed_session && formDetails.role !== 'superadmin' && !formDetails.is_superuser &&
+        managedUserId > 0 && managedUserId !== Number(user.id)
     const updatedFields = Object.keys(formDetails).reduce((result, key) => {
         if (formDetails[key] !== initialData[key]) result[key] = formDetails[key]
         return result
@@ -103,6 +108,7 @@ export function EditPage(props) {
                         {title}
                     </Typography>
                     <Stack>
+                        {canResetPassword && <ResetUserPasswordButton userId={managedUserId}/>}
                         {!noEdit && Object.keys(updatedFields).length !== 0 ? (
                             <Button
                                 variant="outlined"

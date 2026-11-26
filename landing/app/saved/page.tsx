@@ -2,7 +2,6 @@ import { Container } from "@mui/material";
 import React from "react";
 import SavedItemsHeader from "../Components/SavedItems/SavedItemsHeader";
 import SavedItems from "../Components/SavedItems/SavedItems";
-import EmptySavedState from "../Components/SavedItems/EmptySavedState";
 import RequestPropertyBanner from "../Components/SavedItems/RequestPropertyBanner";
 
 export default function SavedPage() {
@@ -25,7 +24,6 @@ export default function SavedPage() {
     >
       <SavedItemsHeader />
       <SavedItems/>
-      <EmptySavedState/>
       <RequestPropertyBanner />
     </Container>
   );

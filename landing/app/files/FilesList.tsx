@@ -4,10 +4,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import FileToolbar from "../Components/Sort/Sort";
 import CardFile from "../Components/Card/CardFile";
 import { usePublicFiles } from "../Core/usePublicFiles";
-import { PROPERTIES } from "../Core/listings";
 import ResponsiveFilter from "../Components/Filter/ResponsiveFilter";
 
-export default function FilesList({featured = false}: {featured?: boolean}) {
+export default function FilesList({featured = false, kind = "file"}: {featured?: boolean; kind?: "file" | "request"}) {
   const router = useRouter(), pathname = usePathname();
   const searchParams = useSearchParams();
   const filters = new URLSearchParams();
@@ -20,10 +19,9 @@ export default function FilesList({featured = false}: {featured?: boolean}) {
   if (land) filters.set("landUse", land);
   if (search) filters.set("search", search);
   if (rooms) filters.set("roomsFrom", rooms);
-  const unfiltered = !filters.size;
   if (featured) filters.set("featured", "1");
-  const result = usePublicFiles(filters.toString());
-  const properties = unfiltered && result?.data?.count === 0 ? PROPERTIES : result?.data?.items || [];
+  const result = usePublicFiles(filters.toString(), kind);
+  const properties = result?.data?.items || [];
   const pages = result?.data ? Math.ceil(result.data.count / result.data.pageSize) : 0;
 
   return (
@@ -40,10 +38,10 @@ export default function FilesList({featured = false}: {featured?: boolean}) {
         <FileToolbar />
         {properties.map((item) => (
           <Grid size={{ xs: 12, sm: 6, lg: 4, xl: 3 }} key={item.id}>
-            <CardFile data={item} />
+            <CardFile data={item} mode={kind} />
           </Grid>
         ))}
-        {!properties.length && <Grid size={12}><Paper variant="outlined" sx={{p:4,textAlign:"center",borderRadius:4}}><Typography role="status" sx={{fontWeight:800}}>{result?.error || (result ? "ملکی با این فیلترها پیدا نشد." : "در حال دریافت فایل‌ها…")}</Typography></Paper></Grid>}
+        {!properties.length && <Grid size={12}><Paper variant="outlined" sx={{p:4,textAlign:"center",borderRadius:4}}><Typography role="status" sx={{fontWeight:800}}>{result?.error || (result ? "نتیجه‌ای با این فیلترها پیدا نشد." : "در حال دریافت فایل‌ها…")}</Typography></Paper></Grid>}
         {pages > 1 && <Grid size={12}><Pagination count={pages} page={Number(filters.get("page")) || 1} onChange={(_, page) => {const next = new URLSearchParams(searchParams); next.set("page", String(page)); router.push(`${pathname}?${next}`);}}/></Grid>}
 
       </Grid>

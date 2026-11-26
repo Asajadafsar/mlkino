@@ -88,6 +88,28 @@ class WorkflowTests(TestCase):
         self.login(self.expert);self.assertEqual(self.client.post(f'/panel/workflows/properties/{self.row.pk}/pin/',{},format='json').status_code,201)
         self.assertTrue(PropertyPin.objects.filter(user=self.expert,property=self.row).exists())
         self.login(self.agency);self.assertFalse(PropertyPin.objects.filter(user=self.agency,property=self.row).exists())
+    def test_visit_slot_batch_is_atomic_and_visible_in_public_catalog(self):
+        self.row.assigned_expert = self.expert
+        self.row.office = self.agency
+        self.row.publication_state = 'published'
+        self.row.save()
+        now = timezone.now()
+        slots = [
+            {'starts_at': (now + timedelta(days=day)).isoformat(),
+             'ends_at': (now + timedelta(days=day, hours=1)).isoformat()}
+            for day in (1, 2)
+        ]
+        body = {'property_id': self.row.pk, 'slots': slots}
+        rejected = self.post('workflows/visit-slots/', {**body, 'slots': [slots[0], slots[0]]}, self.expert)
+        self.assertEqual(rejected.status_code, 400, rejected.data)
+        self.assertFalse(VisitSlot.objects.filter(property=self.row).exists())
+        response = self.post('workflows/visit-slots/', body, self.expert)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.client.force_authenticate(None)
+        public = self.client.get(f'/api/panel/public/catalog/{self.row.pk}/visit-slots/')
+        self.assertEqual(public.status_code, 200, public.data)
+        self.assertEqual(len(public.data['data']['results']), 2)
+
     def test_visit_capacity_conflict_permissions_cancel(self):
         self.row.assigned_expert=self.expert;self.row.office=self.agency;self.row.publication_state='published';self.row.save()
         start=timezone.now()+timedelta(days=1);payload={'property_id':self.row.pk,'starts_at':start.isoformat(),'ends_at':(start+timedelta(hours=1)).isoformat(),'capacity':1}

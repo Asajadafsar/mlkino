@@ -31,7 +31,8 @@ import HandshakeOutlined from "@mui/icons-material/HandshakeOutlined";
 import VerifiedUserOutlined from "@mui/icons-material/VerifiedUserOutlined";
 import LinkRounded from "@mui/icons-material/LinkRounded";
 import type { PropertyType } from "@/app/Core/types";
-import { PROPERTIES, propertyTitle } from "@/app/Core/listings";
+import { propertyTitle } from "@/app/Core/listings";
+import {usePublicFiles} from "@/app/Core/usePublicFiles";
 import { formatNumber, getDisplayArea, getPriceInfo } from "../Card/cardFileUtils";
 import ListingCard from "../Card/ListingCard";
 import VisitRequestModal from "../Card/VisitRequestModal";
@@ -92,11 +93,12 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
   const phone = isRequest ? data.requesterPhone || "" : data.contactPhone;
   const chatEnabled = isRequest || data.allowOnlineChat !== false;
   const name = isRequest ? data.requesterName : data.advisorName || data.assignedTo;
-  const related = PROPERTIES.filter(item => item.id !== data.id).slice(0,4);
+  const catalog = usePublicFiles(new URLSearchParams({propertyType: data.propertyType, page_size: "5"}).toString());
+  const related = (catalog?.data?.items || []).filter(item => item.id !== data.id).slice(0, 4);
   const photos = data.images.filter((image): image is string => typeof image === "string");
   const mapAddress = isRequest ? `${data.city}، ${neighborhood}` : data.address.startsWith(data.city) ? data.address : `${data.city}، ${neighborhood}، ${data.address}`;
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapAddress)}`;
-  const price = isRequest ? (data.contractType === "خرید" ? range(data.totalPriceFrom, data.totalPriceTo, "تومان") : range(data.mortgagePriceFrom, data.mortgagePriceTo, "تومان ودیعه")) : `${getPriceInfo(data).value} تومان`;
+  const price = isRequest ? (["خرید", "فروش"].includes(data.contractType) ? range(data.totalPriceFrom, data.totalPriceTo, "تومان") : range(data.mortgagePriceFrom, data.mortgagePriceTo, "تومان ودیعه")) : `${getPriceInfo(data).value} تومان`;
 
   async function copy(text: string) {
     try { await navigator.clipboard.writeText(text); setNotice("کپی شد"); } catch { setCopyFallback(text); }
@@ -179,11 +181,11 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
       </aside>
     </div>
 
-    <section className={styles.related} aria-label={isRequest ? "فایل‌های پیشنهادی" : "ملک‌های مشابه"}>
+    {related.length > 0 && <section className={styles.related} aria-label={isRequest ? "فایل‌های پیشنهادی" : "ملک‌های مشابه"}>
       <div className={styles.relatedHeading}><h2><ApartmentOutlined />{isRequest ? "فایل‌هایی برای بررسی" : "ملک‌های مشابه"}</h2><div><button type="button" aria-label="ملک مشابه قبلی" onClick={() => relatedRef.current?.scrollBy({left:relatedRef.current.clientWidth + 16,behavior:"smooth"})}><ChevronRightRounded /></button><button type="button" aria-label="ملک مشابه بعدی" onClick={() => relatedRef.current?.scrollBy({left:-(relatedRef.current.clientWidth + 16),behavior:"smooth"})}><ChevronLeftRounded /></button></div></div>
       <div className={styles.relatedCards} ref={relatedRef} onScroll={event => {const container=event.currentTarget;const width=container.firstElementChild?.getBoundingClientRect().width || container.clientWidth;setRelatedIndex(Math.round(Math.abs(container.scrollLeft)/(width+16)));}}>{related.map(item => <ListingCard key={item.id} data={item} variant="related" />)}</div>
       <div className={styles.relatedDots}>{related.map((item,index) => <button key={item.id} type="button" aria-label={`نمایش ملک مشابه ${index+1}`} aria-pressed={relatedIndex === index} onClick={() => {const container=relatedRef.current;if(container){const width=container.firstElementChild?.getBoundingClientRect().width || container.clientWidth;container.scrollTo({left:-index*(width+16),behavior:"smooth"});}}} />)}</div>
-    </section>
+    </section>}
     <VisitRequestModal key={visitOpen ? "open" : "closed"} open={visitOpen} onClose={() => setVisitOpen(false)} property={data} />
     <VirtualTourModal open={tourOpen} onClose={() => setTourOpen(false)} links={data.virtualTourUrl} />
     <Dialog open={chatEnabled && messageOpen} onClose={() => setMessageOpen(false)} fullWidth maxWidth="sm" slotProps={{paper:{sx:{borderRadius:5}}}}><div className={styles.messageDialog}><div><h2>{isRequest ? "معرفی ملک به متقاضی" : "گفتگو با کارشناس"}</h2><IconButton aria-label="بستن گفتگو" onClick={() => setMessageOpen(false)}><CloseRounded /></IconButton></div><p>{title}</p><TextField className={styles.dialogField} id="detail-message" label="متن پیام" fullWidth multiline minRows={4} maxRows={8} value={message} onChange={event => setMessage(event.target.value)} placeholder={isRequest ? "مشخصات ملک مناسب را بنویسید…" : "سلام، برای دریافت اطلاعات این ملک پیام می‌دهم…"} helperText={`${message.length.toLocaleString("fa-IR")} / ۱۰۰۰`} slotProps={{inputLabel:{shrink:true},htmlInput:{maxLength:1000}}} /><button type="button" className={styles.softButton} disabled={!message.trim()} onClick={() => copy(message)}><ContentCopyOutlined />کپی متن پیام</button><a className={styles.blueButton} href={isRequest ? `https://mlkino.com/panel/support?requestId=${data.id}` : `https://mlkino.com/panel/files/${data.id}`}><ChatOutlined />ادامه گفتگو در پنل ملکینو</a></div></Dialog>

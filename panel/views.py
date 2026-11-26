@@ -7,6 +7,8 @@ from accounts.models import ActivityLog
 from datetime import date
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import models, transaction, IntegrityError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -16,6 +18,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.throttling import UserRateThrottle
 
 from accounts.models import Announcement, AgencyExpert, AgencyProfile, ExpertProfile
 from accounts.permissions import IsSuperAdmin
@@ -67,7 +70,7 @@ LABELS = {
 
 LABELS.update({
     'reminder.create':'ثبت یادآوری شخصی','reminder.update':'ویرایش یادآوری شخصی','reminder.delete':'حذف یادآوری شخصی',
-    'profile.update':'ویرایش پروفایل','profile.preferences':'تغییر تنظیمات شخصی','password.change':'تغییر رمز عبور','session.revoke':'بستن نشست دستگاه','session.created':'ورود به حساب',
+    'profile.update':'ویرایش پروفایل','profile.preferences':'تغییر تنظیمات شخصی','password.change':'تغییر رمز عبور','user.password.reset':'بازنشانی رمز کاربر','session.revoke':'بستن نشست دستگاه','session.created':'ورود به حساب',
     'chat.create':'شروع گفتگو','chat.message.send':'ارسال پیام','chat.send':'ارسال پیام','chat.message.delete':'حذف پیام','chat.read':'خواندن پیام','chat.block':'مسدودکردن مخاطب','chat.unblock':'رفع مسدودی مخاطب','chat.report':'ثبت گزارش گفتگو','chat.report.review':'بررسی گزارش گفتگو','user.permanent_delete':'حذف کاربر','request.failed':'عملیات ناموفق'
 })
 
@@ -803,6 +806,54 @@ class PanelUserListView(APIView):
             data=PanelUserDetailSerializer(user, context={"request": request}).data,
             status_code=201,
         )
+
+
+class ManagedPasswordResetThrottle(UserRateThrottle):
+    scope = 'managed-password-reset'
+    rate = '10/min'
+
+
+class PanelUserPasswordResetView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    throttle_classes = [ManagedPasswordResetThrottle]
+
+    def post(self, request, user_id):
+        from accounts.models import DeviceSession, PasswordResetToken
+
+        actor = request.user
+        if not _is_superadmin(actor) or getattr(request._request, 'impersonation_session', None) or actor.account_status == User.AccountStatus.SUSPENDED:
+            return error_response(message='بازنشانی رمز فقط با حساب اصلی سوپرادمین امکان‌پذیر است.', status_code=403)
+        payload = request.data
+        if not isinstance(payload, dict) or set(payload) != {'admin_password', 'new_password'}:
+            return error_response(message='رمز فعلی سوپرادمین و رمز جدید لازم است.', status_code=400)
+        admin_password, new_password = payload['admin_password'], payload['new_password']
+        if any(not isinstance(value, str) or not 1 <= len(value) <= 128 for value in (admin_password, new_password)):
+            return error_response(message='رمزهای عبور معتبر وارد کنید.', status_code=400)
+        if not actor.check_password(admin_password):
+            return error_response(message='رمز فعلی سوپرادمین صحیح نیست.', status_code=403)
+
+        with transaction.atomic():
+            # Use the same token-before-user lock ordering as password recovery.
+            pending = PasswordResetToken.objects.filter(user_id=user_id, is_used=False)
+            list(pending.select_for_update().values_list('pk', flat=True))
+            user = get_object_or_404(User.objects.select_for_update(), pk=user_id)
+            if user.is_superuser or user.role == User.Role.SUPER_ADMIN or user.pk == actor.pk:
+                return error_response(message='حساب مدیریتی باید از مسیر بازیابی شخصی استفاده کند.', status_code=403)
+            try:
+                validate_password(new_password, user=user)
+            except DjangoValidationError as error:
+                return error_response(message=' '.join(error.messages), status_code=400)
+            user.set_password(new_password)
+            user.save(update_fields=['password'])
+            pending.update(is_used=True)
+            DeviceSession.objects.filter(user=user, revoked_at__isnull=True).update(revoked_at=timezone.now())
+            ActivityLog.objects.create(
+                actor=actor, real_actor=actor, event='user.password.reset', category='security',
+                method=request.method, path=request.path[:500], status_code=200,
+                request_id=uuid.uuid4(), metadata={'target_type': 'user', 'target_id': user.pk},
+            )
+            request._request.business_activity_logged = True
+        return success_response(message='رمز بازنشانی شد و نشست‌های فعال کاربر بسته شدند.')
 
 
 class PanelUserDetailView(APIView):
