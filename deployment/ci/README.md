@@ -66,15 +66,19 @@ systemctl cat mlkino-backend.service mlkino-landing.service
 sudo -u postgres psql --no-psqlrc --dbname=mlkino_db --command='SELECT current_database();'
 test -r /etc/mlkino/mlkino.env
 test -x /opt/mlkino/venv/bin/python
+# If current is a real directory, complete the baseline conversion below first.
 test -L /opt/mlkino/current
 baseline=$(readlink -e /opt/mlkino/current)
-test "$(dirname "$baseline")" = /opt/mlkino/releases
+case "$baseline" in
+  /opt/mlkino/releases/baseline/app) release_root=/opt/mlkino/releases/baseline ;;
+  *) test "$(dirname "$baseline")" = /opt/mlkino/releases; release_root="$baseline" ;;
+esac
 test -f "$baseline/mlkino/production_settings.py"
 test -f "$baseline/requirements.txt"
 test -f "$baseline/requirements-extra.txt"
 test -f "$baseline/frontend/build/asset-manifest.json"
 test -f "$baseline/landing/.next/standalone/server.js"
-test -z "$(find /opt/mlkino /opt/mlkino/releases "$baseline" -maxdepth 0 \( ! -user root -o -perm /022 \) -print)"
+test -z "$(find /opt/mlkino /opt/mlkino/releases "$release_root" -maxdepth 0 \( ! -user root -o -perm /022 \) -print)"
 nginx -t
 curl --fail --silent --show-error --resolve mlkino.com:443:127.0.0.1 \
   https://mlkino.com/api/panel/public/catalog/?page_size=1 >/dev/null
@@ -99,11 +103,8 @@ sudo -l -U mlkino-deploy
 
 Check that the account has only its own group, no access to
 `/etc/mlkino/mlkino.env`, no Docker access, and only the displayed zero-argument
-deployment command in sudo. Admin-only rollback is run directly by root. If
-the baseline is a real directory or points outside `/opt/mlkino/releases`,
-arrange a maintenance window and validate the live service paths before
-normalizing the baseline into a root-managed release directory. Do not install
-a runner for the old layout.
+deployment command in sudo. Admin-only rollback is run directly by root.
+Do not install a runner for the old shared-Gunicorn layout.
 
 Fetch the runner and compare the SHA-256 digest from the official GitHub
 release API before extracting it. This block expects an empty runner home.
@@ -136,6 +137,59 @@ systemctl status mlkino-runner.service --no-pager
 In GitHub, verify the runner is **Idle** and has the required labels.
 If the first push queued a deployment before setup, approve its production
 review or re-run the build for the current SHA once GitHub sees the runner.
+
+## Convert the existing production baseline
+
+For the host where `/opt/mlkino/current` is a real directory, run the following
+as root from a reviewed checkout after merging the fix. Keep the GitHub runner
+offline through this maintenance window. The application services will be
+briefly stopped and restarted. Inspect the units first and confirm they work
+through `/opt/mlkino/current`.
+
+```bash
+set -euo pipefail
+SOURCE=/root/mlkino-reviewed
+git -C "$SOURCE" log -1 --oneline
+systemctl cat mlkino-backend.service mlkino-landing.service
+systemctl is-active mlkino-backend.service mlkino-landing.service
+test -d /opt/mlkino/current && test ! -L /opt/mlkino/current
+stat -c '%a %U:%G %n' /opt/mlkino /opt/mlkino/current
+readlink /opt/mlkino/current/frontend/build
+readlink /opt/mlkino/current/landing/.next/standalone
+install -d -o root -g root -m 0755 /usr/local/libexec
+install -o root -g root -m 0755 "$SOURCE/deployment/ci/deploy.py" /usr/local/libexec/mlkino-deploy
+install -d -o root -g root -m 0700 /var/backups/mlkino/.ci
+/usr/local/libexec/mlkino-deploy --migrate-baseline
+test "$(readlink -e /opt/mlkino/current)" = /opt/mlkino/releases/baseline/app
+systemctl is-active mlkino-backend.service mlkino-landing.service
+```
+
+The controller checks the live service working directories, TLS/Nginx, API
+data and frontend JavaScript before stopping the services and again after
+conversion. It renames the existing tree on the same filesystem and retains
+its inode, ownership and modes, including both relative build symlinks. The
+only ownership transition is the deployment anchor `/opt/mlkino` becoming
+`root:www-data` on this host, with its existing group and mode retained. The
+root-controlled anchor prevents service users from replacing the live pointer.
+The environment file, database, media, static directory and shared venv stay
+in place. On an ordinary failure the controller restores the original
+directory and restarts and checks it before reporting the failure.
+
+To reverse the conversion **before the first CI deployment**, while the
+runner is offline and the baseline is still active:
+
+```bash
+/usr/local/libexec/mlkino-deploy --restore-baseline-directory
+test -d /opt/mlkino/current && test ! -L /opt/mlkino/current
+systemctl is-active mlkino-backend.service mlkino-landing.service
+```
+
+After a later deployment, retain the symlink layout and use the normal
+application rollback. If the process was forcibly terminated, inspect
+`current`, `releases/baseline/app` and the service journal before retrying.
+Once baseline health passes, continue the [runner installation](#one-time-install-on-debian-12)
+or start the already configured runner. Cancel any queued production job for
+the old controller commit and approve only the run for the merged fix.
 
 ## Release and rollback behavior
 
