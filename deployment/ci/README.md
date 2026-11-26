@@ -94,7 +94,7 @@ install -d -o root -g root -m 0700 /var/backups/mlkino/.ci
 install -d -o root -g root -m 0755 /usr/local/libexec
 install -o root -g root -m 0755 "$SOURCE/deployment/ci/deploy.py" /usr/local/libexec/mlkino-deploy
 install -o root -g root -m 0644 "$SOURCE/deployment/ci/migrate.py" /usr/local/libexec/mlkino-migrate
-install -o root -g root -m 0755 "$SOURCE/deployment/ci/runner-job-start.sh" /usr/local/libexec/mlkino-runner-job-start
+install -o root -g root -m 0755 "$SOURCE/deployment/ci/runner-job-start.sh" /usr/local/libexec/mlkino-runner-job-start.sh
 visudo -cf "$SOURCE/deployment/ci/mlkino-deploy.sudoers"
 install -o root -g root -m 0440 "$SOURCE/deployment/ci/mlkino-deploy.sudoers" /etc/sudoers.d/mlkino-deploy
 visudo -c
