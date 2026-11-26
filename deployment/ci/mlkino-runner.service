@@ -1,0 +1,17 @@
+[Unit]
+Description=Dedicated GitHub Actions runner for MLKino production
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=mlkino-deploy
+Group=mlkino-deploy
+WorkingDirectory=/var/lib/mlkino-runner
+Environment=ACTIONS_RUNNER_HOOK_JOB_STARTED=/usr/local/libexec/mlkino-runner-job-start
+ExecStart=/var/lib/mlkino-runner/runsvc.sh
+Restart=on-failure
+RestartSec=10
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

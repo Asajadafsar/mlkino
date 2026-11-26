@@ -1,0 +1,2 @@
+# An empty argument list is intentional. The archive is passed on stdin.
+mlkino-deploy ALL=(root) NOPASSWD: /usr/local/libexec/mlkino-deploy ""

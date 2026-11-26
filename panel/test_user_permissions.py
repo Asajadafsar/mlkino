@@ -4,6 +4,7 @@ from rest_framework.test import APIClient
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from io import BytesIO
+from tempfile import TemporaryDirectory
 from PIL import Image
 from accounts.models import AgencyExpert, ExpertProfile
 
@@ -69,8 +70,9 @@ class UserManagementScopeTests(TestCase):
         self.assertTrue(created.is_staff)
         self.assertFalse(created.is_superuser)
 
-    @override_settings(MEDIA_ROOT='/private/tmp/mlkino-test-media')
     def test_superadmin_can_create_agency_with_manager_and_national_card_images(self):
+        media = self.enterContext(TemporaryDirectory())
+        self.enterContext(override_settings(MEDIA_ROOT=media))
         self.client.force_authenticate(self.admin)
         image = BytesIO()
         Image.new('RGB', (2, 2), color='white').save(image, format='PNG')
