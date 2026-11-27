@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type ElementType } from "react";
+import { useEffect, useId, useState, type ElementType } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, ButtonBase, FormControl, InputAdornment, InputLabel, MenuItem, Select, TextField, ToggleButton, ToggleButtonGroup } from "@mui/material";
@@ -20,7 +20,8 @@ import OpenInFullRounded from "@mui/icons-material/OpenInFullRounded";
 import BedOutlined from "@mui/icons-material/BedOutlined";
 import KeyboardArrowDownRounded from "@mui/icons-material/KeyboardArrowDownRounded";
 import { CATEGORIES, LAND_SUBTYPES } from "./categories";
-import { CITIES_BY_PROVINCE, PROVINCES } from "@/app/data/iran/geography";
+import { PROVINCES } from "@/app/data/iran/geography";
+import { apiOrigin } from "@/app/Core/Session";
 import AdvancedFilterPanel, { EMPTY_FILTERS, type FilterState } from "../Filter/AdvancedFilterPanel";
 import styles from "./search.module.css";
 
@@ -30,6 +31,10 @@ export const DEALS = [
   { value: "presale", label: "پیش‌فروش", Icon: LayersOutlined },
   { value: "partnership", label: "مشارکت", Icon: GroupsOutlined },
 ];
+const LOCATION_LEVELS = ["county", "city", "district", "neighborhood"] as const;
+type LocationLevel = typeof LOCATION_LEVELS[number];
+const LOCATION_LABELS = {county:"شهرستان", city:"شهر", district:"منطقه", neighborhood:"محله"};
+
 type Option = { value: string; label: string };
 function SearchSelect({ label, value, onChange, options, Icon, compact, disabled = false }: {
   label: string; value: string; onChange: (value: string) => void; options: Option[]; Icon: ElementType; compact: boolean; disabled?: boolean;
@@ -66,8 +71,37 @@ export default function PropertySearch({ compact = false, initialDeal = "buy", d
   const [localDeal, setLocalDeal] = useState(DEALS.some(item => item.value === initialDeal) ? initialDeal : "buy");
   const deal = dealValue ?? localDeal;
   const setDeal = (value: string) => { setLocalDeal(value); onDealChange?.(value); };
-  const [city, setCity] = useState("");
-  const [province, setProvince] = useState("");
+  const [places, setPlaces] = useState<Record<string,string>>({});
+  const {province = "", county = "", city = "", district = ""} = places;
+  const [placeOptions, setPlaceOptions] = useState<Partial<Record<LocationLevel,string[]>>>({});
+  const [locationError, setLocationError] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    if (!province) return;
+    const parents = {province, county, city, district};
+    const levels = city ? LOCATION_LEVELS : LOCATION_LEVELS.slice(0, 2);
+    Promise.allSettled(levels.map(async (level) => {
+      const params = new URLSearchParams({level, province});
+      for (const key of LOCATION_LEVELS.slice(0, LOCATION_LEVELS.indexOf(level))) {
+        if (key !== "neighborhood" && parents[key]) params.set(key, parents[key]);
+      }
+      const response = await fetch(`${apiOrigin()}/api/panel/public/locations/?${params}`, {signal:controller.signal});
+      if (!response.ok) throw Error("locations unavailable");
+      const rows = (await response.json()).data.results as {name:string}[];
+      return [level, Array.from(new Set(rows.map(row => row.name)))] as const;
+    })).then(results => {
+      if (controller.signal.aborted) return;
+      setPlaceOptions(Object.fromEntries(results.flatMap(result => result.status === "fulfilled" ? [result.value] : [])));
+      setLocationError(results.some(result => result.status === "rejected") ? "فهرست بخشی از موقعیت‌ها دریافت نشد." : "");
+    });
+    return () => controller.abort();
+  }, [province, county, city, district]);
+  function changeLocation(level: "province" | LocationLevel, value: string) {
+    const order = ["province", ...LOCATION_LEVELS];
+    setPlaces(current => ({...Object.fromEntries(order.slice(0, order.indexOf(level)).map(key => [key, current[key]])), [level]: value}));
+    setPlaceOptions(current => Object.fromEntries(LOCATION_LEVELS.filter(key => order.indexOf(key) <= order.indexOf(level)).map(key => [key, current[key]])));
+    setLocationError("");
+  }
   const [property, setProperty] = useState("");
   const [landSubtype, setLandSubtype] = useState("");
   const [priceFrom, setPriceFrom] = useState("");
@@ -82,15 +116,15 @@ export default function PropertySearch({ compact = false, initialDeal = "buy", d
   const invalidPrice = Boolean(priceFrom && priceTo && Number(priceFrom) > Number(priceTo));
 
   function reset() {
-    setDeal("buy"); setCity(""); setProvince(""); setProperty(""); setLandSubtype("");
+    setDeal("buy"); changeLocation("province", ""); setProperty(""); setLandSubtype("");
     setPriceFrom(""); setPriceTo(""); setAreaFrom(""); setAreaTo(""); setRooms("all");
     setAdvanced(null); setError(""); setResetKey(key => key + 1);
   }
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (invalidPrice || invalidArea) { setError("مقدار «از» باید کمتر از مقدار «تا» باشد."); return; }
-    const params = new URLSearchParams({ deal, city });
-    if (province) params.set("province", province);
+    const params = new URLSearchParams({deal});
+    Object.entries(places).forEach(([key,value]) => { if (value) params.set(key,value); });
     Object.entries({ propertyType: property, landSubtype, priceFrom, priceTo, areaFrom, areaTo, rooms: rooms === "all" ? "" : rooms }).forEach(([key, value]) => { if (value) params.set(key, value); });
     if (advanced) params.set("advanced", JSON.stringify(advanced));
     router.push(`/files?${params}`);
@@ -103,8 +137,8 @@ export default function PropertySearch({ compact = false, initialDeal = "buy", d
       <div className={`${styles.fields} ${property === "زمین" ? styles.withLand : ""}`}>
         <SearchSelect label="نوع ملک" value={property} onChange={value => {setProperty(value);if(value !== "زمین")setLandSubtype("");}} options={[{value:"",label:"همه املاک"},...CATEGORIES.map(item => ({value:item.label,label:item.label}))]} Icon={ApartmentOutlined} compact={compact} />
         {property === "زمین" && <SearchSelect label="کاربری زمین" value={landSubtype} onChange={setLandSubtype} options={[{value:"",label:"همه کاربری‌ها"},...LAND_SUBTYPES.map(value => ({value,label:value}))]} Icon={LandscapeOutlined} compact={compact} />}
-        <SearchSelect label="استان" value={province} onChange={value => {setProvince(value);setCity("");}} options={[{value:"",label:"همه استان‌ها"},...PROVINCES.map(({name}) => ({value:name,label:name}))]} Icon={LocationOnOutlined} compact={compact} />
-        <SearchSelect label="شهر" value={city} onChange={setCity} options={[{value:"",label:province ? "همه شهرها" : "ابتدا استان را انتخاب کنید"},...(PROVINCES.find(item => item.name === province) ? CITIES_BY_PROVINCE.get(PROVINCES.find(item => item.name === province)!.id) ?? [] : []).map(({name}) => ({value:name,label:name}))]} Icon={LocationOnOutlined} compact={compact} disabled={!province} />
+        <SearchSelect label="استان" value={province} onChange={value => changeLocation("province", value)} options={[{value:"",label:"همه استان‌ها"},...PROVINCES.map(({name}) => ({value:name,label:name}))]} Icon={LocationOnOutlined} compact={compact} />
+        {(compact ? (["city"] as const) : LOCATION_LEVELS).map(level => <SearchSelect key={level} label={LOCATION_LABELS[level]} value={places[level] || ""} onChange={value => changeLocation(level, value)} options={[{value:"",label:"همه"},...Array.from(new Set([places[level],...(placeOptions[level] || [])].filter(Boolean))).map(value => ({value,label:value}))]} Icon={LocationOnOutlined} compact={compact} disabled={!province || ((level === "district" || level === "neighborhood") && !city)} />)}
         {compact ? <fieldset className={`${styles.range} ${styles.priceRange}`}><legend><PaymentsOutlined /> بازه قیمت (تومان)</legend>
           <TextField label="از" size="small" fullWidth type="number" value={priceFrom} onChange={event => setPriceFrom(event.target.value)} placeholder="حداقل" error={invalidPrice} slotProps={{inputLabel:{shrink:true},htmlInput:{"aria-label":"حداقل قیمت",inputMode:"numeric",min:0,max:priceTo || undefined,step:1}}} />
           <TextField label="تا" size="small" fullWidth type="number" value={priceTo} onChange={event => setPriceTo(event.target.value)} placeholder="حداکثر" error={invalidPrice} slotProps={{inputLabel:{shrink:true},htmlInput:{"aria-label":"حداکثر قیمت",inputMode:"numeric",min:priceFrom || 0,step:1}}} />
@@ -123,6 +157,7 @@ export default function PropertySearch({ compact = false, initialDeal = "buy", d
         <fieldset className={styles.rooms}><legend><BedOutlined /> تعداد خواب</legend><ToggleButtonGroup className={styles.roomChoices} value={rooms} exclusive aria-label="تعداد خواب" onChange={(_,value:string|null) => {if(value !== null)setRooms(value);}}>{[{key:"all",label:"همه"},{key:"1",label:"۱+"},{key:"2",label:"۲+"},{key:"3",label:"۳+"},{key:"4",label:"۴+"}].map(room => <ToggleButton key={room.key} value={room.key}>{room.label}</ToggleButton>)}</ToggleButtonGroup></fieldset>
         <details className={styles.more}><summary><TuneRounded /><span>سایر فیلترها<small>امکانات، وضعیت بنا و …</small></span></summary><AdvancedFilterPanel key={resetKey} initialFilters={EMPTY_FILTERS} embedded onApply={setAdvanced} /></details>
       </>}
+      {locationError && <p role="alert" className={styles.error}>{locationError}</p>}
       {error && <p role="alert" className={styles.error}>{error}</p>}
       <Button className={styles.searchButton} type="submit" variant="contained" disableElevation startIcon={<SearchRounded />} aria-label="جستجوی ملک">{compact ? "جستجو" : "جستجوی ملک"}</Button>
       {!compact && <Button className={styles.reset} type="button" onClick={reset} startIcon={<RestartAltRounded />}>پاک کردن همه فیلترها</Button>}

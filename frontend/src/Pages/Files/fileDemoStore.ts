@@ -13,7 +13,7 @@ const normalize=(value:unknown)=>String(value??'').replace(/[۰-۹٠-٩]/g,c=>St
 const number=(value:unknown)=>Number(normalize(value).replace(/,/g,''))
 export const fileDemoStore={
  list(query:Record<string,string>){const all=read().files;let rows=all.filter(file=>{
- for(const field of ['propertyType','contractType','province','city','district','neighborhood','roomCount','buildYear','totalFloor','floor','landUse','status']){const wanted=normalize(query[field]);if(wanted&&normalize(file[field])!==wanted)return false}
+ for(const field of ['propertyType','contractType','province','county','city','district','neighborhood','roomCount','buildYear','totalFloor','floor','landUse','status']){const wanted=normalize(query[field]);if(wanted&&normalize(file[field])!==wanted)return false}
  if(query.recordId&&file.id!==number(query.recordId))return false
  if(query.creatorRoles&&!query.creatorRoles.split('|').includes(file.creatorRole||''))return false
  if(query.search&&!normalize([file.title,file.id,file.propertyType,file.city,file.neighborhood,file.description].join(' ')).includes(normalize(query.search)))return false
@@ -27,6 +27,6 @@ export const fileDemoStore={
  toggleFavorite(id:number){this.get(id);const store=read();store.favorites=store.favorites.includes(id)?store.favorites.filter(value=>value!==id):[...store.favorites,id];write(store)},
  visits(id:number){return read().visits[id]||[]},
  addVisit(id:number,visit:Omit<FileVisit,'id'|'status'>){this.get(id);const store=read(),rows=store.visits[id]||[];const value={...visit,id:Date.now(),status:'pending'};store.visits[id]=[value,...rows];write(store);return value},
- locations(level:string,values:Record<string,string>){const fields={province:'province',city:'city',district:'district',neighborhood:'neighborhood'};const field=fields[level]||level;return Array.from(new Set(read().files.filter(file=>(!values.province||file.province===values.province)&&(!['district','neighborhood'].includes(level)||!values.city||file.city===values.city)&&(level!=='neighborhood'||!values.district||file.district===values.district)).map(file=>String(file[field]||'')).filter(Boolean)))},
+ locations(level:string,values:Record<string,string>){const fields={province:'province',city:'city',district:'district',neighborhood:'neighborhood'};const field=fields[level]||level;return Array.from(new Set(read().files.filter(file=>(level==='province'||!values.province||file.province===values.province)&&(!values.county||level==='province'||level==='county'||file.county===values.county)&&(!['district','neighborhood'].includes(level)||!values.city||file.city===values.city)&&(level!=='neighborhood'||!values.district||file.district===values.district)).map(file=>String(file[field]||'')).filter(Boolean)))},
  reset(){memory=undefined;try{localStorage.removeItem(key)}catch{}window.dispatchEvent(new Event(FILE_DEMO_CHANGED))}
 }

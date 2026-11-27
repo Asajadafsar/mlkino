@@ -14,7 +14,7 @@ export const reportTitles: Record<ReportType, string> = {
 }
 export const initialReportFilters: ReportFilters = {
   period: 'month', filters: '', ordering: '-created_at', date_from: '', date_to: '',
-  province: '', city: '', district: '', neighborhood: '', agency: '', expert: '', status: '', search: '',
+  province: '', county: '', city: '', district: '', neighborhood: '', agency: '', expert: '', status: '', search: '',
   expertCountFrom: '', expertCountTo: '', license: '', priceFrom: '', priceTo: '', areaFrom: '', areaTo: '',
 }
 export function reportValidation(filters: ReportFilters) {

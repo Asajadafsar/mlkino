@@ -39,6 +39,15 @@ class UserManagementScopeTests(TestCase):
         groups = self.client.get('/panel/users/groups/').data['data']['results']
         self.assertEqual([group['role'] for group in groups], ['expert'])
 
+    def test_full_name_search_normalizes_persian_letters_and_preserves_scope(self):
+        for expert in (self.expert, self.other_expert):
+            expert.first_name = 'علي'
+            expert.last_name = 'كريمي'
+            expert.save(update_fields=['first_name', 'last_name'])
+        response = self.client.get('/panel/users/', {'group': 'expert', 'search': 'علی کریمی'})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual([row['id'] for row in response.data['data']['results']], [self.expert.pk])
+
     def test_new_expert_is_attached_to_calling_agency_and_cannot_be_attached_elsewhere(self):
         payload = {'phone': '09123333006', 'password': 'expert-password', 'first_name': 'کارشناس', 'last_name': 'جدید', 'role': 'expert'}
         response = self.client.post('/panel/users/', payload, format='json')

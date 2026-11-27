@@ -17,6 +17,7 @@ from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from accounts.middleware import active_impersonation
+from accounts.notices import notify
 from accounts.models import AgencyExpert, AgencyProfile, ExpertProfile, OfficePayment, OfficeSubscription, RoleApplication, User
 from panel.models import AgencyExpertLink, PropertyRecord
 from panel.serializers import AgencyProfileSerializer
@@ -164,8 +165,8 @@ class Applications(APIView):
             application.resume = application.details.pop('resume', None)
         else:
             tier = request.data.get('tier')
-            if not isinstance(tier, str) or tier not in PLANS or PLANS[tier][0] is None or (kind == 'upgrade' and tier == 'free'):
-                raise ValidationError('پلن معتبر انتخاب کنید.')
+            if not isinstance(tier, str) or tier not in PLANS or not PLANS[tier][0] or tier == 'free':
+                raise ValidationError('برای فعال‌سازی دفتر یک پلن پولی معتبر انتخاب کنید.')
             if request.data.get('accept_terms') not in (True, 'true'):
                 raise ValidationError('تأیید قوانین لازم است.')
             application.tier = tier
@@ -204,7 +205,7 @@ class ApplicationDecision(APIView):
         applicant = User.objects.select_for_update().get(pk=row.applicant_id)
         now = timezone.now()
         next_status = {'approve':'approved', 'confirm_payment':'approved', 'reject':'rejected', 'fix':'fix'}[decision]
-        if decision == 'fix':
+        if decision == 'fix' or (decision == 'reject' and row.kind == 'office'):
             note = serializers.CharField(max_length=1000).run_validation(request.data.get('review_note'))
             row.details = {**row.details, 'review_note': note}
         if decision in ('approve', 'confirm_payment'):
@@ -220,7 +221,9 @@ class ApplicationDecision(APIView):
                 AgencyExpert.objects.update_or_create(expert=applicant, defaults={'agency_id': row.office_id, 'is_active': True})
                 AgencyExpertLink.objects.filter(expert=applicant).exclude(agency_id=row.office_id).delete()
                 AgencyExpertLink.objects.get_or_create(expert=applicant, agency_id=row.office_id)
-            elif row.tier != 'free' and decision == 'approve':
+            elif decision == 'approve':
+                if row.tier == 'free' or not row.details.get('monthly_price'):
+                    raise ValidationError('این درخواست پلن پولی ندارد؛ آن را برای اصلاح به متقاضی بازگردانید.')
                 next_status = 'await_pay'
             else:
                 subscription, _ = OfficeSubscription.objects.select_for_update().get_or_create(office=applicant)
@@ -248,6 +251,16 @@ class ApplicationDecision(APIView):
         row.reviewer = reviewer
         row.reviewed_at = now
         row.save(update_fields=['status', 'reviewer', 'reviewed_at', 'details'])
+        if row.kind == 'office':
+            notices = {
+                'approved': ('درخواست املاکی تأیید شد', 'نقش املاکی و امکانات پلن شما اکنون فعال است.'),
+                'await_pay': ('درخواست املاکی تأیید شد؛ در انتظار پرداخت', 'پس از پرداخت و تأیید دریافت وجه، نقش املاکی فعال می‌شود.'),
+                'rejected': ('درخواست املاکی رد شد', row.details.get('review_note', '')),
+                'fix': ('درخواست املاکی نیاز به اصلاح دارد', row.details.get('review_note', '')),
+            }
+            title, body = notices[next_status]
+            notify(applicant, 'role_application', title, f'درخواست شمارهٔ {row.pk} — {body}',
+                   '/role-applications', required=True)
         return Response(application_data(row, request))
 
 

@@ -218,3 +218,6 @@
 @media(prefers-reduced-motion:reduce){.relatedCards{scroll-behavior:auto}.galleryImage img{transition:none}}
 .thumbnails button{height:64px;aspect-ratio:auto;}
 @media(max-width:699px){.thumbnails button{height:46px;}.section >summary{min-height:40px;padding:8px 12px;font-size:13px;}}
+
+.primaryActions .blueButton span{white-space:nowrap;}
+.contactNumber{align-self:flex-end;color:#1554a0;margin-top:6px;font-size:13px;line-height:1.5;}

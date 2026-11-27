@@ -220,6 +220,26 @@ class PropertyPinView(APIView):
 def slot_json(r):
     booked=r.bookings.filter(status__in=['pending','confirmed']).count()
     return {'id':r.pk,'property_id':r.property_id,'property_title':r.property.data.get('title',r.property.data.get('propertyType','ملک')),'expert_id':r.expert_id,'starts_at':r.starts_at.isoformat(),'ends_at':r.ends_at.isoformat(),'capacity':r.capacity,'available':max(0,r.capacity-booked),'active':r.active}
+def parse_slot(entry, now, index=1):
+    if not isinstance(entry, dict):
+        raise ValidationError(f'بازهٔ {index} معتبر نیست.')
+    try:
+        start = parse_datetime(str(entry.get('starts_at', '')))
+        end = parse_datetime(str(entry.get('ends_at', '')))
+    except (TypeError, ValueError):
+        start = end = None
+    if not start or not end or timezone.is_naive(start) or timezone.is_naive(end) or start <= now or end <= start or end - start > timedelta(hours=12):
+        raise ValidationError(f'بازهٔ {index}: شروع باید در آینده و پایان حداکثر ۱۲ ساعت بعد باشد.')
+    return start, end
+
+
+def slot_overlaps(expert_id, start, end, exclude=None):
+    slots = VisitSlot.objects.filter(active=True, expert_id=expert_id, starts_at__lt=end, ends_at__gt=start)
+    if exclude is not None:
+        slots = slots.exclude(pk=exclude)
+    return slots.filter(Q(is_public=True) | Q(bookings__status__in=ACTIVE_BOOKINGS)).exists()
+
+
 class VisitSlotsView(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request):
@@ -241,25 +261,41 @@ class VisitSlotsView(APIView):
         created = []
         now = timezone.now()
         for index, entry in enumerate(entries, 1):
-            if not isinstance(entry, dict):
-                raise ValidationError(f'بازهٔ {index} معتبر نیست.')
-            try:
-                start = parse_datetime(str(entry.get('starts_at', '')))
-                end = parse_datetime(str(entry.get('ends_at', '')))
-            except (ValueError, TypeError):
-                start = end = None
-            if not start or not end or timezone.is_naive(start) or timezone.is_naive(end) or start <= now or end <= start or end - start > timedelta(hours=12):
-                raise ValidationError(f'بازهٔ {index}: شروع باید در آینده و پایان حداکثر ۱۲ ساعت بعد باشد.')
+            start, end = parse_slot(entry, now, index)
             capacity = ident(entry.get('capacity', 1))
             if capacity > 50:
                 raise ValidationError('ظرفیت حداکثر ۵۰ نفر است.')
-            overlaps = VisitSlot.objects.filter(active=True, expert=expert, starts_at__lt=end, ends_at__gt=start)
-            if overlaps.filter(Q(is_public=True) | Q(bookings__status__in=ACTIVE_BOOKINGS)).exists():
+            if slot_overlaps(expert.pk, start, end):
                 raise ValidationError(f'بازهٔ {index} با برنامهٔ بازدید کارشناس تداخل دارد.')
             slot = VisitSlot.objects.create(property=row, expert=expert, starts_at=start, ends_at=end, capacity=capacity)
             audit(request.user, 'visit.slot.created', 'visit_slot', slot.pk, property=row)
             created.append(slot_json(slot))
         return envelope({'results': created} if batch is not None else created[0], code=201)
+
+class VisitSlotDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def patch(self, request, pk):
+        feature('visits')
+        slot_ref = get_object_or_404(VisitSlot, pk=pk, active=True)
+        row = get_object_or_404(PropertyRecord.objects.select_for_update(), pk=slot_ref.property_id,
+                                kind='file', archived_at__isnull=True)
+        can_manage(request.user, row)
+        if request.user.role == 'expert':
+            require_expert_permission(request.user, 'can_manage_visits', row.office_id)
+        User.objects.select_for_update().get(pk=slot_ref.expert_id)
+        slot = get_object_or_404(VisitSlot.objects.select_for_update(), pk=pk, active=True)
+        start, end = parse_slot(request.data, timezone.now())
+        if slot.bookings.filter(status__in=ACTIVE_BOOKINGS).exists() and (start, end) != (slot.starts_at, slot.ends_at):
+            raise ValidationError('این بازه درخواست رزرو دارد و زمان آن قابل تغییر نیست.')
+        if slot_overlaps(slot.expert_id, start, end, exclude=pk):
+            raise ValidationError('این بازه با برنامهٔ بازدید کارشناس تداخل دارد.')
+        slot.starts_at, slot.ends_at = start, end
+        slot.save(update_fields=['starts_at', 'ends_at'])
+        audit(request.user, 'visit.slot.updated', 'visit_slot', slot.pk, property=row)
+        return envelope(slot_json(slot))
+
 
 def visit_scope(user):
     qs=PropertyVisit.objects.select_related('slot__property__office__agency_profile','visitor','visitor_contact','slot__expert','assigned_expert')
@@ -558,7 +594,7 @@ class SavedFiltersView(APIView):
         import json
         name=request.data.get('name');report=request.data.get('report');filters=request.data.get('filters')
         if not isinstance(name,str) or not 1<=len(name.strip())<=100 or report not in ('operations','agencies','experts','finance') or not isinstance(filters,dict) or len(json.dumps(filters))>10000:raise ValidationError('فیلتر ذخیره‌شده معتبر نیست.')
-        allowed={'date_from','date_to','period','province','city','district','neighborhood','expert','agency','status','priceFrom','priceTo','areaFrom','areaTo','search','expertCountFrom','expertCountTo','license','filters','report','group_by','ordering'}
+        allowed={'date_from','date_to','period','province','county','city','district','neighborhood','expert','agency','status','priceFrom','priceTo','areaFrom','areaTo','search','expertCountFrom','expertCountTo','license','filters','report','group_by','ordering'}
         if set(filters)-allowed:raise ValidationError('فیلد فیلتر معتبر نیست.')
         row,_=SavedReportFilter.objects.update_or_create(user=request.user,name=name.strip(),defaults={'report':report,'filters':filters})
         return envelope({'id':row.pk,'name':row.name,'report':row.report,'filters':row.filters},code=201)

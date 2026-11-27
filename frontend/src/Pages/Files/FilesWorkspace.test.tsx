@@ -20,3 +20,20 @@ test('details gallery, note editing and deep-link close preserve the file list',
 test('failed list requests clear old rows and invalid pagination is bounded',async()=>{(DataProvider.get as jest.Mock).mockImplementation((resource,params)=>resource.startsWith('locations/')?Promise.resolve({data:{results:[]}}):params?.search==='failure'?Promise.reject(new Error('دریافت فایل‌ها ناموفق بود')):Promise.resolve({data:{results:[first,second],total_results:2,stats:{total:2,active:1}}}));show('/files?page=999&page_size=-5');await screen.findByRole('button',{name:'مشاهده واحد نمونه'});await waitFor(()=>expect(DataProvider.get).toHaveBeenCalledWith('files/',expect.objectContaining({page:'1',page_size:'24'})));fireEvent.change(screen.getByRole('textbox',{name:'جستجو در فایل‌ها'}),{target:{value:'failure'}});expect(await screen.findByText('دریافت فایل‌ها ناموفق بود')).toBeTruthy();expect(screen.queryByRole('article')).toBeNull();expect(screen.getByRole('button',{name:'خروجی اکسل'})).toBeDisabled()})
 
 test('superadmin sees the real workspace without file creation or editing',async()=>{show('/files?detail=1','superadmin');await screen.findByRole('heading',{name:/واحد نمونه — فروش/});expect(screen.queryByRole('button',{name:'ثبت فایل جدید'})).not.toBeInTheDocument();expect(screen.queryByRole('button',{name:'ویرایش فایل'})).not.toBeInTheDocument();expect(screen.queryByRole('button',{name:'تعیین زمان بازدید'})).not.toBeInTheDocument()})
+
+
+test('file detail shows persisted technical values and omits blank optional rows',async()=>{
+ (DataProvider.get as jest.Mock).mockImplementation(resource=>Promise.resolve({data:resource==='files/1/'?
+  {...first,propertyType:'باغ ویلا',documentType:'سایر',documentTypeOther:'سند توافقی',technical:{landArea:400,pool:false,utilities:['آب','برق']}}:
+  {results:[first],total_results:1}}))
+ show('/files?detail=1')
+ await screen.findByRole('heading',{name:/واحد نمونه — فروش/})
+ const dialog=screen.getByRole('dialog')
+ expect(within(dialog).getByText('سند توافقی')).toBeVisible()
+ expect(within(dialog).queryByText('وضعیت تصرف')).not.toBeInTheDocument()
+ fireEvent.click(within(dialog).getByRole('tab',{name:'مشخصات فنی'}))
+ expect(within(dialog).getByText('متراژ کل زمین')).toBeVisible()
+ expect(within(dialog).getByText('۴۰۰')).toBeVisible()
+ expect(within(dialog).getByText('خیر')).toBeVisible()
+ expect(within(dialog).getByText('آب، برق')).toBeVisible()
+})

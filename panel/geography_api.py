@@ -95,6 +95,14 @@ class TileThrottle(UserRateThrottle):
     scope='map-tiles'
     rate='600/min'
 
+@functools.lru_cache(maxsize=3000)
+def county_name(province,city):
+    p=choose(catalog('provinces'),province)
+    c=choose([r for r in catalog('cities-filtered') if p and r['province_id']==p['id']],city)
+    county=choose(catalog('counties'),c['county_id']) if c else None
+    return county['name'] if county else ''
+
+
 class IranLocationsView(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request):

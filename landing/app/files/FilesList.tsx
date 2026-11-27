@@ -10,7 +10,7 @@ export default function FilesList({featured = false, kind = "file"}: {featured?:
   const router = useRouter(), pathname = usePathname();
   const searchParams = useSearchParams();
   const filters = new URLSearchParams();
-  for (const key of ["page", "province", "city", "district", "neighborhood", "propertyType", "contractType", "areaFrom", "areaTo", "priceFrom", "priceTo", "roomCount", "buildYear", "totalFloor", "floor"]) {
+  for (const key of ["page", "province", "county", "city", "district", "neighborhood", "propertyType", "contractType", "areaFrom", "areaTo", "priceFrom", "priceTo", "roomCount", "buildYear", "totalFloor", "floor"]) {
     const value = searchParams.get(key);
     if (value) filters.set(key, value);
   }

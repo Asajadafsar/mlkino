@@ -12,9 +12,9 @@ def notification_values(user):
     return {**NOTIFICATION_DEFAULTS, **(obj.notifications if obj else {})}
 
 
-def notify(user, kind, title, body='', link=''):
-    values = notification_values(user)
-    if not values['in_app'] or not values.get(f'{kind}_updates', True): return None
+def notify(user, kind, title, body='', link='', *, required=False):
+    values = {} if required else notification_values(user)
+    if not required and (not values['in_app'] or not values.get(f'{kind}_updates', True)): return None
     notice = AccountNotification.objects.create(user=user, kind=kind, title=title, body=body, link=link)
     def publish():
         try:

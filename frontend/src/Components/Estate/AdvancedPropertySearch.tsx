@@ -1,4 +1,5 @@
-import {ReactNode,useEffect,useState} from 'react'
+import {geographyEnabled,geographyLabels,geographyLevels,geographyPatch,useGeographyFilters} from '../Location/useGeographyFilters'
+import {ReactNode,} from 'react'
 import {Autocomplete,Button,TextField} from '@mui/material'
 import HomeOutlined from '@mui/icons-material/HomeOutlined'
 import SwapHoriz from '@mui/icons-material/SwapHoriz'
@@ -15,7 +16,6 @@ import FilterAltOutlined from '@mui/icons-material/FilterAltOutlined'
 import MapOutlined from '@mui/icons-material/MapOutlined'
 import RestartAlt from '@mui/icons-material/RestartAlt'
 import {AD_AMENITIES_OPTIONS,STATUS_OPTIONS,PROPERTY_TYPE_OPTIONS,DOCUMENT_TYPE_OPTIONS,OCCUPANCY_OPTIONS,HEATING_OPTIONS,COOLING_OPTIONS,FLOORING_OPTIONS,FACADE_OPTIONS,DIRECTION_OPTIONS,LAND_USE_OPTIONS} from '../PropertyRecordForm/constants'
-import api from '../../Core/Request'
 import './advancedPropertySearch.css'
 export type PropertySearchValues=Record<string,string>
 export const propertySearchFields=['propertyType','contractType','province','city','district','neighborhood','areaFrom','areaTo','priceFrom','priceTo','roomCount','buildYear','totalFloor','floor','status','amenities','creatorRoles','recordId','landUse','office']
@@ -24,16 +24,13 @@ export function validatePropertySearch(values:PropertySearchValues){
  return ''
 }
 export default function AdvancedPropertySearch({values,onChange,onSearch,count,officeOptions,demo=false,mapHref='#dashboard-map',onMap}:{values:PropertySearchValues;onChange:(v:PropertySearchValues)=>void;onSearch:()=>void;count?:number;officeOptions?:{id:string;name:string}[];demo?:boolean;mapHref?:string;onMap?:()=>void}){
- const [locations,setLocations]=useState<Record<string,string[]>>({}),[error,setError]=useState('')
- const province=values.province||'',city=values.city||'',district=values.district||''
- useEffect(()=>{const c=new AbortController();setLocations({});setError('');const levels=['province','city',...(city?['district','neighborhood']:[])];Promise.all(levels.map(async level=>{const r=await api.get('locations/',{params:{level,all:province?undefined:true,province:province||undefined,city:city||undefined,...(level==='neighborhood'&&district?{district}: {})},signal:c.signal});return [level,Array.from(new Set(r.data.data.results.map((x:any)=>x.name))) as string[]] as const})).then(rows=>{if(!c.signal.aborted)setLocations(Object.fromEntries(rows))}).catch(()=>{if(!c.signal.aborted)setError('فهرست موقعیت‌ها دریافت نشد؛ دوباره تلاش کنید.')});return()=>c.abort()},[province,city,district])
+ const {options,error}=useGeographyFilters(values,demo)
  const set=(key:string,value:string)=>onChange({...values,[key]:value})
  const digits=(s:string)=>s.replace(/[۰-۹٠-٩]/g,c=>String(c.charCodeAt(0)-(c>='۰'?1776:1632))).replace(/[^0-9]/g,'')
  const integer=(key:string,label:string,signed=false)=><TextField fullWidth size="small" value={values[key]||''} onChange={e=>set(key,(signed&&/^[-−]/.test(e.target.value)?'-':'')+digits(e.target.value))} inputProps={{'aria-label':label,inputMode:signed?'text':'numeric',maxLength:8}}/>
  const tile=(title:string,icon:ReactNode,children:ReactNode,wide=false)=><div className={`property-search-field${wide?' is-wide':''}`}><div className="property-search-label">{icon}<span>{title}</span></div>{children}</div>
  const select=(key:string,label:string,options:string[])=> <TextField select fullWidth size="small" value={values[key]||''} onChange={e=>set(key,e.target.value)} SelectProps={{native:true}} inputProps={{'aria-label':label}}><option value="">همه</option>{options.map(x=><option key={x} value={x}>{/^\d+$/.test(x)?Number(x).toLocaleString('fa-IR',{useGrouping:false}):x}</option>)}</TextField>
- const demoPlaces:Record<string,string>={province:'قم',city:'قم',district:'منطقه ۳',neighborhood:'امام خمینی'}
- const geo=(key:string,label:string,reset:string[])=> <Autocomplete options={demo?[demoPlaces[key]]:locations[key]||[]} disabled={(key==='city'&&!province)||(key==='district'&&!city)||(key==='neighborhood'&&(!city||!district))} value={values[key]||null} onChange={(_,value)=>onChange({...values,...Object.fromEntries(reset.map(k=>[k,''])),[key]:value||''})} renderInput={p=><TextField {...p} size="small" placeholder={`انتخاب ${label}`} inputProps={{...p.inputProps,'aria-label':label}}/>}/>
+ const geo=(level:typeof geographyLevels[number])=> <Autocomplete options={options[level]||[]} disabled={!geographyEnabled(level,values)} value={values[level]||null} onChange={(_,value)=>onChange({...values,...geographyPatch(level,value||''),office:''})} renderInput={p=><TextField {...p} size="small" placeholder={`انتخاب ${geographyLabels[level]}`} inputProps={{...p.inputProps,'aria-label':geographyLabels[level]}}/>}/>
  const range=(prefix:string,label:string)=> <div className="property-search-range">{['From','To'].map((suffix,i)=><TextField key={suffix} size="small" placeholder={i?'تا':'از'} value={values[prefix+suffix]||''} onChange={e=>set(prefix+suffix,digits(e.target.value))} inputProps={{'aria-label':`${label} ${i?'تا':'از'}${prefix==='price'?' (تومان)':''}`,inputMode:'numeric',maxLength:17}}/>)}</div>
  const toggle=(key:string,value:string,checked:boolean)=>{const selected=(values[key]||'').split('|').filter(Boolean);set(key,(checked?[...selected,value]:selected.filter(x=>x!==value)).join('|'))}
  return <form className="property-search" onSubmit={e=>{e.preventDefault();onSearch()}}>
@@ -43,10 +40,7 @@ export default function AdvancedPropertySearch({values,onChange,onSearch,count,o
  {values.propertyType==='زمین'&&tile('کاربری زمین',<MapOutlined/>,select('landUse','کاربری زمین',LAND_USE_OPTIONS))}
  {officeOptions&&tile('دفتر املاک',<HomeOutlined/>,<TextField select fullWidth size="small" value={values.office||''} onChange={e=>set('office',e.target.value)} SelectProps={{native:true}} inputProps={{'aria-label':'دفتر املاک'}}><option value="">همه دفاتر محدوده</option>{officeOptions.map(office=><option key={office.id} value={office.id}>{office.name}</option>)}</TextField>)}
  {tile('نوع معامله',<SwapHoriz/>,select('contractType','نوع معامله',['فروش','رهن و اجاره']))}
- {tile('استان',<PlaceOutlined/>,geo('province','استان',['city','district','neighborhood','office']))}
- {tile('شهر',<HomeOutlined/>,geo('city','شهر',['district','neighborhood','office']))}
- {tile('منطقه',<LayersOutlined/>,geo('district','منطقه',['neighborhood','office']))}
- {tile('محله',<PlaceOutlined/>,geo('neighborhood','محله',['office']))}
+ {geographyLevels.map(level=><div key={level}>{tile(geographyLabels[level],<PlaceOutlined/>,geo(level))}</div>)}
  {tile('متراژ (متر مربع)',<SquareFoot/>,range('area','متراژ'))}
  {tile(values.contractType==='رهن و اجاره'?'مبلغ رهن (تومان)':'قیمت (تومان)',<LayersOutlined/>,range('price','قیمت'))}
  {tile('تعداد خواب',<BedOutlined/>,integer('roomCount','تعداد خواب'))}

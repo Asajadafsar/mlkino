@@ -9,8 +9,8 @@ import DashboardMap,{CityPoint} from './DashboardMap'
 import DashboardResults,{layerLabels} from './DashboardResults'
 import ReportFilters,{ReportFilterValues,ReportOption,reportFilterError} from './ReportFilters'
 type ExplorerData={rows:CityPoint[];points:CityPoint[];matching_items:number;mapped_items:number;page_size:number;offices:ReportOption[]}
-export default function DashboardExplorer({admin,manager,filters,onChange,compact=false,searchRequest=0}:{compact?:boolean;searchRequest?:number;admin:boolean;manager:boolean;filters:ReportFilterValues;onChange:(values:ReportFilterValues)=>void}){
- const navigate=useNavigate(),[layers,setLayers]=useState(['files']),[view,setView]=useState('map'),[presence,setPresence]=useState('all'),[page,setPage]=useState(1),[data,setData]=useState<ExplorerData>(),[selected,setSelected]=useState<CityPoint>(),[full,setFull]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[experts,setExperts]=useState<ReportOption[]>([])
+export default function DashboardExplorer({admin,manager,filters,onChange,compact=false,searchRequest=0,includeRequests=false}:{compact?:boolean;includeRequests?:boolean;searchRequest?:number;admin:boolean;manager:boolean;filters:ReportFilterValues;onChange:(values:ReportFilterValues)=>void}){
+ const navigate=useNavigate(),[layers,setLayers]=useState(includeRequests?['files','requests']:['files']),[view,setView]=useState('map'),[presence,setPresence]=useState('all'),[page,setPage]=useState(1),[data,setData]=useState<ExplorerData>(),[selected,setSelected]=useState<CityPoint>(),[full,setFull]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[experts,setExperts]=useState<ReportOption[]>([])
  const options=['files','requests','contracts',...(manager?['agencies','experts']:[]),...(admin?['users']:[])]
  const key=JSON.stringify({...filters,detail:'1',paginate:'1',page:String(page),map_layers:layers.join('|'),presence})
  const filterKey=JSON.stringify(filters)

@@ -1,3 +1,4 @@
+import {geographyEnabled,geographyLabels,geographyLevels,geographyPatch,useGeographyFilters} from '../../Components/Location/useGeographyFilters'
 import {useCallback, useContext, useEffect, useMemo, useState} from 'react'
 import {Alert, Autocomplete, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, LinearProgress, Menu, MenuItem, Pagination, Table, TableBody, TableCell, TableHead, TableRow, ToggleButton, ToggleButtonGroup, Tooltip} from '@mui/material'
 import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded'
@@ -43,11 +44,10 @@ export function Reports() {
   const [filters, setFilters] = useState<ReportFilters>({...initialReportFilters})
   const [page, setPage] = useState(1), [pageSize, setPageSize] = useState(10), [view, setView] = useState('chart')
   const [data, setData] = useState<ReportData>(emptyData), [loading, setLoading] = useState(true)
-  const [error, setError] = useState(''), [filterError, setFilterError] = useState(''), [notice, setNotice] = useState(''), [retry, setRetry] = useState(0)
+  const [error, setError] = useState(''), [savedFilterError, setFilterError] = useState(''), [notice, setNotice] = useState(''), [retry, setRetry] = useState(0)
   const [groups, setGroups] = useState<{province: ReportGroup[]; status: ReportGroup[]}>({province:[],status:[]})
   const [trends, setTrends] = useState<{files?: ReportData; contracts?: ReportData}>({})
   const [chartsLoading, setChartsLoading] = useState(true), [chartsError, setChartsError] = useState('')
-  const [options, setOptions] = useState<Record<string, WorkflowRow[]>>({})
   const [saved, setSaved] = useState<WorkflowRow[]>([]), [savedOpen, setSavedOpen] = useState(false), [savedName, setSavedName] = useState(''), [saving, setSaving] = useState(false)
   const [columnsAnchor, setColumnsAnchor] = useState<HTMLElement|null>(null), [hiddenColumns, setHiddenColumns] = useState<string[]>([])
   const [exporting, setExporting] = useState(false), [exportProgress, setExportProgress] = useState(0)
@@ -91,18 +91,17 @@ export function Reports() {
 
   const loadSaved = useCallback(async () => {try {const result = unpack<any>(await api.get('workflows/saved-filters/')); setSaved(result.results || [])} catch (e) {setFilterError(workflowError(e))}}, [])
   useEffect(() => {void loadSaved()}, [loadSaved])
-  useEffect(() => {
-    let active = true
-    const paths: Record<string,string> = {province:'locations/?level=province&all=true'}
-    if (filters.province) paths.city = 'locations/?level=city&all=true&province=' + encodeURIComponent(filters.province)
-    if (filters.city) paths.district = 'locations/?level=district&all=true&city=' + encodeURIComponent(filters.city)
-    if (filters.district) paths.neighborhood = 'locations/?level=neighborhood&all=true&city=' + encodeURIComponent(filters.city) + '&district=' + encodeURIComponent(filters.district)
-    Promise.all(Object.entries(paths).map(async ([name,path]) => [name,unpack<any>(await api.get(path)).results || []])).then(entries => {if (active) setOptions(Object.fromEntries(entries))}).catch(e => {if (active) setFilterError(workflowError(e))})
-    return () => {active = false}
-  }, [filters.province,filters.city,filters.district])
-
-  const change = (field: string, value: string) => {setPage(1); setFilters(current => ({...current,[field]:value,...(field === 'province' ? {city:'',district:'',neighborhood:''} : field === 'city' ? {district:'',neighborhood:''} : field === 'district' ? {neighborhood:''} : {})}))}
-  const changeReport = (value: ReportType) => {setReport(value); setPage(1); setHiddenColumns([]); setFilters(current => ({...initialReportFilters,period:current.period,date_from:current.date_from,date_to:current.date_to,province:current.province,city:current.city,district:current.district,neighborhood:current.neighborhood}))}
+  const {options,error:geographyError}=useGeographyFilters(filters)
+  const filterError=savedFilterError||geographyError
+  const change = (field: string, value: string) => {
+    const level=geographyLevels.find(item=>item===field)
+    setPage(1)
+    setFilters(current => ({...current,...(level?geographyPatch(level,value):{[field]:value})}))
+  }
+  const changeReport = (value: ReportType) => {
+    setReport(value); setPage(1); setHiddenColumns([])
+    setFilters(current => ({...initialReportFilters,period:current.period,date_from:current.date_from,date_to:current.date_to,...Object.fromEntries(geographyLevels.map(level=>[level,current[level]]))}))
+  }
   const sort = (field: string) => change('ordering', filters.ordering === field ? '-' + field : field)
   const saveFilter = async () => {
     if (!savedName.trim() || validation) return
@@ -161,9 +160,9 @@ export function Reports() {
         <FileInput select label="بازه زمانی" value={filters.period} onChange={e => change('period',e.target.value)}>{[['today','امروز'],['yesterday','دیروز'],['week','هفته جاری'],['month','ماه جاری'],['previous_month','ماه گذشته'],['year','سال جاری'],['custom','بازه دلخواه']].map(([key,text]) => <MenuItem key={key} value={key}>{text}</MenuItem>)}</FileInput>
         <FileInput label="کد دفتر" placeholder="کد دفتر املاک" value={filters.agency} onChange={e => change('agency',numericReportInput(e.target.value))} inputProps={{inputMode:'numeric'}}/>
         <FileInput label="کد کارشناس" placeholder="کد کارشناس" value={filters.expert} onChange={e => change('expert',numericReportInput(e.target.value))} inputProps={{inputMode:'numeric'}}/>
-        {['province','city'].map(field => <Autocomplete key={field} freeSolo options={(options[field] || []).map(row => String(row.name))} inputValue={filters[field]} onChange={(_,value) => change(field,String(value || ''))} onInputChange={(_,value,reason) => {if (reason !== 'reset') change(field,value)}} renderInput={params => <FileInput {...params} label={field === 'province' ? 'استان' : 'شهر'} placeholder={field === 'province' ? 'همه استان‌ها' : 'همه شهرها'}/>}/>)}
+        {geographyLevels.map(level => <Autocomplete key={level} options={options[level]||[]} disabled={!geographyEnabled(level,filters)} value={filters[level]||null} onChange={(_,value)=>change(level,value||'')} renderInput={params=><FileInput {...params} label={geographyLabels[level]}/>}/>)}
         {filters.period === 'custom' && <><div className="report-date"><DatePickerFilter mode="controlled" item={{label:'از تاریخ'}} value={filters.date_from || null} onChange={value => change('date_from',value || '')}/></div><div className="report-date"><DatePickerFilter mode="controlled" item={{label:'تا تاریخ'}} value={filters.date_to || null} onChange={value => change('date_to',value || '')}/></div></>}
-        {['district','neighborhood'].map(field => <Autocomplete key={field} freeSolo options={(options[field] || []).map(row => String(row.name))} inputValue={filters[field]} onChange={(_,value) => change(field,String(value || ''))} onInputChange={(_,value,reason) => {if (reason !== 'reset') change(field,value)}} renderInput={params => <FileInput {...params} label={field === 'district' ? 'منطقه' : 'محله'} placeholder={field === 'district' ? 'همه مناطق' : 'همه محله‌ها'}/>}/>)}
+
         <FileInput select label="وضعیت" value={filters.status} onChange={e => change('status',e.target.value)}>{statusOptions.map(([key,text]) => <MenuItem key={key} value={key}>{text}</MenuItem>)}</FileInput>
         {report === 'operations' && <>{range('قیمت (تومان)','priceFrom','priceTo')}{range('متراژ (متر مربع)','areaFrom','areaTo')}</>}
         {report === 'agencies' && <><FileInput select label="وضعیت پروانه" value={filters.license} onChange={e => change('license',e.target.value)}>{[['','همه دفاتر'],['with','دارای پروانه'],['without','بدون پروانه'],['expired','پروانه منقضی']].map(([key,text]) => <MenuItem key={key} value={key}>{text}</MenuItem>)}</FileInput>{range('تعداد کارشناس','expertCountFrom','expertCountTo')}</>}

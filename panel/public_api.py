@@ -11,10 +11,10 @@ from .models import PropertyRecord,AgencyExpertLink,VisitSlot
 from .settings_api import envelope
 from .settings_runtime import system_settings
 from .property_api import normalize, property_type, record_field, property_contact
-from .geography_api import IranLocationsView,MapTileView
+from .geography_api import IranLocationsView,MapTileView,county_name
 from .workflow_services import feature
 
-SAFE_FIELDS=('title','propertyType','landUse','contractType','province','city','district','neighborhood','area','totalPrice','mortgagePrice','monthlyRent','roomCount','images','latitude','longitude','description','documentType','documentTypeOther','technical','heating','cooling','direction','facade','amenities','buildYear','totalFloor','floor','external_links','image_variants','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','floorPreferences')
+SAFE_FIELDS=('title','propertyType','landUse','contractType','province','county','city','district','neighborhood','area','totalPrice','mortgagePrice','monthlyRent','roomCount','images','latitude','longitude','description','documentType','documentTypeOther','technical','heating','cooling','direction','facade','amenities','buildYear','totalFloor','floor','external_links','image_variants','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','floorPreferences')
 ACTIVE_BOOKINGS = ('pending', 'confirmed')
 def public_rows():
     membership=AgencyExpertLink.objects.filter(agency_id=OuterRef('office_id'),expert_id=OuterRef('assigned_expert_id'))
@@ -55,13 +55,15 @@ def numeric(value,key):
 
 def filter_catalog(rows,params):
     search=normalize(params.get('search',''))
-    if search:rows=[r for r in rows if search in normalize(' '.join(str(r.data.get(k,'')) for k in ('title','description','province','city','district','neighborhood','propertyType')))]
-    for key in ('propertyType','landUse','contractType','province','city','district','neighborhood','documentType','roomCount','buildYear','totalFloor','floor'):
+    if search:rows=[r for r in rows if search in normalize(' '.join(str(r.data.get(k,'')) for k in ('title','description','province','county','city','district','neighborhood','propertyType')))]
+    for key in ('propertyType','landUse','contractType','province','county','city','district','neighborhood','documentType','roomCount','buildYear','totalFloor','floor'):
         transform = property_type if key == 'propertyType' else normalize
         wanted={transform(x) for x in params.get(key,'').split('|') if x}
         if wanted:
             def matches(row):
                 value = record_field(row.data, key)
+                if key == 'county' and not value:
+                    value = county_name(str(row.data.get('province') or ''), str(row.data.get('city') or ''))
                 return bool(wanted & {normalize(x) for x in (value if isinstance(value, list) else [value])})
             rows = [row for row in rows if matches(row)]
     for key in ('office','expert'):

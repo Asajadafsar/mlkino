@@ -24,6 +24,16 @@ class DashboardReportingTests(TestCase):
     def report(self,user,**params):
         self.client.force_authenticate(user)
         return self.client.get('/panel/dashboard/estate-overview/',{'report':'1',**params})
+    def test_expert_quick_search_lists_own_files_and_requests_only(self):
+        self.client.force_authenticate(self.expert)
+        response = self.client.get('/panel/dashboard/estate-overview/', {
+            'detail': '1', 'paginate': '1', 'map_layers': 'files|requests',
+            'province': 'قم', 'county': 'قم',
+        })
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual({(row['kind'], row['id']) for row in response.data['data']['rows']},
+                         {('files', self.file.pk), ('requests', self.request.pk)})
+
     def test_filters_change_counts_distribution_timeline_market_and_groups_together(self):
         response=self.report(self.admin,province='قم',city='قم',district='۴',neighborhood='بنیاد',propertyType='آپارتمان',creatorRoles='expert',office=str(self.agency.pk),expert=str(self.expert.pk),areaFrom='۹۰',areaTo='۱۳۰',priceFrom='۱۰۰۰۰۰۰۰۰۰',priceTo='۳۰۰۰۰۰۰۰۰۰',group_by='district')
         self.assertEqual(response.status_code,200,response.data)

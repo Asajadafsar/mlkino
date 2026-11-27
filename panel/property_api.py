@@ -230,6 +230,10 @@ def validate_payload(request, kind, previous=None, *, require_complete=False):
 
 def serialize(row,user=None):
     result={**{key:value for key,value in row.data.items() if key not in PARTY_IDS},**({'requesterName':row.created_by.full_name,'requesterPhone':row.created_by.phone} if row.kind=='request' else {}),'id':row.pk,'created_at':row.created_at.isoformat(),'updated_at':row.updated_at.isoformat(),'publication_state':row.publication_state,'assigned_expert_id':row.assigned_expert_id,'office_id':row.office_id,'featured':row.featured,'archived':bool(row.archived_at)}
+    if not result.get('county') and result.get('province') and result.get('city'):
+        from .geography_api import county_name
+        if county := county_name(str(result['province']), str(result['city'])):
+            result['county'] = county
     if row.kind == 'file':
         contact = property_contact(row)
         result.pop('work_phone', None)
@@ -256,11 +260,14 @@ class PropertyListView(APIView):
         if audience: rows=[r for r in rows if r.data.get('requesterType','customer')==audience]
         search=normalize(params.get('search'))
         if search: rows=[r for r in rows if search in normalize(' '.join(str(v) for k,v in r.data.items() if k not in PARTY_IDS | {'images','virtualTourLink'}))]
+        from .geography_api import county_name
         for key in ['propertyType','contractType','province','county','city','district','neighborhood','status','roomCount','buildYear','totalFloor','floor','landUse','documentType']:
             expected=property_type(params.get(key)) if key == 'propertyType' else normalize(params.get(key))
             if expected:
                 def matches(row):
                     value = record_field(row.data, key)
+                    if key == 'county' and not value:
+                        value = county_name(str(row.data.get('province') or ''), str(row.data.get('city') or ''))
                     return any(expected == normalize(item) for item in (value if isinstance(value, list) else [value]))
                 rows = [row for row in rows if matches(row)]
         if params.get('office'):
