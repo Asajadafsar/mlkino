@@ -303,6 +303,7 @@
 @media (max-width: 800px) {
   .dash-property-map-row, .dash-explorer-body, .dash-explorer-body.has-selection { grid-template-columns:minmax(0,1fr); }
   .dash-explorer, .dash-explorer-display { min-width:0; }
+  #dashboard-map.is-compact > .dashboard-live-map,
   #dashboard-map .dash-explorer-display .dashboard-live-map,
   .dash-explorer-full .dash-explorer-display .dashboard-live-map {
     width:100%; margin-inline:0; min-height:260px; height:clamp(260px,48vh,430px); height:clamp(260px,48dvh,430px);
