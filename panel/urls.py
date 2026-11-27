@@ -62,6 +62,7 @@ urlpatterns = [
     path('workflows/finance/<int:pk>/receipt/',FinancialReceiptView.as_view()),
     path('workflows/ledger/',LedgerView.as_view()),
 
+    path('users/<int:user_id>/password-reset/', views.PanelUserPasswordResetView.as_view(), name='user-password-reset'),
     path('users/<int:user_id>/role/',UserRoleView.as_view(),name='user-role-change'),
     path('dashboard/estate-overview/',DashboardEstateView.as_view(),name='dashboard-estate-overview'),
     path('dashboard/estate-analytics/',EstateAnalyticsView.as_view(),name='estate-analytics'),

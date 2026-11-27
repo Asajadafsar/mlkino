@@ -124,9 +124,12 @@ export function Home(props) {
 
     useEffect(() => {
         let active = true
+        let loading = false
         dispatch(clearImpersonation())
 
         const getProfile = async () => {
+            if (loading) return
+            loading = true
             try {
                 const response = await api.get(`${ACCOUNTS_URL}/profile/`, {
                     withCredentials: true,
@@ -172,8 +175,10 @@ export function Home(props) {
                     dispatch(clearImpersonation())
                     setAuthStatus('unauth')
                 } else {
-                    setAuthStatus('error')
+                    setAuthStatus(current => current === 'auth' ? current : 'error')
                 }
+            } finally {
+                loading = false
             }
         }
 

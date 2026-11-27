@@ -32,6 +32,8 @@ import TourRoundedIcon from "@mui/icons-material/TourRounded";
 import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
 import HandshakeRoundedIcon from "@mui/icons-material/HandshakeRounded";
 import { useRouter } from "next/navigation";
+import {setFileFavorite} from "@/app/Core/favoriteAction";
+import {useLandingSession} from "@/app/Core/Session";
 import {isListingBodyClick} from "@/app/Core/listings";
 import { PropertyType } from "@/app/Core/types";
 import { getPropertyTypeIcon } from "./PropertyTypeIcon";
@@ -128,6 +130,9 @@ export default function CardFile({
   mode = "file",
 }: CardFileProps) {
   const [bookmarked, setBookmarked] = React.useState(initialBookmarked);
+  const [favoriteFeedback, setFavoriteFeedback] = React.useState("");
+  const [favoritePending, setFavoritePending] = React.useState(false);
+  const {user} = useLandingSession();
   const [visitModalOpen, setVisitModalOpen] = React.useState(false);
   const [virtualTourModalOpen, setVirtualTourModalOpen] = useState(false);
 
@@ -144,11 +149,22 @@ export default function CardFile({
   // const virtualTourUrl: string | undefined =
   //   (data).virtualTourUrl;
 
-  const handleBookmarkClick = (e: React.MouseEvent) => {
+  const handleBookmarkClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (favoritePending || mode === "request") return;
+    if (!user) {setFavoriteFeedback("برای ذخیرهٔ فایل وارد حساب شوید."); return;}
     const next = !bookmarked;
-    setBookmarked(next);
-    onBookmarkToggle?.(next);
+    setFavoritePending(true);
+    setFavoriteFeedback("");
+    try {
+      await setFileFavorite(data.id, next);
+      setBookmarked(next);
+      onBookmarkToggle?.(next);
+    } catch (error) {
+      setFavoriteFeedback(error instanceof Error ? error.message : "عملیات علاقه‌مندی انجام نشد.");
+    } finally {
+      setFavoritePending(false);
+    }
   };
 
   const handleDetails = () => {
@@ -194,6 +210,7 @@ export default function CardFile({
         </div>
       </div>
     </article>
+    {favoriteFeedback && <p role="status">{favoriteFeedback}</p>}
     <VisitRequestModal key={visitModalOpen ? "open" : "closed"} open={visitModalOpen} onClose={() => setVisitModalOpen(false)} property={data} />
     <VirtualTourModal open={virtualTourModalOpen} onClose={() => setVirtualTourModalOpen(false)} links={data.virtualTourUrl} />
   </>;
@@ -665,6 +682,7 @@ export default function CardFile({
       </Card>
 
       {/* مودال ثبت بازدید — با key برای ریست خودکار state */}
+      {favoriteFeedback && <p role="status">{favoriteFeedback}</p>}
       <VisitRequestModal
         key={visitModalOpen ? "open" : "closed"}
         open={visitModalOpen}

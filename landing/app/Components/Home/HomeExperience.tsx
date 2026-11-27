@@ -7,11 +7,6 @@ import WorkspacePremiumOutlined from "@mui/icons-material/WorkspacePremiumOutlin
 import ApartmentOutlined from "@mui/icons-material/ApartmentOutlined";
 import AssignmentOutlined from "@mui/icons-material/AssignmentOutlined";
 import ArrowBackRounded from "@mui/icons-material/ArrowBackRounded";
-import NotificationsNoneRounded from "@mui/icons-material/NotificationsNoneRounded";
-import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
-import PeopleOutlineRounded from "@mui/icons-material/PeopleOutlineRounded";
-import DescriptionOutlined from "@mui/icons-material/DescriptionOutlined";
-import {PROPERTIES, REQUESTS} from "@/app/Core/listings";
 import {usePublicFiles} from "@/app/Core/usePublicFiles";
 import { formatNumber } from "../Card/cardFileUtils";
 import InfiniteListingFeed from "../Card/InfiniteListingFeed";
@@ -33,9 +28,12 @@ const SECTIONS = [
 export default function HomeExperience() {
   const router = useRouter();
   const [deal, setDeal] = useState("buy");
-  const [active, setActive] = useState("vip");
+  const [active, setActive] = useState("files");
   const files = usePublicFiles(active === "vip" ? "featured=1&page_size=48" : "page_size=48");
-  const fileFeed = (label: string) => <InfiniteListingFeed items={files?.data?.items.length ? files.data.items : PROPERTIES} label={label}/>;
+  const requests = usePublicFiles("page_size=12", "request");
+  const fileFeed = (label: string) => files?.data?.items.length
+    ? <InfiniteListingFeed items={files.data.items} label={label}/>
+    : <p role="status">{files?.error || (files ? "فایل منتشرشده‌ای موجود نیست." : "در حال دریافت فایل‌ها…")}</p>;
 
   return <div className={styles.page}>
     <section className={styles.hero} aria-label="ملکینو، مدیریت هوشمند املاک">
@@ -46,13 +44,6 @@ export default function HomeExperience() {
     <div className={styles.mobileSearch}><SearchBox placeholder="جستجوی ملک، محله یا کد آگهی…" onSearch={query => router.push(`/files?q=${encodeURIComponent(query)}`)} onFilterClick={() => router.push(`/search?deal=${deal}`)} /></div>
 
     <section className={styles.categories} aria-label="دسته‌بندی‌های ملک">{CATEGORIES.map(({label,Icon},i) => <Link key={label} href={`/files?propertyType=${encodeURIComponent(label)}`} data-land={label === "زمین" || undefined} className={`${styles.category} ${i === 0 ? styles.activeCategory : ""}`}><Icon /><span>{label}</span></Link>)}</section>
-
-    <section className={styles.stats} aria-label="آمار ملکینو">{[
-      {Icon:DescriptionOutlined,value:"۳۴۰",label:"فایل فعال",color:"blue"},
-      {Icon:PeopleOutlineRounded,value:"۱۲۸",label:"مشتری فعال",color:"purple"},
-      {Icon:VisibilityOutlined,value:"۱.۲K",label:"بازدید امروز",color:"green"},
-      {Icon:NotificationsNoneRounded,value:"۴۸",label:"یادآوری",color:"orange"},
-    ].map(({Icon,value,label,color}) => <div className={`${styles.stat} ${styles[color]}`} key={label}><Icon /><div><strong>{value}</strong><span>{label}</span></div></div>)}</section>
 
     <div className={styles.sectionTabs} role="group" aria-label="فایل‌ها و درخواست‌ها">{SECTIONS.map(({key,label,Icon}) => <button type="button" key={key} aria-pressed={active === key} onClick={() => setActive(key)}><Icon /><span>{label}</span></button>)}</div>
 
@@ -69,7 +60,8 @@ export default function HomeExperience() {
       </section>
       <section className={`${styles.panel} ${styles.requestsPanel}`} data-active={active === "requests"} aria-label="درخواست‌های ملکی">
         <h2><AssignmentOutlined />درخواست‌های ملکی</h2>
-        <div className={styles.requests}>{REQUESTS.map(item => <Link key={item.id} href={`/requests/${item.id}`} className={styles.request}><AssignmentOutlined /><div><h3>درخواست {item.contractType === "خرید" ? "خرید" : "رهن"} {item.propertyType}</h3><p>{item.city} · {Array.isArray(item.neighborhood) ? item.neighborhood[0] : item.neighborhood}</p></div><span>تا {requestBudget(item.contractType === "خرید" ? item.totalPriceTo || item.totalPrice : item.mortgagePriceTo || item.mortgagePrice)}</span></Link>)}</div>
+        <div className={styles.requests}>{requests?.data?.items.map(item => <Link key={item.id} href={`/requests/${item.id}`} className={styles.request}><AssignmentOutlined /><div><h3>درخواست {["خرید", "فروش"].includes(item.contractType) ? "خرید" : "رهن"} {item.propertyType}</h3><p>{item.city} · {Array.isArray(item.neighborhood) ? item.neighborhood[0] : item.neighborhood}</p></div><span>تا {requestBudget(["خرید", "فروش"].includes(item.contractType) ? item.totalPriceTo || item.totalPrice : item.mortgagePriceTo || item.mortgagePrice)}</span></Link>)}</div>
+        {!requests?.data?.items.length && <p role="status">{requests?.error || (requests ? "درخواست منتشرشده‌ای موجود نیست." : "در حال دریافت درخواست‌ها…")}</p>}
         <Link className={styles.viewAll} href="/requests">مشاهده همه درخواست‌ها <ArrowBackRounded /></Link>
       </section>
     </div>

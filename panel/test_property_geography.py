@@ -1,3 +1,5 @@
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch, Mock
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -12,6 +14,23 @@ class PropertyAndGeographyTests(TestCase):
         self.admin=get_user_model().objects.create_superuser('09128888003','test-password')
         self.client=APIClient();self.client.force_authenticate(self.user)
         self.payload={'contractType':'فروش','propertyType':'آپارتمان','province':'تهران','county':'تهران','city':'تهران','district':['منطقه ۴'],'neighborhood':[],'areaFrom':70,'areaTo':120,'floorPreferences':['طبقه اول','طبقه آخر']}
+
+    def test_city_lookup_without_optional_coordinates_remains_available(self):
+        from .geography_api import DATA
+
+        with TemporaryDirectory() as directory:
+            folder = Path(directory)
+            for name in ('provinces', 'counties', 'cities-filtered'):
+                (folder / f'{name}.json').symlink_to(DATA / f'{name}.json')
+            (folder / 'city-neighborhood-lookup.json').write_text('[]')
+            with patch('panel.geography_api.DATA', folder):
+                catalog.cache_clear()
+                try:
+                    response = self.client.get('/api/panel/locations/', {'level': 'city', 'province': 'قم'})
+                    self.assertEqual(response.status_code, 200, response.data)
+                    self.assertTrue(any(city['name'] == 'قم' for city in response.data['data']['results']))
+                finally:
+                    catalog.cache_clear()
 
     def test_request_saved_with_multiple_floors_and_excluded_fields_removed(self):
         response=self.client.post('/panel/requests/',{**self.payload,'address':'نباید ثبت شود','bathroom':'دو','occupancyStatus':'تخلیه'},format='json')

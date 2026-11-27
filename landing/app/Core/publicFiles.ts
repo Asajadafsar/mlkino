@@ -10,7 +10,7 @@ type CatalogFile = Omit<Partial<PropertyType>, "buildYear"> & {
   external_links?: {telegram?: string; instagram?: string; eitaa?: string};
 };
 
-function toPublicFile(row: CatalogFile): PropertyType {
+export function toPublicFile(row: CatalogFile): PropertyType {
   return {
     ...row,
     published: true,
@@ -33,12 +33,12 @@ function toPublicFile(row: CatalogFile): PropertyType {
     roomCount: row.roomCount ?? 0,
     occupancyStatus: "",
     bathroom: "",
-    heating: "",
-    cooling: "",
+    heating: row.heating || "",
+    cooling: row.cooling || "",
     flooring: "",
-    facade: "",
+    facade: row.facade || "",
     totalFloor: row.totalFloor ?? 0,
-    direction: "",
+    direction: row.direction || "",
     ownerName: "",
     ownerPhone: "",
     ownerPhone2: "",
@@ -57,21 +57,21 @@ function toPublicFile(row: CatalogFile): PropertyType {
   };
 }
 
-export async function getPublicFile(id: string) {
+export async function getPublicFile(id: string, kind: CatalogFile["kind"] = "file") {
   if (!/^[1-9]\d*$/.test(id)) return null;
   const origin = process.env.MLKINO_INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "https://mlkino.com");
   const response = await fetch(new URL(`/api/panel/public/catalog/${id}/`, origin), {cache: "no-store", signal: AbortSignal.timeout(6000)});
   if (response.status === 404) return null;
   if (!response.ok) throw Error("دریافت اطلاعات ملک انجام نشد.");
   const row = (await response.json()).data as CatalogFile;
-  return row.kind === "file" ? toPublicFile(row) : null;
+  return row.kind === kind ? toPublicFile(row) : null;
 }
 
-export async function getPublicFiles(origin: string, filters: string, signal: AbortSignal) {
+export async function getPublicFiles(origin: string, filters: string, signal: AbortSignal, kind: CatalogFile["kind"] = "file") {
   const params = new URLSearchParams(filters);
-  params.set("kind", "file");
+  params.set("kind", kind);
   const response = await fetch(`${origin}/api/panel/public/catalog/?${params}`, {signal, cache: "no-store"});
   if (!response.ok) throw Error("دریافت فایل‌های ملکی انجام نشد.");
   const data = (await response.json()).data as {results: CatalogFile[]; total_results: number; page_size: number};
-  return {items: data.results.map(toPublicFile), count: data.total_results, pageSize: data.page_size};
+  return {items: data.results.filter(row => row.kind === kind).map(toPublicFile), count: data.total_results, pageSize: data.page_size};
 }

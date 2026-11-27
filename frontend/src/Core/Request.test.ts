@@ -1,5 +1,8 @@
 import axios from 'axios'
 import api from './Request'
+import {getCsrfToken} from './Csrf'
+
+jest.mock('./Csrf', () => ({getCsrfToken: jest.fn(), installCsrf: jest.fn()}))
 
 jest.mock('axios', () => ({
     __esModule: true,
@@ -8,6 +11,7 @@ jest.mock('axios', () => ({
             interceptors: {request: {use: jest.fn()}, response: {use: jest.fn()}},
         })),
         post: jest.fn(),
+        isAxiosError: (value: any) => Boolean(value?.isAxiosError),
     },
 }))
 
@@ -16,15 +20,23 @@ const unauthorized = () => ({config: {url: '/accounts/profile/'}, response: {sta
 
 beforeEach(() => {
     ;(axios.post as jest.Mock).mockReset()
+    ;(getCsrfToken as jest.Mock).mockReset().mockResolvedValue('test-mask')
     ;(api as unknown as jest.Mock).mockReset().mockResolvedValue({status: 200})
 })
 
 test('concurrent expired requests share one refresh and each retry only once', async () => {
     let finish!: () => void
-    ;(axios.post as jest.Mock).mockReturnValue(new Promise<void>(resolve => { finish = resolve }))
+    let markStarted!: () => void
+    const started = new Promise<void>(resolve => {markStarted = resolve})
+    const pending = new Promise<void>(resolve => {finish = resolve})
+    ;(axios.post as jest.Mock).mockImplementation(() => {
+        markStarted()
+        return pending
+    })
     const first = unauthorized()
     const second = unauthorized()
     const requests = [rejectResponse(first), rejectResponse(second)]
+    await started
     expect(axios.post).toHaveBeenCalledTimes(1)
     finish()
     await Promise.all(requests)

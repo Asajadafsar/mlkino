@@ -18,7 +18,12 @@ DATA=Path(__file__).parent/'data/iran'
 @functools.lru_cache(maxsize=32)
 def catalog(name):
     path=DATA/(name+'.json')
-    return json.loads(path.read_text()) if path.exists() else []
+    fallback = {} if name == 'city-neighborhood-lookup' else []
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return fallback
+    return data if isinstance(data, type(fallback)) else fallback
 
 def choose(rows,value):
     return next((r for r in rows if normalize(r.get('name'))==normalize(value) or str(r.get('id'))==str(value)),None)
@@ -49,25 +54,37 @@ def city_neighborhoods(city):
     # The public national catalog supplements local, verified municipal mappings.
     mapping=catalog('city-neighborhood-lookup').get(str(city['id']))
     if not mapping:return rows, False
-    import time
-    folder=Path(getattr(settings,'MLKINO_TILE_CACHE_DIR',Path(settings.BASE_DIR)/'.map-cache'))/'places'
-    path=folder/(str(city['id'])+'.json');public=[];available=True
-    try:
-        if path.is_file() and time.time()-path.stat().st_mtime<7*86400:public=json.loads(path.read_text())
-        else:
-            response=requests.get(f"https://api.divar.ir/v8/places/cities/{int(mapping['id'])}/districts",headers={'User-Agent':'Melkino/1.0 (+https://panel.mlkino.com)'},timeout=8)
-            response.raise_for_status();public=response.json().get('districts',[])[:3000]
-            folder.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(public,ensure_ascii=False))
-    except (requests.RequestException,OSError,ValueError):
-        available=False
-        if path.is_file():
-            try:public=json.loads(path.read_text())
-            except ValueError:pass
+    cache_key = f'iran-public-places:{city["id"]}'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        public, available = cached
+    else:
+        available = True
+        try:
+            response = requests.get(
+                f"https://api.divar.ir/v8/places/cities/{int(mapping['id'])}/districts",
+                headers={'User-Agent': 'Melkino/1.0 (+https://mlkino.com)'}, timeout=(2, 3),
+            )
+            response.raise_for_status()
+            payload = response.json()
+            public = payload.get('districts') if isinstance(payload, dict) else None
+            if not isinstance(public, list):
+                raise ValueError('Invalid neighborhoods response')
+            public = public[:3000]
+            cache.set(cache_key, (public, True), timeout=7 * 86400)
+        except (requests.RequestException, ValueError, KeyError, TypeError):
+            public, available = [], False
+            # Don't make every concurrent form request wait for an unavailable source.
+            cache.set(cache_key, ([], False), timeout=60)
     seen={normalize(r['name']).replace(' ','') for r in rows}
     for item in public:
+        if not isinstance(item, dict):
+            continue
         name=item.get('name');key=normalize(name).replace(' ','')
         if not isinstance(name,str) or len(name)>150 or key in seen:continue
-        seen.add(key);location=item.get('default_location') or {}
+        seen.add(key);location=item.get('default_location')
+        if not isinstance(location, dict):
+            location = {}
         rows.append({'id':'public-'+str(item.get('id')),'name':name,'city_id':city['id'],'district':'','latitude':location.get('latitude'),'longitude':location.get('longitude'),'source':'Divar public places API'})
     return rows,available
 
@@ -87,11 +104,10 @@ class IranLocationsView(APIView):
         county=choose(counties,q.get('county',''))
         cities=[r for r in catalog('cities-filtered') if ((province and r['province_id']==province['id']) or q.get('all')=='true') and (not county or r['county_id']==county['id'])]
         city=choose(cities,q.get('city',''))
-        districts=municipal_zones(city) if city else []
         if level=='province': rows=provinces
         elif level=='county': rows=counties
         elif level=='city': rows=[{**c,**{k:v for k,v in catalog('city-neighborhood-lookup').get(str(c['id']),{}).items() if k in ('latitude','longitude')}} for c in cities]
-        elif level=='district': rows=districts
+        elif level=='district': rows=municipal_zones(city) if city else []
         elif level=='section': rows=[r for r in catalog('districts') if county and r['county_id']==county['id']]
         elif level=='rural': rows=[r for r in catalog('rurals') if county and r['county_id']==county['id']]
         elif level=='neighborhood':

@@ -232,17 +232,34 @@ class VisitSlotsView(APIView):
     def post(self,request):
         feature('visits');row=get_object_or_404(PropertyRecord.objects.select_for_update(of=('self',)),pk=ident(request.data.get('property_id')),kind='file',archived_at=None);can_manage(request.user,row)
         if request.user.role=='expert':require_expert_permission(request.user,'can_manage_visits',row.office_id)
-        try:start=parse_datetime(str(request.data.get('starts_at','')));end=parse_datetime(str(request.data.get('ends_at','')))
-        except (ValueError,TypeError):raise ValidationError('زمان بازدید معتبر وارد کنید.')
-        if not start or not end or timezone.is_naive(start) or timezone.is_naive(end) or start<=timezone.now() or end<=start or end-start>timedelta(hours=12):raise ValidationError('زمان بازدید باید آینده، دارای منطقه زمانی و پایان بعد از شروع باشد.')
-        capacity=ident(request.data.get('capacity',1))
-        if capacity>50:raise ValidationError('ظرفیت حداکثر ۵۰ نفر است.')
-        expert=row.assigned_expert or request.user
-        # Serializes slots across an expert as well as a property.
+        batch = request.data.get('slots')
+        entries = [request.data] if batch is None else batch
+        if not isinstance(entries, list) or not 1 <= len(entries) <= 30:
+            raise ValidationError('یک تا ۳۰ بازهٔ بازدید وارد کنید.')
+        expert = property_contact(row) or request.user
         User.objects.select_for_update(of=('self',)).get(pk=expert.pk)
-        if VisitSlot.objects.filter(active=True,expert=expert,starts_at__lt=end,ends_at__gt=start).filter(Q(is_public=True)|Q(bookings__status__in=ACTIVE_BOOKINGS)).exists():raise ValidationError('این زمان با برنامه بازدید کارشناس تداخل دارد.')
-        slot=VisitSlot.objects.create(property=row,expert=expert,starts_at=start,ends_at=end,capacity=capacity);audit(request.user,'visit.slot.created','visit_slot',slot.pk,property=row)
-        return envelope(slot_json(slot),code=201)
+        created = []
+        now = timezone.now()
+        for index, entry in enumerate(entries, 1):
+            if not isinstance(entry, dict):
+                raise ValidationError(f'بازهٔ {index} معتبر نیست.')
+            try:
+                start = parse_datetime(str(entry.get('starts_at', '')))
+                end = parse_datetime(str(entry.get('ends_at', '')))
+            except (ValueError, TypeError):
+                start = end = None
+            if not start or not end or timezone.is_naive(start) or timezone.is_naive(end) or start <= now or end <= start or end - start > timedelta(hours=12):
+                raise ValidationError(f'بازهٔ {index}: شروع باید در آینده و پایان حداکثر ۱۲ ساعت بعد باشد.')
+            capacity = ident(entry.get('capacity', 1))
+            if capacity > 50:
+                raise ValidationError('ظرفیت حداکثر ۵۰ نفر است.')
+            overlaps = VisitSlot.objects.filter(active=True, expert=expert, starts_at__lt=end, ends_at__gt=start)
+            if overlaps.filter(Q(is_public=True) | Q(bookings__status__in=ACTIVE_BOOKINGS)).exists():
+                raise ValidationError(f'بازهٔ {index} با برنامهٔ بازدید کارشناس تداخل دارد.')
+            slot = VisitSlot.objects.create(property=row, expert=expert, starts_at=start, ends_at=end, capacity=capacity)
+            audit(request.user, 'visit.slot.created', 'visit_slot', slot.pk, property=row)
+            created.append(slot_json(slot))
+        return envelope({'results': created} if batch is not None else created[0], code=201)
 
 def visit_scope(user):
     qs=PropertyVisit.objects.select_related('slot__property__office__agency_profile','visitor','visitor_contact','slot__expert','assigned_expert')
@@ -310,7 +327,9 @@ class VisitsView(APIView):
         return envelope(visit_json(row),code=201)
     @transaction.atomic
     def patch(self,request,pk):
-        feature('visits');row=get_object_or_404(visit_scope(request.user).select_for_update(of=('self',)),pk=pk)
+        feature('visits')
+        visible_ids = visit_scope(request.user).filter(pk=pk).values('pk')
+        row = get_object_or_404(PropertyVisit.objects.select_for_update(), pk__in=visible_ids)
         if request.data.get('decision'):
             row=respond_visit(row.pk,request.user,request.data.get('decision'))
             return envelope(visit_json(PropertyVisit.objects.get(pk=row.pk)))
@@ -378,7 +397,9 @@ class PropertyChatView(APIView):
         feature('chats');row=view_property(request.user,pk)
         if row.kind == 'file' and row.data.get('allowOnlineChat') is False:
             raise PermissionDenied('گفتگوی آنلاین برای این فایل غیرفعال است.')
-        expert=row.assigned_expert or row.created_by
+        expert = property_contact(row) if row.kind == 'file' else row.assigned_expert or row.created_by
+        if expert is None:
+            raise ValidationError('برای این فایل هنوز کارشناس مسئول تعیین نشده است.')
         if expert.pk==request.user.pk:raise ValidationError('امکان گفت‌وگو با خودتان وجود ندارد.')
         from .models import ChatBlock
         from accounts.models import AccountPreferences
