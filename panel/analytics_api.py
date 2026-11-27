@@ -1,5 +1,4 @@
 """Scoped estate counts, geographic comparisons and creation-period trends."""
-from functools import lru_cache
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -8,28 +7,19 @@ from rest_framework.views import APIView
 from .models import PropertyRecord,EstateActivity,AgencyExpertLink
 from .settings_api import envelope,is_superadmin
 from .property_api import normalize
-from .geography_api import catalog,choose
+from .geography_api import county_name
 
 METRICS=('agencies','experts','files','requests','followups','contracts')
 def empty():return dict.fromkeys(METRICS,0)
 def values(x):return x if isinstance(x,list) else [x] if x else []
 
-@lru_cache(maxsize=3000)
-def county_name(province,city):
-    p=choose(catalog('provinces'),province)
-    c=choose([r for r in catalog('cities-filtered') if p and r['province_id']==p['id']],city)
-    county=choose(catalog('counties'),c['county_id']) if c else None
-    return county['name'] if county else ''
 
 def location(user,users,links):
     office=user if user.role=='agency' else users.get(links.get(user.pk))
     profile=getattr(office,'agency_profile',None) if office else None
     province=(office.province if office else user.province) or ''
     city=(office.city if office else user.city) or ''
-    p=choose(catalog('provinces'),province)
-    c=choose([r for r in catalog('cities-filtered') if p and r['province_id']==p['id']],city)
-    county=choose(catalog('counties'),c['county_id']) if c else None
-    return {'province':province,'county':county['name'] if county else '', 'city':city,'district':getattr(profile,'office_district',''),'neighborhood':getattr(profile,'office_neighborhood','')}
+    return {'province':province,'county':county_name(province,city),'city':city,'district':getattr(profile,'office_district',''),'neighborhood':getattr(profile,'office_neighborhood','')}
 
 class EstateAnalyticsView(APIView):
     permission_classes=[IsAuthenticated]

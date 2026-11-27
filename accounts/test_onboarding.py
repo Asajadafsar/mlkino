@@ -8,7 +8,7 @@ from django.utils import timezone
 from PIL import Image
 from rest_framework.test import APIClient
 
-from accounts.models import AgencyExpert, AgencyProfile, OfficePayment, OfficeSubscription, RoleApplication, User
+from accounts.models import AccountNotification, AgencyExpert, AgencyProfile, OfficePayment, OfficeSubscription, RoleApplication, User
 from panel.models import AgencyExpertLink, PropertyRecord
 from panel.public_api import public_rows
 
@@ -60,23 +60,27 @@ class OfficeOnboardingTests(TestCase):
         Image.new('RGB', (48, 48)).save(buffer, format='PNG')
         self.as_user(self.user)
         with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
-            response = self.client.post(self.url, {
+            application_data = {
                 'kind': 'office', 'tier': 'free', 'accept_terms': 'true', 'agency_name': 'دفتر جدید',
                 'occupancy_type': 'owner', 'landline': '02112345678', 'office_address': 'تهران خیابان نمونه',
                 'office_district': '۱', 'office_neighborhood': 'محله نمونه',
                 'logo': SimpleUploadedFile('logo.png', buffer.getvalue(), content_type='image/png'),
                 'has_business_license': 'false',
-            })
+            }
+            self.assertEqual(self.client.post(self.url, application_data).status_code, 400)
+            application_data['tier'] = 'pro'
+            application_data['logo'].seek(0)
+            response = self.client.post(self.url, application_data)
             self.assertEqual(response.status_code, 201, response.data)
             application = response.data['id']
             self.as_user(self.office)
             self.assertEqual(self.decision(application).status_code, 404)
             self.as_user(self.admin)
             self.assertEqual(self.client.get(self.url).data['incoming'][0]['profile']['agency_name'], 'دفتر جدید')
-            self.assertEqual(self.decision(application).status_code, 200)
+            self.assertEqual(self.decision(application).data['status'], 'await_pay')
         self.user.refresh_from_db()
-        self.assertEqual(self.user.role, 'agency')
-        self.assertEqual(self.user.office_subscription.active_tier, 'free')
+        self.assertEqual(self.user.role, 'user')
+        self.assertFalse(OfficeSubscription.objects.filter(office=self.user).exists())
 
     def test_paid_upgrade_requires_unique_confirmation_and_expires(self):
         self.as_user(self.office)
@@ -136,6 +140,23 @@ class OfficeOnboardingTests(TestCase):
         self.client.put(config, {**options, 'enabled': False}, format='json')
         self.assertEqual(self.client.post(checkout, {'tier': 'pro'}, format='json').status_code, 403)
 
+    def test_office_rejection_requires_reason_and_notifies_applicant_once(self):
+        row = RoleApplication.objects.create(applicant=self.user, kind='office', tier='diamond')
+        self.as_user(self.admin)
+        self.assertEqual(self.decision(row.pk, decision='reject').status_code, 400)
+        reason = 'تصویر مجوز خوانا نیست'
+        response = self.decision(row.pk, decision='reject', review_note=reason)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(self.decision(row.pk, decision='reject', review_note=reason).status_code, 400)
+        self.assertEqual(AccountNotification.objects.filter(kind='role_application').count(), 1)
+        notice = AccountNotification.objects.get(user=self.user, kind='role_application')
+        self.assertIn(reason, notice.body)
+        self.assertIn(str(row.pk), notice.body)
+        self.as_user(self.other)
+        self.assertNotIn(reason, str(self.client.get('/accounts/notifications/').data))
+        self.as_user(self.user)
+        self.assertIn(reason, str(self.client.get('/accounts/notifications/').data))
+
     def test_paid_office_stays_ordinary_until_receipt_is_confirmed(self):
         profile = AgencyProfile.objects.create(manager=self.user, agency_name='دفتر اشتراکی', occupancy_type='owner', office_address='قم')
         row = RoleApplication.objects.create(applicant=self.user, kind='office', tier='diamond', details={'monthly_price': 999_000})
@@ -161,6 +182,7 @@ class OfficeOnboardingTests(TestCase):
         self.assertEqual(self.user.role, 'agency')
         subscription = self.user.office_subscription
         self.assertEqual(subscription.active_tier, 'diamond')
+        self.assertEqual(AccountNotification.objects.filter(user=self.user, kind='role_application').count(), 2)
         subscription.paid_until = timezone.now() - timedelta(days=1)
         subscription.save(update_fields=['paid_until'])
         self.assertEqual(subscription.active_tier, 'free')

@@ -12,6 +12,7 @@ from django.utils.dateparse import parse_date,parse_datetime
 from rest_framework.exceptions import PermissionDenied,ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+from .geography_api import county_name
 from .models import AgencyExpertLink,PropertyRecord,EstateActivity,PropertyReferral,PropertyVisit,CRMContact,FinancialDocument,UserBusinessRole
 from .property_api import scope,normalize
 from .estate_activity_api import visible
@@ -203,9 +204,17 @@ def financial_rows(user,start,end):
     return rows
 
 def filter_rows(rows,params,predicate):
-    for field in ('province','city','district','neighborhood','status'):
+    for field in ('province','county','city','district','neighborhood','status'):
         if params.get(field):
-            wanted={normalize(x) for x in params[field].split('|')};rows=[r for r in rows if wanted&{normalize(x) for x in (r.get(field) if isinstance(r.get(field),list) else [r.get(field)])}]
+            wanted = {normalize(x) for x in params[field].split('|')}
+
+            def values(row):
+                value = row.get(field)
+                if field == 'county' and not value:
+                    value = county_name(str(row.get('province') or ''), str(row.get('city') or ''))
+                return value if isinstance(value, list) else [value]
+
+            rows = [row for row in rows if wanted & {normalize(x) for x in values(row)}]
     for query,field in [('agency','agency_id'),('expert','expert_id')]:
         if params.get(query):
             target=_pk(params[query],query);rows=[r for r in rows if r.get(field)==target]

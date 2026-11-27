@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import models, transaction, IntegrityError
+from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -723,12 +724,23 @@ class PanelUserListView(APIView):
         ).strip()
 
         if search:
-            queryset = queryset.filter(
-                models.Q(phone__icontains=search)
-                | models.Q(first_name__icontains=search)
-                | models.Q(last_name__icontains=search)
-                | models.Q(email__icontains=search)
+            def normalized(field):
+                value = models.F(field)
+                for source, replacement in (('ي', 'ی'), ('ك', 'ک'), ('\u200c', ' ')):
+                    value = Replace(value, models.Value(source), models.Value(replacement))
+                return value
+
+            queryset = queryset.alias(
+                given_name=normalized('first_name'), family_name=normalized('last_name'),
+                office_name=normalized('agency_profile__agency_name'),
             )
+            search = search.translate(str.maketrans('يك۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', 'یک01234567890123456789')).replace('\u200c', ' ')
+            for word in search[:200].split():
+                queryset = queryset.filter(
+                    models.Q(given_name__icontains=word) | models.Q(family_name__icontains=word)
+                    | models.Q(office_name__icontains=word) | models.Q(phone__icontains=word)
+                    | models.Q(email__icontains=word)
+                )
 
         account_status = request.query_params.get(
             "account_status"

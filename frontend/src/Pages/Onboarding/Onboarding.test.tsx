@@ -4,6 +4,7 @@ import {MemoryRouter} from 'react-router-dom'
 import {useSelector} from 'react-redux'
 import api from '../../Core/Request'
 import Onboarding from './Onboarding'
+import {CurrentUserContext} from '../../Core/CurrentUser'
 
 jest.mock('react-redux', () => ({useSelector: jest.fn()}))
 jest.mock('../../Core/Request', () => ({__esModule: true, default: {get: jest.fn(), post: jest.fn()}}))
@@ -21,7 +22,7 @@ function show(role: string, data: object) {
     (useSelector as jest.Mock).mockReturnValue(role)
     ;(api.get as jest.Mock).mockResolvedValue({data})
     ;(api.post as jest.Mock).mockResolvedValue({})
-    render(<MemoryRouter><Onboarding/></MemoryRouter>)
+    render(<CurrentUserContext.Provider value={{user:{first_name:'آرش',last_name:'نمونه',phone:'09120000001'} as any,setUser:jest.fn()}}><MemoryRouter><Onboarding/></MemoryRouter></CurrentUserContext.Provider>)
 }
 
 beforeEach(() => jest.clearAllMocks())
@@ -91,6 +92,10 @@ test('resume follows reference field order and persists cooperation choices thro
     fireEvent.click(screen.getByRole('button', {name: 'بررسی کد'}))
     fireEvent.click(await screen.findByRole('button', {name: 'تأیید دفتر و ادامه'}))
     const form = screen.getByRole('form', {name: 'رزومه کارشناس'})
+    expect(within(form).getByLabelText('نام و نام خانوادگی')).toHaveValue('آرش نمونه')
+    expect(within(form).getByLabelText('نام و نام خانوادگی')).toHaveAttribute('readonly')
+    expect(within(form).getByLabelText('شماره تماس')).toHaveValue('09120000001')
+    expect(within(form).getByLabelText('شماره تماس')).toHaveAttribute('readonly')
     const names = Array.from(form.querySelectorAll('[name]')).map(element => element.getAttribute('name'))
     expect(names).toEqual(['job_title','experience_years','cooperation_types','transaction_types','focus_areas','specialties','job_details','resume'])
     expect(within(form).getByLabelText('نقش در دفتر')).toHaveValue('کارشناس')
@@ -99,7 +104,7 @@ test('resume follows reference field order and persists cooperation choices thro
     fireEvent.click(within(form).getByRole('checkbox', {name: 'مذاکره'}))
     fireEvent.change(within(form).getByLabelText('توضیحات', {exact: false}), {target: {value: 'سابقه مشاوره املاک'}})
     fireEvent.submit(form)
-    expect(await screen.findByText('درخواست برای بررسی ارسال شد.')).toBeVisible()
+    expect(await screen.findByText('درخواست برای بررسی ارسال شد. نتیجه در بخش اطلاعیه‌های من اعلام می‌شود.')).toBeVisible()
     const payload = (api.post as jest.Mock).mock.calls[0][1] as FormData
     expect(payload.get('code')).toBe('office-code')
     expect(payload.get('confirm_office')).toBe('true')

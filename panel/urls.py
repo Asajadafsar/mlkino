@@ -1,7 +1,7 @@
 from .reporting_api import WorkflowReportsView
 from .public_api import PublicCatalogView, PublicConfigView, PublicLocationsView, PublicMapTileView, PublicMapView, PublicVisitSlotsView
 from .workflow_api import PublicVisitBookingView
-from .workflow_api import (ContactsView, ExpertPermissionsView, AssignmentsView, AssignmentRespondView, AssignmentReferView, OwnerSubmissionView, PropertyPublishView, FavoritesView, PropertyPinView, VisitSlotsView, VisitsView, OffersView, PropertyChatView, ArchiveView, RoutingSettingsView, BusinessRolesView, WorkflowOverviewView, ActivityAttachmentView, SavedFiltersView, PropertyContactView)
+from .workflow_api import (ContactsView, ExpertPermissionsView, AssignmentsView, AssignmentRespondView, AssignmentReferView, OwnerSubmissionView, PropertyPublishView, FavoritesView, PropertyPinView, VisitSlotsView, VisitSlotDetailView, VisitsView, OffersView, PropertyChatView, ArchiveView, RoutingSettingsView, BusinessRolesView, WorkflowOverviewView, ActivityAttachmentView, SavedFiltersView, PropertyContactView)
 from .finance_api import FinancialSettingsView, CommissionCalculateView, FinancialDocumentView, FinancialPostView, LedgerView, FinancialReceiptView
 from .role_api import UserRoleView
 from .dashboard_estate_api import DashboardEstateView
@@ -48,6 +48,7 @@ urlpatterns = [
     path('workflows/favorites/',FavoritesView.as_view()),
     path('workflows/favorites/<int:pk>/',FavoritesView.as_view()),
     path('workflows/visit-slots/',VisitSlotsView.as_view()),
+    path('workflows/visit-slots/<int:pk>/',VisitSlotDetailView.as_view()),
     path('workflows/visits/',VisitsView.as_view()),
     path('workflows/visits/<int:pk>/',VisitsView.as_view()),
     path('workflows/offers/',OffersView.as_view()),

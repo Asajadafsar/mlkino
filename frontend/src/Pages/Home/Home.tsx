@@ -15,7 +15,7 @@ import type {RootState} from '../../redux/store'
 import {ImpersonationBanner} from '../../Components/Impersonation/ImpersonationBanner'
 import Box from '@mui/material/Box'
 import {useEffect, useState} from 'react'
-import {Route, Routes, useLocation, useNavigate} from 'react-router-dom'
+import {Navigate, Route, Routes, useLocation, useNavigate} from 'react-router-dom'
 import MainLayout from '../../Components/MainLayout'
 
 import DashboardLayout from '../Dashboard/DashboardLayout'
@@ -245,6 +245,7 @@ export function Home(props) {
                     sx={{minWidth: 0}}
                 >
                     <Suspense fallback={<Stack alignItems="center" p={5}><CircularProgress aria-label="بارگذاری صفحه"/></Stack>}><Routes>
+                        <Route path="my-announcements" element={<Navigate to="/profile?tab=notifications" replace/>}/>
                         <Route path="role-applications" element={<Onboarding/>}/>
                         <Route path="users/expert/collaboration" element={<Onboarding/>}/>
                         <Route path="plans" element={<PlansList/>}/>

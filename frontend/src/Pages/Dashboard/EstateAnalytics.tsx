@@ -3,7 +3,7 @@ import {Alert,Autocomplete,Box,Button,LinearProgress,MenuItem,Paper,Stack,Table,
 import {BarChart} from '@mui/x-charts/BarChart'
 import {LineChart} from '@mui/x-charts/LineChart'
 import {DataProvider} from '../../Core/DataProvider'
-import api from '../../Core/Request'
+import {geographyEnabled,geographyLabels,geographyLevels,geographyPatch,useGeographyFilters} from '../../Components/Location/useGeographyFilters'
 type Counts=Record<string,number>
 type Row={key:string;label:string;context:string;totals:Counts;recent:Counts;previous:Counts}
 type Report={totals:Counts;recent:Counts;previous:Counts;groups:Row[];timeline:any[];notes:string[];agencies:{id:number;name:string}[];start:string;end:string}
@@ -12,16 +12,11 @@ const levels:Record<string,string>={province:'استان',county:'شهرستان
 const colors=['#4263eb','#7c4dff','#13a884','#eaa037','#ee6688','#3288bd']
 const number=(n:number)=>n.toLocaleString('fa-IR')
 const date=(s:string)=>new Date(s+'T12:00:00').toLocaleDateString('fa-IR',{month:'short',day:'numeric'})
-function LocationFilter({level,params,value,onChange,disabled}:{level:string;params:any;value:string;onChange:(x:string)=>void;disabled?:boolean}){
- const [rows,setRows]=useState<string[]>([]),[error,setError]=useState('');const key=JSON.stringify(params)
- useEffect(()=>{const c=new AbortController();setRows([]);setError('');if(!disabled)api.get('locations/',{params:{level,...JSON.parse(key)},signal:c.signal}).then(r=>{if(!c.signal.aborted)setRows(r.data.data.results.map((x:any)=>x.name))}).catch(()=>{if(!c.signal.aborted)setError('دریافت فهرست انجام نشد')});return()=>c.abort()},[key,level,disabled])
- return <Autocomplete sx={{minWidth:150,flex:1}} disabled={disabled} value={value||null} options={rows} onChange={(_,x)=>onChange(x||'')} renderInput={p=><TextField {...p} size="small" label={levels[level]} error={!!error} helperText={error}/>}/>
-}
 export default function EstateAnalytics({admin,embedded=false}:{admin:boolean;embedded?:boolean}){
  const [filters,setFilters]=useState<Record<string,string>>({}),[group,setGroup]=useState(admin?'city':'expert'),[days,setDays]=useState(30),[view,setView]=useState('cards'),[metric,setMetric]=useState('files'),[selected,setSelected]=useState<string[]>([]),[report,setReport]=useState<Report|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[retry,setRetry]=useState(0)
  const key=JSON.stringify(filters)
  useEffect(()=>{let active=true;setBusy(true);setError('');DataProvider.get<Report>('dashboard/estate-analytics/',{...JSON.parse(key),group_by:group,days}).then(r=>{if(active){setReport(r.data);setSelected([])}}).catch(e=>{if(active){setReport(null);setError(e.response?.data?.message||e.message)}}).finally(()=>{if(active)setBusy(false)});return()=>{active=false}},[key,group,days,retry])
- const change=(level:string,value:string)=>{const order=['province','county','city','district','neighborhood'];setFilters(prev=>({...Object.fromEntries(Object.entries(prev).filter(([k])=>!order.includes(k)||order.indexOf(k)<order.indexOf(level))),[level]:value}))}
+ const {options,error:geographyError}=useGeographyFilters(filters)
  const rows=report?.groups.filter(x=>!selected.length||selected.includes(x.key))||[]
  const comparisons=rows.slice(0,12)
  const growth=(current:number,previous:number)=>previous?`${number(Math.round((current-previous)/previous*100))}٪ ${current>=previous?'رشد':'کاهش'}`:current?'بدون مبنای قبلی':'بدون ثبت جدید'
@@ -32,7 +27,8 @@ export default function EstateAnalytics({admin,embedded=false}:{admin:boolean;em
  <TextField size="small" select label="مقایسه بر اساس" value={group} onChange={e=>setGroup(e.target.value)} sx={{minWidth:160}}>{Object.entries(levels).map(([key,title])=><MenuItem key={key} value={key}>{title}</MenuItem>)}</TextField>
  <TextField size="small" select label="دوره ثبت جدید" value={days} onChange={e=>setDays(Number(e.target.value))} sx={{minWidth:160}}>{[30,90,180,365].map(d=><MenuItem key={d} value={d}>{number(d)} روز اخیر</MenuItem>)}</TextField>
  <Button onClick={()=>{setFilters({});setSelected([])}}>پاک‌کردن فیلترها</Button></Stack>
- <Stack direction={{xs:'column',lg:'row'}} gap={1.5}>{['province','county','city','district','neighborhood'].map((level,i)=><LocationFilter key={level} level={level} params={filters} value={filters[level]||''} disabled={i>0&&!filters[['province','county','city','city'][i-1]]} onChange={x=>change(level,x)}/>)}</Stack>
+ <Stack direction={{xs:'column',lg:'row'}} gap={1.5}>{geographyLevels.map(level=><Autocomplete key={level} sx={{minWidth:150,flex:1}} options={options[level]||[]} disabled={!geographyEnabled(level,filters)} value={filters[level]||null} onChange={(_,value)=>setFilters(previous=>({...previous,...geographyPatch(level,value||'')}))} renderInput={params=><TextField {...params} size="small" label={geographyLabels[level]}/>}/>)}</Stack>
+ {geographyError&&<Alert severity="warning">{geographyError}</Alert>}
  {busy&&<LinearProgress/>}{error&&<Alert severity="error" action={<Button onClick={()=>setRetry(x=>x+1)}>تلاش مجدد</Button>}>{error}</Alert>}
  {report&&<Box sx={{opacity:busy ? .45 : 1,pointerEvents:busy?'none':'auto'}}>
  {!embedded&&<Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr 1fr',lg:'repeat(6,1fr)'},gap:1.5,mb:3}}>{Object.entries(labels).map(([key,title],i)=><Box key={key} sx={{p:2,borderRadius:3,border:`1px solid ${colors[i]}30`,bgcolor:`${colors[i]}08`}}><Typography color="text.secondary" fontSize={12}>{title}</Typography><Typography fontSize={28} fontWeight={900} color={colors[i]}>{number(report.totals[key])}</Typography><Typography fontSize={11}>{number(report.recent[key])} ثبت جدید</Typography><Typography fontSize={10} color="text.secondary">{growth(report.recent[key],report.previous[key])}</Typography></Box>)}</Box>}

@@ -110,6 +110,7 @@ export const drawerItems: DrawerItemType[] = [
     {title:'حسابداری',link:'finance',role:[UserRole.SUPERADMIN,UserRole.AGENCY],groupId:'management',icon:<CreditCardIcon sx={iconStyle}/>},
     {title:'تنظیمات مالی',link:'financial-settings',role:[UserRole.SUPERADMIN,UserRole.AGENCY],groupId:'management',icon:<PaymentIcon sx={iconStyle}/>},
     {title:'نقش‌های دفاتر',link:'workspace-roles',role:UserRole.SUPERADMIN,groupId:'management',icon:<GroupIcon sx={iconStyle}/>},
+    {title:'اطلاعیه‌های من',link:'my-announcements',role:'all',groupId:'account',icon:<CampaignIcon sx={iconStyle}/>},
     {title:'اطلاعیه‌ها',link:'announcements',role:UserRole.SUPERADMIN,groupId:'content',icon:<CampaignIcon sx={iconStyle}/>},
     {title:'دیوارکوب — به‌زودی',disabled:true,link:'advertisements',role:'all',groupId:'content',icon:<LocalOfferIcon sx={iconStyle}/>},
     {title:'تنظیمات',link:'settings',role:UserRole.SUPERADMIN,groupId:'account',icon:<SettingsRoundedIcon sx={iconStyle}/>},

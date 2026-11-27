@@ -86,7 +86,8 @@ export default function VisitRequestModal({open, onClose, property}: Props) {
       }
       const body = await response.json();
       if (!response.ok) {
-        setSubmitError(typeof body.message === "string" ? body.message : "ثبت درخواست بازدید انجام نشد.");
+        const message = body.message || body.detail;
+        setSubmitError(typeof message === "string" ? message : "ثبت درخواست بازدید انجام نشد.");
         setReload(value => value + 1);
         return;
       }
@@ -98,7 +99,7 @@ export default function VisitRequestModal({open, onClose, property}: Props) {
     }
   }
 
-  const login = process.env.NODE_ENV === "development" ? `http://${typeof window === "undefined" ? "localhost" : window.location.hostname}:3001/login` : "/panel/login";
+  const login = process.env.NODE_ENV === "development" ? `http://${typeof window === "undefined" ? "localhost" : window.location.hostname}:3000/login` : "/panel/login";
   const available = property.published && !loading && !loadError && slots.length > 0;
 
   return <Dialog open={open} onClose={submitting ? undefined : onClose} fullWidth maxWidth="sm" fullScreen={isMobile}
@@ -144,7 +145,7 @@ export default function VisitRequestModal({open, onClose, property}: Props) {
       </DialogContent>
       <DialogActions sx={{px: {xs: 2, sm: 3}, py: 2}}>
         <Button disabled={submitting} onClick={onClose}>{saved ? "بستن" : "انصراف"}</Button>
-        {!saved && available && <Button type="submit" variant="contained" disabled={submitting || !selected || !user} startIcon={submitting ? <CircularProgress size={16}/> : <EventAvailableRounded/>}>{submitting ? "در حال ثبت…" : "ثبت درخواست بازدید"}</Button>}
+        {!saved && available && <Button type="submit" variant="contained" disabled={submitting || !selected || sessionLoading || !user} startIcon={submitting ? <CircularProgress size={16}/> : <EventAvailableRounded/>}>{submitting ? "در حال ثبت…" : "ثبت درخواست بازدید"}</Button>}
       </DialogActions>
     </Box>
   </Dialog>;

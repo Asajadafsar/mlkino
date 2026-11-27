@@ -110,6 +110,35 @@ class WorkflowTests(TestCase):
         self.assertEqual(public.status_code, 200, public.data)
         self.assertEqual(len(public.data['data']['results']), 2)
 
+    def test_visit_slot_edit_updates_public_times_and_preserves_pending_booking(self):
+        self.row.assigned_expert = self.expert
+        self.row.office = self.agency
+        self.row.publication_state = 'published'
+        self.row.save()
+        start = timezone.now() + timedelta(days=2)
+        slot = self.post('workflows/visit-slots/', {
+            'property_id': self.row.pk,
+            'starts_at': start.isoformat(),
+            'ends_at': (start + timedelta(hours=1)).isoformat(),
+        }, self.expert)
+        slot_id = slot.data['data']['id']
+        detail = f'/panel/workflows/visit-slots/{slot_id}/'
+        public = f'/panel/public/catalog/{self.row.pk}/'
+        new_start = start + timedelta(days=1)
+        payload = {'starts_at': new_start.isoformat(), 'ends_at': (new_start + timedelta(hours=1)).isoformat()}
+        self.login(self.buyer)
+        self.assertEqual(self.client.patch(detail, payload, format='json').status_code, 403)
+        self.login(self.expert)
+        changed = self.client.patch(detail, payload, format='json')
+        self.assertEqual(changed.status_code, 200, changed.data)
+        self.assertEqual(self.client.get(public + 'visit-slots/').data['data']['results'][0]['starts_at'], new_start.isoformat())
+        self.login(self.buyer)
+        self.assertEqual(self.client.post(public + 'visits/', {'slot_id': slot_id}, format='json').status_code, 201)
+        self.login(self.expert)
+        update = {'starts_at': start.isoformat(), 'ends_at': (start + timedelta(hours=1)).isoformat()}
+        self.assertEqual(self.client.patch(detail, update, format='json').status_code, 400)
+        self.assertEqual(VisitSlot.objects.get(pk=slot_id).starts_at, new_start)
+
     def test_visit_capacity_conflict_permissions_cancel(self):
         self.row.assigned_expert=self.expert;self.row.office=self.agency;self.row.publication_state='published';self.row.save()
         start=timezone.now()+timedelta(days=1);payload={'property_id':self.row.pk,'starts_at':start.isoformat(),'ends_at':(start+timedelta(hours=1)).isoformat(),'capacity':1}

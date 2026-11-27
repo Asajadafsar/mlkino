@@ -8,7 +8,6 @@ import {exitImpersonation, impersonationError, reloadIdentity} from '../../Core/
 import {setUtil} from '../../redux/UtilSlice'
 import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded'
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
-import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 
 import {Avatar, ButtonBase, Divider, ListItemIcon, Menu, MenuItem, Stack, Typography} from '@mui/material'
@@ -42,10 +41,7 @@ const AppbarProfile = ({user}: {user: UsersType}) => {
         navigate('/profile')
         handleClose()
     }
-    const handleSettings = () => {
-        navigate('/settings')
-        handleClose()
-    }
+
 
     const handleLogout = async () => {
         if (exiting || reduxStore.getState().impersonation.pending) return
@@ -172,21 +168,7 @@ const AppbarProfile = ({user}: {user: UsersType}) => {
                     <Typography fontSize={13}>پروفایل</Typography>
                 </MenuItem>
 
-                <MenuItem
-                    onClick={handleSettings}
-                    sx={{
-                        mx: 0.75,
-                        my: 0.5,
-                        borderRadius: '10px',
-                        py: 1,
-                    }}
-                >
-                    <ListItemIcon>
-                        <SettingsRoundedIcon fontSize="small" />
-                    </ListItemIcon>
 
-                    <Typography fontSize={13}>تنظیمات</Typography>
-                </MenuItem>
 
                 <Divider sx={{my: 0.5}} />
 

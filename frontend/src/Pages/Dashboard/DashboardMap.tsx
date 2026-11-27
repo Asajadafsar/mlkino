@@ -42,14 +42,18 @@ export default function DashboardMap({points, onSelect, matching, mapped, onExpa
             minZoom: 5, maxZoom: 17, crossOrigin: 'use-credentials',
         }).on('tileerror', () => setTileError(true)).addTo(instance)
         let frame = 0
-        const observer = new ResizeObserver(() => {
+        const resize = () => {
             cancelAnimationFrame(frame)
             frame = requestAnimationFrame(() => instance.invalidateSize())
-        })
-        observer.observe(container.current)
+        }
+        const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(resize)
+        observer?.observe(container.current)
+        window.addEventListener('resize', resize)
+        resize()
         return () => {
             cancelAnimationFrame(frame)
-            observer.disconnect()
+            observer?.disconnect()
+            window.removeEventListener('resize', resize)
             instance.remove()
             map.current = undefined
             layer.current = undefined

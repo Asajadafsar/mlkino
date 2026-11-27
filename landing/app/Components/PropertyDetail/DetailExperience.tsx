@@ -53,7 +53,7 @@ const technicalLabels: Record<string, string> = {
 };
 
 function technicalSpecs(details?: Record<string, unknown>) {
-  return Object.entries(technicalLabels).flatMap(([key, label]) => {
+  const fields = Object.entries(technicalLabels).flatMap(([key, label]) => {
     const value = details?.[key];
     if (typeof value === "boolean") return [[label, value ? "بله" : "خیر"]];
     if (typeof value === "number") return [[label, formatNumber(value)]];
@@ -61,6 +61,17 @@ function technicalSpecs(details?: Record<string, unknown>) {
     if (Array.isArray(value) && value.length) return [[label, value.join("، ")]];
     return [];
   });
+  if (Array.isArray(details?.unitAreas)) {
+    for (const group of details.unitAreas) {
+      if (group?.area && group.count) fields.push([`واحدهای ${formatNumber(group.area)} متری`, formatNumber(group.count)]);
+    }
+  }
+  if (Array.isArray(details?.floorPrices)) {
+    details.floorPrices.forEach((price, index) => {
+      if (price) fields.push([`قیمت طبقهٔ ${formatNumber(index + 1)}`, `${formatNumber(price)} تومان`]);
+    });
+  }
+  return fields;
 }
 
 function range(from?: number, to?: number, unit = "") {
@@ -96,7 +107,7 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
   const catalog = usePublicFiles(new URLSearchParams({propertyType: data.propertyType, page_size: "5"}).toString());
   const related = (catalog?.data?.items || []).filter(item => item.id !== data.id).slice(0, 4);
   const photos = data.images.filter((image): image is string => typeof image === "string");
-  const mapAddress = isRequest ? `${data.city}، ${neighborhood}` : data.address.startsWith(data.city) ? data.address : `${data.city}، ${neighborhood}، ${data.address}`;
+  const mapAddress = (data.address && data.address.startsWith(data.city)) ? data.address : [data.city, neighborhood, !isRequest && data.address].filter(Boolean).join("، ");
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapAddress)}`;
   const price = isRequest ? (["خرید", "فروش"].includes(data.contractType) ? range(data.totalPriceFrom, data.totalPriceTo, "تومان") : range(data.mortgagePriceFrom, data.mortgagePriceTo, "تومان ودیعه")) : `${getPriceInfo(data).value} تومان`;
 
@@ -125,21 +136,21 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
   </div>;
 
   const specs = isRequest ? [
-    ["نوع ملک",data.propertyType],["نوع درخواست",data.contractType],["شهر",data.city],["محله‌های درخواستی",neighborhood],["محدوده متراژ",range(data.areaFrom,data.areaTo,"متر")],["تعداد خواب",`${formatNumber(data.roomCount)} خواب`],["بودجه",price],["شرایط",data.mortgageTerms || data.budgetType || "توافقی"],
+    ["نوع ملک",data.propertyType],["نوع درخواست",data.contractType],["شهر",data.city],["محله‌های درخواستی",neighborhood],["محدوده متراژ",range(data.areaFrom,data.areaTo,"متر")],["تعداد خواب",data.roomCount ? `${formatNumber(data.roomCount)} خواب` : ""],["بودجه",price],["شرایط",data.mortgageTerms || data.budgetType],
   ] : [
-    ["نوع ملک",data.propertyType],["وضعیت",data.contractType],["قیمت",price],["متراژ",getDisplayArea(data)],["تعداد خواب",formatNumber(data.roomCount)],["طبقات ساختمان",formatNumber(data.totalFloor)],...(data.floor == null ? [] : [["طبقه", `${formatNumber(data.floor)}${data.totalFloor ? ` از ${formatNumber(data.totalFloor)}` : ""}`]]),...(data.landUse ? [["کاربری زمین",data.landUse]] : []),["سال ساخت",data.buildYear || "ثبت نشده"],["وضعیت اشغال",data.occupancyStatus],["جهت ملک",data.direction],["نوع سند",data.documentTypeOther || data.documentType],["کف‌پوش",data.flooring],["نمای ساختمان",data.facade],["سرمایش",data.cooling],["گرمایش",data.heating], ...technicalSpecs(data.technical),
+    ["نوع ملک",data.propertyType],["وضعیت",data.contractType],["قیمت",price],["متراژ",getDisplayArea(data)],["تعداد خواب",data.roomCount ? formatNumber(data.roomCount) : ""],["طبقات ساختمان",data.totalFloor ? formatNumber(data.totalFloor) : ""],...(data.floor == null ? [] : [["طبقه", `${formatNumber(data.floor)}${data.totalFloor ? ` از ${formatNumber(data.totalFloor)}` : ""}`]]),...(data.landUse ? [["کاربری زمین",data.landUse]] : []),["سال ساخت",data.buildYear],["وضعیت اشغال",data.occupancyStatus],["جهت ملک",data.direction],["نوع سند",data.documentTypeOther || data.documentType],["کف‌پوش",data.flooring],["نمای ساختمان",data.facade],["سرمایش",data.cooling],["گرمایش",data.heating], ...technicalSpecs(data.technical),
   ];
   const metrics = isRequest ? [
     {Icon:OpenInFullRounded,value:`${formatNumber(data.areaFrom)}–${formatNumber(data.areaTo)}`,label:"متر مربع"},
-    {Icon:BedOutlined,value:formatNumber(data.roomCount),label:"خواب"},
+    {Icon:BedOutlined,value:data.roomCount ? formatNumber(data.roomCount) : "",label:"خواب"},
     {Icon:ApartmentOutlined,value:data.propertyType,label:"نوع ملک"},
     {Icon:LocationOnOutlined,value:data.city,label:"شهر"},
     {Icon:AssignmentOutlined,value:data.contractType,label:"درخواست"},
   ] : [
     {Icon:OpenInFullRounded,value:formatNumber(data.area),label:"متر مربع"},
-    {Icon:BedOutlined,value:formatNumber(data.roomCount),label:"خواب"},
-    {Icon:DirectionsCarOutlined,value:data.amenities.includes("پارکینگ") ? "دارد" : "ندارد",label:"پارکینگ"},
-    {Icon:ElevatorOutlined,value:data.amenities.includes("آسانسور") ? "دارد" : "ندارد",label:"آسانسور"},
+    {Icon:BedOutlined,value:data.roomCount ? formatNumber(data.roomCount) : "",label:"خواب"},
+    {Icon:DirectionsCarOutlined,value:data.amenities.includes("پارکینگ") ? "دارد" : "",label:"پارکینگ"},
+    {Icon:ElevatorOutlined,value:data.amenities.includes("آسانسور") ? "دارد" : "",label:"آسانسور"},
     {Icon:CalendarMonthOutlined,value:data.buildYear || "—",label:"سال ساخت"},
   ];
 
@@ -153,11 +164,12 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
             <p className={styles.subtitle}>{data.propertyType} · {data.contractType}</p>
             <p className={styles.location}><LocationOnOutlined />{mapAddress}</p>
             <div className={styles.price}><span>{isRequest ? "بودجه درخواستی" : "قیمت"}</span><strong>{price}</strong>{data.monthlyRent > 0 && <small>{isRequest ? range(data.monthlyRentFrom,data.monthlyRentTo,"تومان اجاره ماهانه") : `${formatNumber(data.monthlyRent)} تومان اجاره ماهانه`}</small>}</div>
-            <div className={styles.metrics}>{metrics.map(({Icon,value,label}) => <div key={label}><Icon /><strong>{value}</strong><span>{label}</span></div>)}</div>
+            <div className={styles.metrics}>{metrics.filter(({value}) => value && value !== "—").map(({Icon,value,label}) => <div key={label}><Icon /><strong>{value}</strong><span>{label}</span></div>)}</div>
             <div className={styles.primaryActions}>
               <button type="button" className={styles.goldButton} onClick={() => isRequest ? setMessageOpen(true) : setVisitOpen(true)}>{isRequest ? <HandshakeOutlined /> : <CalendarMonthOutlined />}{isRequest ? "من ملک مناسب دارم" : "درخواست بازدید"}</button>
-              {phone && <a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined />{isRequest ? "تماس با متقاضی" : "تماس با کارشناس"} <bdi>{phone}</bdi></a>}
+              {phone && <a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined /><span>{isRequest ? "تماس با متقاضی" : "تماس با کارشناس"}</span></a>}
             </div>
+            {phone && <a href={`tel:${phone}`} className={styles.contactNumber} aria-label={`شماره تماس ${phone}`}><bdi>{phone}</bdi></a>}
           </section>
           <div className={styles.galleryColumn}>{isRequest ? <div className={styles.requestVisual}><AssignmentOutlined /><span>درخواست {data.contractType}</span><h2>{data.propertyType} در {data.city}</h2><p>{neighborhood}</p><div>{data.amenities.map(amenity => <span key={amenity}>{amenity}</span>)}</div><button type="button" onClick={share}><LinkRounded />اشتراک‌گذاری درخواست</button></div> : <PropertyGallery images={photos} title={title} favorite={favorite} onFavorite={() => setFavorite(value => !value)} onShare={share} />}</div>
         </div>
@@ -165,7 +177,7 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
         <div className={styles.information}>
           <nav className={styles.detailTabs} aria-label="بخش‌های جزئیات">{[{id:"general",label:isRequest ? "مشخصات درخواست" : "مشخصات فایل"},{id:"description",label:"توضیحات"},{id:"amenities",label:"امکانات و ویژگی‌ها"},{id:"address",label:isRequest ? "محدوده درخواستی" : "موقعیت و آدرس"}].map(item => <button type="button" key={item.id} aria-pressed={tab === item.id} onClick={() => navigateSection(item.id)}>{item.label}</button>)}{!isRequest && <button type="button" onClick={() => setTourOpen(true)}>تور مجازی</button>}</nav>
           <div className={styles.detailGrid}>
-            <DetailSection {...sectionOptions} id="general" label={isRequest ? "مشخصات درخواست" : "مشخصات کلی"} icon={<InfoOutlined />}><dl className={styles.specs}>{specs.map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value || "ثبت نشده"}</dd></div>)}</dl></DetailSection>
+            <DetailSection {...sectionOptions} id="general" label={isRequest ? "مشخصات درخواست" : "مشخصات کلی"} icon={<InfoOutlined />}><dl className={styles.specs}>{specs.filter(([, value]) => value && !["—", "-"].includes(value)).map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></DetailSection>
             <div className={styles.amenityColumn}>
               <DetailSection {...sectionOptions} id="amenities" label={isRequest ? "امکانات موردنیاز" : "امکانات و ویژگی‌ها"} icon={<DiamondOutlined />}><div className={styles.amenities}>{data.amenities.map(amenity => {const Icon=amenity === "پارکینگ" ? DirectionsCarOutlined : amenity === "آسانسور" ? ElevatorOutlined : amenity === "بالکن" ? BalconyOutlined : amenity === "انباری" ? Inventory2Outlined : VerifiedUserOutlined;return <span key={amenity}><Icon />{amenity}</span>;})}{!isRequest && data.cooling && <span><AcUnitOutlined />{data.cooling}</span>}</div></DetailSection>
               {!isRequest && <div className={styles.relatedLinks}><h2><LinkRounded />لینک‌های مرتبط</h2>{socialLinks}</div>}
@@ -176,7 +188,7 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
         </div>
       </div>
       <aside className={styles.sidebar}>
-        <div className={styles.advisor}><div className={styles.advisorHeading}><img src="/images/profile.webp" alt="" loading="lazy" decoding="async" /><div><h2>{name}</h2><p>{isRequest ? "متقاضی ملک" : "کارشناس املاک"}</p></div></div><div className={styles.advisorMeta}><span><VerifiedUserOutlined />{isRequest ? "درخواست ثبت‌شده" : data.agencyName || "مشاور ملکینو"}</span><span>کد {formatNumber(data.id)}</span></div>{phone && <a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined />{isRequest ? "تماس با متقاضی" : "تماس با کارشناس"} <bdi>{phone}</bdi></a>}{chatEnabled && <button type="button" className={styles.softButton} onClick={() => setMessageOpen(true)}><ChatOutlined />گفتگو در ملکینو</button>}{!isRequest && socialLinks}</div>
+        <div className={styles.advisor}><div className={styles.advisorHeading}><img src="/images/profile.webp" alt="" loading="lazy" decoding="async" /><div><h2>{name}</h2><p>{isRequest ? "متقاضی ملک" : "کارشناس املاک"}</p></div></div><div className={styles.advisorMeta}><span><VerifiedUserOutlined />{isRequest ? "درخواست ثبت‌شده" : data.agencyName || "مشاور ملکینو"}</span><span>کد {formatNumber(data.id)}</span></div>{phone && <a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined /><bdi>{phone}</bdi></a>}{chatEnabled && <button type="button" className={styles.softButton} onClick={() => setMessageOpen(true)}><ChatOutlined />گفتگو در ملکینو</button>}{!isRequest && socialLinks}</div>
         <section id="sidebar-address" className={styles.sidebarAddress}><h2><LocationOnOutlined />{isRequest ? "محدوده درخواستی" : "موقعیت و آدرس"}</h2>{addressView}</section>
       </aside>
     </div>

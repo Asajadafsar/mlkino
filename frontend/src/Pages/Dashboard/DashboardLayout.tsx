@@ -45,7 +45,7 @@ export default function DashboardLayout(){
   {searchError&&<Alert severity="error">{searchError}</Alert>}
  </section>
  <div className="dash-property-map-row"><DashboardFeatured files={featured} error={propertyError}/>
- <DashboardExplorer compact searchRequest={searchRequest} admin={admin} manager={manager} filters={filters} onChange={setFilters}/></div>
+ <DashboardExplorer compact includeRequests={user.role==='expert'} searchRequest={searchRequest} admin={admin} manager={manager} filters={filters} onChange={setFilters}/></div>
  <DashboardReporting admin={admin}/>
  {!admin&&<DashboardRecent data={overview} files={latestFiles} requests={latestRequests} manager={manager} hideSummary/>}
  <FilteredReportCard title="شاخص فایل‌های ثبت‌شده" kind="market"/>

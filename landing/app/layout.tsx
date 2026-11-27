@@ -4,6 +4,7 @@ import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import { Box, CssBaseline, ThemeProvider } from "@mui/material";
 import { cacheRtlOptions, theme } from "./theme";
 import Navbar from "./Components/Navbar/Navbar";
+import {LandingSessionProvider} from "./Core/Session";
 
 export const metadata: Metadata = {
   title: "ملکینو",
@@ -22,6 +23,7 @@ export default function RootLayout({
           <ThemeProvider theme={theme}>
             <CssBaseline />
 
+            <LandingSessionProvider>
             <Box
               sx={{
                 display: "flex",
@@ -36,6 +38,7 @@ export default function RootLayout({
               </Box>
 
             </Box>
+            </LandingSessionProvider>
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>

@@ -81,6 +81,33 @@ const specs: Record<string, Field[]> = {
 const rootFields = ['direction', 'totalFloor', 'roomCount', 'facade', 'heating', 'cooling']
 const climate = ['باغ ویلا', 'ساختمان کلنگی', 'ساختمان ویلایی', 'تجاری', 'اداری']
 
+export function recordedTechnicalFields(property: Partial<PropertyType>) {
+    const details = property.technical || {}
+    const number = (value: number) => value.toLocaleString('fa-IR')
+    const fields = (specs[property.propertyType || ''] || [])
+        .filter(([key]) => !rootFields.includes(key))
+        .flatMap(([key, label]) => {
+            const value = details[key]
+            if (typeof value === 'boolean') return [{label, value: value ? 'بله' : 'خیر'}]
+            if (typeof value === 'number') return [{label, value: number(value)}]
+            return typeof value === 'string' && value.trim() ? [{label, value}] : []
+        })
+    if (Array.isArray(details.utilities) && details.utilities.length) {
+        fields.push({label: 'انشعابات', value: details.utilities.join('، ')})
+    }
+    if (typeof details.deliveryDate === 'string' && details.deliveryDate) {
+        fields.push({label: 'زمان تحویل', value: details.deliveryDate})
+    }
+    for (const group of (Array.isArray(details.unitAreas) ? details.unitAreas : []) as {area: number; count: number}[]) {
+        if (group?.area && group.count) fields.push({label: `واحدهای ${number(group.area)} متری`, value: number(group.count)})
+    }
+    const prices = Array.isArray(details.floorPrices) ? details.floorPrices as (number | null)[] : []
+    prices.forEach((price, index) => {
+        if (price) fields.push({label: `قیمت طبقهٔ ${number(index + 1)}`, value: `${number(price)} تومان`})
+    })
+    return fields
+}
+
 export function FileTechnicalFields({property, setProperty}: Pick<ModeStepProps, 'property' | 'setProperty'>) {
     const type = property.propertyType
     const details = property.technical || {}

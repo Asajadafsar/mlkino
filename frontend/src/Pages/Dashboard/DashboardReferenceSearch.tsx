@@ -1,17 +1,16 @@
-import {useEffect,useState} from 'react'
+import {geographyEnabled,geographyLabels,geographyLevels,geographyPatch,useGeographyFilters} from '../../Components/Location/useGeographyFilters'
+import {useState} from 'react'
 import {Autocomplete,Button,TextField} from '@mui/material'
 import SearchRounded from '@mui/icons-material/SearchRounded'
 import RestartAlt from '@mui/icons-material/RestartAlt'
 import BookmarkBorder from '@mui/icons-material/BookmarkBorder'
 import ExpandMore from '@mui/icons-material/ExpandMore'
-import api from '../../Core/Request'
 import {BUILD_YEAR_OPTIONS,AD_AMENITIES_OPTIONS,PROPERTY_TYPE_OPTIONS,STATUS_OPTIONS} from '../../Components/PropertyRecordForm/constants'
 import type {SearchValues} from './DashboardSearch'
 const savedKey='mlkino:dashboard-saved-searches'
 export default function DashboardReferenceSearch({values,onChange,onSearch}:{values:SearchValues;onChange:(value:SearchValues)=>void;onSearch:()=>void}){
- const [cities,setCities]=useState<string[]>([]),[districts,setDistricts]=useState<string[]>([]),[saved,setSaved]=useState<SearchValues[]>(()=>{try{const data=JSON.parse(localStorage.getItem(savedKey)||'[]');return Array.isArray(data)?data.filter(row=>row&&typeof row==='object'&&!Array.isArray(row)):[]}catch{return []}}),[showSaved,setShowSaved]=useState(false),[notice,setNotice]=useState('')
- useEffect(()=>{const c=new AbortController();api.get('locations/',{params:{level:'city',all:true},signal:c.signal}).then(r=>{if(!c.signal.aborted)setCities(Array.from(new Set(r.data.data.results.map((row:{name:string})=>row.name))))}).catch(()=>{});return()=>c.abort()},[])
- useEffect(()=>{const c=new AbortController();setDistricts([]);if(values.city)api.get('locations/',{params:{level:'district',city:values.city,all:true},signal:c.signal}).then(r=>{if(!c.signal.aborted)setDistricts(r.data.data.results.map((row:{name:string})=>row.name))}).catch(()=>{});return()=>c.abort()},[values.city])
+ const {options,error}=useGeographyFilters(values)
+ const [saved,setSaved]=useState<SearchValues[]>(()=>{try{const data=JSON.parse(localStorage.getItem(savedKey)||'[]');return Array.isArray(data)?data.filter(row=>row&&typeof row==='object'&&!Array.isArray(row)):[]}catch{return []}}),[showSaved,setShowSaved]=useState(false),[notice,setNotice]=useState('')
  const set=(key:string,value:string)=>onChange({...values,[key]:value})
  const digits=(value:string)=>value.replace(/[۰-۹٠-٩]/g,c=>String(c.charCodeAt(0)-(c>='۰'?1776:1632))).replace(/[^0-9]/g,'')
  const select=(key:string,label:string,options:string[])=><TextField select size="small" value={values[key]||''} onChange={e=>set(key,e.target.value)} SelectProps={{native:true}} inputProps={{'aria-label':label}}><option value="">همه</option>{options.map(value=><option key={value}>{value}</option>)}</TextField>
@@ -22,8 +21,8 @@ export default function DashboardReferenceSearch({values,onChange,onSearch}:{val
  <div className="dash-reference-search-grid">
  <label><span>کد ملک</span><TextField size="small" placeholder="کد ملک را وارد کنید" value={values.recordId||''} onChange={e=>set('recordId',digits(e.target.value))} inputProps={{'aria-label':'کد ملک'}} InputProps={{startAdornment:<SearchRounded/>}}/></label>
  <label><span>نوع ملک</span>{select('propertyType','نوع ملک',PROPERTY_TYPE_OPTIONS)}</label>
- <label><span>شهر</span><Autocomplete options={cities} value={values.city||null} onChange={(_,value)=>onChange({...values,city:value||'',district:''})} renderInput={params=><TextField {...params} size="small" placeholder="همه شهرها" inputProps={{...params.inputProps,'aria-label':'شهر'}}/>}/></label>
- <label><span>منطقه / محله</span><Autocomplete freeSolo options={districts} value={values.district||null} onChange={(_,value)=>set('district',value||'')} onInputChange={(_,value,reason)=>{if(reason==='input')set('district',value)}} renderInput={params=><TextField {...params} size="small" placeholder="همه مناطق" inputProps={{...params.inputProps,'aria-label':'منطقه / محله'}}/>}/></label>
+ {geographyLevels.map(level=><label key={level}><span>{geographyLabels[level]}</span><Autocomplete options={options[level]||[]} disabled={!geographyEnabled(level,values)} value={values[level]||null} onChange={(_,value)=>onChange({...values,...geographyPatch(level,value||'')})} renderInput={params=><TextField {...params} size="small" placeholder={geographyLabels[level]} inputProps={{...params.inputProps,'aria-label':geographyLabels[level]}}/>}/></label>)}
+ {error&&<p role="alert">{error}</p>}
  <label><span>متراژ (متر مربع)</span>{range('area','متراژ')}</label>
  <label><span>قیمت (تومان)</span>{range('price','قیمت')}</label>
  <label><span>تعداد اتاق</span>{select('roomCount','تعداد اتاق',['0','1','2','3','4','5','6'])}</label>

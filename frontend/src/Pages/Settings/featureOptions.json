@@ -6,6 +6,12 @@
     "default": true
   },
   {
+    "key": "my-announcements",
+    "link": "my-announcements",
+    "label": "اطلاعیه‌های من",
+    "default": true
+  },
+  {
     "key": "announcements",
     "link": "announcements",
     "label": "اطلاعیه ها",
