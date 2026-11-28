@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from .property_api import scope,normalize,serialize,property_type,record_field
 from .estate_activity_api import visible
+from .property_technical import TYPE_FIELDS
 from .models import AgencyExpertLink
 from .settings_api import envelope,is_superadmin
 from .geography_api import catalog,choose,local_neighborhoods
@@ -33,6 +34,23 @@ def matches(data, q, *, estate=True):
             return False
     if not estate:
         return True
+    technical = data.get('technical')
+    allowed_technical = TYPE_FIELDS.get(property_type(data.get('propertyType')), ())
+    for name, wanted in q.items():
+        if not name.startswith('technical.') or not wanted:
+            continue
+        key = name.removeprefix('technical.')
+        if key not in allowed_technical or not isinstance(technical, dict) or key not in technical:
+            return False
+        actual = technical[key]
+        if key == 'utilities':
+            if not isinstance(actual, list) or not set(wanted.split('|')).issubset(actual):
+                return False
+        elif type(actual) in (int, float):
+            if number(wanted) != number(actual):
+                return False
+        elif normalize(wanted) != normalize(actual):
+            return False
     amenities = data.get('amenities') or []
     if q.get('amenities') and not set(q['amenities'].split('|')).issubset(amenities):
         return False

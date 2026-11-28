@@ -80,6 +80,7 @@ const specs: Record<string, Field[]> = {
         ['totalFloor', 'تعداد طبقات', 'integer'],
     ],
 }
+export const propertyTechnicalFields = (type: string) => specs[type] || []
 const rootFields = ['direction', 'totalFloor', 'roomCount', 'facade', 'heating', 'cooling']
 const climate = ['باغ ویلا', 'ساختمان کلنگی', 'ساختمان ویلایی', 'تجاری', 'اداری']
 
@@ -112,7 +113,7 @@ export function recordedTechnicalFields(property: Partial<PropertyType>) {
 
 export function FileTechnicalFields({property, setProperty, request = false}: Pick<ModeStepProps, 'property' | 'setProperty'> & {request?: boolean}) {
     const persian = (value: unknown) => String(value).replace(/[0-9]/g, digit => String.fromCharCode(1776 + Number(digit)))
-    const integer = (value: string) => latinDigits(value).replace(/[^0-9]/g, '').slice(0, 15)
+    const integer = (value: string) => latinDigits(value)
     const type = property.propertyType
     const details = property.technical || {}
     const fields: Field[] = [...(specs[type] || [])]
@@ -140,7 +141,10 @@ export function FileTechnicalFields({property, setProperty, request = false}: Pi
                 select={Boolean(choices)}
                 inputProps={choices ? undefined : {inputMode: 'numeric'}}
                 helperText={!choices && value !== '' ? numberToPersianWords(String(value)) : undefined}
-                onChange={event => put(choices ? event.target.value : integer(event.target.value))}>
+                onChange={event => {
+                    const input = choices ? event.target.value : integer(event.target.value)
+                    if (choices || /^[0-9]{0,15}$/.test(input)) put(input)
+                }}>
                 {choices && <MenuItem value="">انتخاب نشده</MenuItem>}
                 {choices?.map(option => <MenuItem key={option} value={option}>
                     {kind === 'boolean' ? (option === 'true' ? 'بله' : 'خیر') : option}
