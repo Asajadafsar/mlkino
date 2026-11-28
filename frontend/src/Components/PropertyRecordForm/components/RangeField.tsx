@@ -48,6 +48,7 @@ export function RangeField({
                         label="از"
                         defaultValue={fromValue}
                         thousandSeparator
+                        wholeNumber
                         endIcon={unit ? <InputAdornment position="end">{unit}</InputAdornment> : undefined}
                     />
                 </Box>
@@ -64,6 +65,7 @@ export function RangeField({
                         label="تا"
                         defaultValue={toValue}
                         thousandSeparator
+                        wholeNumber
                         endIcon={unit ? <InputAdornment position="end">{unit}</InputAdornment> : undefined}
                     />
                 </Box>

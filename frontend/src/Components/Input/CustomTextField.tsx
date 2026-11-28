@@ -12,6 +12,7 @@ type CustomTextFieldProps<T = Record<string, unknown>> = {
     register?: Record<string, unknown>
     endIcon?: React.ReactNode
     thousandSeparator?: boolean
+    wholeNumber?: boolean
     inputType?: 'text' | 'number'
     type?: React.HTMLInputTypeAttribute
     defaultNumber?: number
@@ -27,6 +28,7 @@ export function CustomTextField<T = Record<string, unknown>>(props: CustomTextFi
         register,
         endIcon,
         thousandSeparator,
+        wholeNumber,
         onChange,
         InputProps,
         inputProps,
@@ -208,6 +210,7 @@ export function CustomTextField<T = Record<string, unknown>>(props: CustomTextFi
                 name={name}
                 customInput={Custom}
                 thousandSeparator=","
+                decimalScale={wholeNumber ? 0 : undefined}
                 valueIsNumericString
                 {...(value !== undefined
                     ? {value: numericValue}

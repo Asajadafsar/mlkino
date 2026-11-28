@@ -3,7 +3,7 @@ import secrets
 
 import requests
 from datetime import timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from django.db import transaction
 from django.http import FileResponse
@@ -101,6 +101,19 @@ class OfficeLookup(APIView):
         if request.user.role != User.Role.USER:
             raise PermissionDenied()
         return Response(office_info(find_office(request.query_params.get('code')), request))
+
+
+class OfficeCode(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        if active_impersonation(request._request) or not active_offices().filter(pk=request.user.pk).exists():
+            raise PermissionDenied('فقط مدیر فعال دفتر می‌تواند کد همکاری دفتر خود را تغییر دهد.')
+        sub, _ = OfficeSubscription.objects.select_for_update().get_or_create(office=request.user)
+        sub.code = uuid4()
+        sub.save(update_fields=['code'])
+        return Response({'code': sub.code})
 
 
 class Applications(APIView):

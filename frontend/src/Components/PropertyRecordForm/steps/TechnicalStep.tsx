@@ -40,6 +40,7 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                         label="تعداد خواب"
                         defaultValue={property.roomCount}
                         thousandSeparator
+                        wholeNumber
                     />,
 
                     // وضعیت اشغال و حمام در «آگهی» لازم نیستند
@@ -145,6 +146,7 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                             label="تعداد کل طبقات"
                             defaultValue={property.totalFloor}
                             thousandSeparator
+                            wholeNumber
                         />
                     ),
                     ...(mode === 'file' ? [
@@ -156,6 +158,7 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
                             label="شماره طبقه"
                             defaultValue={property.floor}
                             thousandSeparator
+                            wholeNumber
                             helperText="طبقات زیرزمین منفی، همکف ۰ و طبقات بالای همکف مثبت‌اند."
                         />,
                     ] : []),

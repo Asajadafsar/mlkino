@@ -1,4 +1,5 @@
 import DashboardExplorer from './DashboardExplorer'
+import type {ReportOption} from './ReportFilters'
 import DashboardReporting,{FilteredReportCard} from './DashboardReporting'
 import {DashboardRecent,DashboardSnapshot} from './DashboardInsights'
 import DashboardReferenceSearch from './DashboardReferenceSearch'
@@ -27,6 +28,7 @@ const metrics=[{key:'files',title:'ملک ثبت‌شده',link:'/files',icon:<H
 export default function DashboardLayout(){
  const {user}=useContext(CurrentUserContext),{settings}=usePanelSettings()
  const manager=user.role==='superadmin'||user.role==='agency',admin=user.role==='superadmin'
+ const [offices,setOffices]=useState<ReportOption[]>([])
  const [overview,setOverview]=useState<Overview|null>(null),[,setBusy]=useState(true),[overviewError,setOverviewError]=useState(''),[retry,setRetry]=useState(0)
  const [filters,setFilters]=useState<SearchValues>({contractType:'فروش'}),[searchError,setSearchError]=useState(''),[searchRequest,setSearchRequest]=useState(0)
  const [featured,setFeatured]=useState<FileRecord[]>([]),[latestFiles,setLatestFiles]=useState<FileRecord[]>([]),[latestRequests,setLatestRequests]=useState<any[]>([]),[propertyError,setPropertyError]=useState('')
@@ -41,11 +43,11 @@ export default function DashboardLayout(){
  <section className={`dashboard-stat-grid${manager?'':' is-personal'}`} aria-label="خلاصه آمار">{metrics.filter(x=>manager||!['customers','experts'].includes(x.key)).map(item=>{const actualKey=item.key;const title=item.title;const count=overview?.counts[actualKey]||overview?.counts[item.key];const growth=count&&count.previous?Math.round((count.recent-count.previous)/count.previous*100):null;return <Link className="dashboard-stat-card" key={item.key} to={item.key==='agencies'&&!admin?'/profile':item.link} style={{'--stat-color':item.color} as React.CSSProperties}><div className="dashboard-stat-copy"><strong>{count?count.total.toLocaleString('fa-IR'):'—'}</strong><span>{title}</span></div><div className="dashboard-stat-icon">{item.icon}</div><small className={growth!==null&&growth<0?'negative':''} title="ثبت جدید ۳۰ روز اخیر در مقایسه با دوره قبل">{growth!==null?<><ArrowUpwardRoundedIcon style={growth<0?{transform:'rotate(180deg)'}:undefined}/>{Math.abs(growth).toLocaleString('fa-IR')}٪ {growth<0?'کاهش':'رشد'}</>:count?`${count.recent.toLocaleString('fa-IR')} ثبت جدید`:'در حال دریافت'}</small></Link>})}</section>
  {overviewError&&<Alert severity="error" action={<Button onClick={()=>setRetry(x=>x+1)}>تلاش مجدد</Button>}>{overviewError}</Alert>}
  <section className="dashboard-card" aria-label="جستجوی سریع ملک">
-  <DashboardReferenceSearch values={filters} onChange={value=>{setFilters(value);setSearchError('')}} onSearch={showResults}/>
+  <DashboardReferenceSearch offices={offices} values={filters} onChange={value=>{setFilters(value);setSearchError('')}} onSearch={showResults}/>
   {searchError&&<Alert severity="error">{searchError}</Alert>}
  </section>
  <div className="dash-property-map-row"><DashboardFeatured files={featured} error={propertyError}/>
- <DashboardExplorer compact includeRequests={user.role==='expert'} searchRequest={searchRequest} admin={admin} manager={manager} filters={filters} onChange={setFilters}/></div>
+ <DashboardExplorer compact onOffices={setOffices} includeRequests={user.role==='expert'} searchRequest={searchRequest} admin={admin} manager={manager} filters={filters} onChange={setFilters}/></div>
  <DashboardReporting admin={admin}/>
  {!admin&&<DashboardRecent data={overview} files={latestFiles} requests={latestRequests} manager={manager} hideSummary/>}
  <FilteredReportCard title="شاخص فایل‌های ثبت‌شده" kind="market"/>
