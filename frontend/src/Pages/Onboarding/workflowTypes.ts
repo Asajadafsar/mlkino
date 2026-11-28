@@ -4,7 +4,7 @@ export type Office = {name: string; logo?: string; address: string; active_exper
 export type Application = {
     id: number; created_at: string; kind: 'expert' | 'office' | 'upgrade'; status: 'pending' | 'await_pay' | 'fix' | 'approved' | 'rejected'
     tier: string; resume_url?: string; name: string; phone: string; office_name?: string; terms_accepted_at?: string
-    details: {job_title?: string; specialties?: string[]; experience_years?: number; job_details?: string; monthly_price?: number; review_note?: string; payment_reference?: string; focus_areas?: string; property_types?: string}
+    details: {office_approved?: boolean; job_title?: string; specialties?: string[]; experience_years?: number; job_details?: string; monthly_price?: number; review_note?: string; payment_reference?: string; focus_areas?: string; property_types?: string}
     profile?: Record<string, string | boolean | null>
 }
 export type WorkflowState = {

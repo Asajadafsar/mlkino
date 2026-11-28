@@ -17,7 +17,7 @@ from .settings_api import envelope, is_superadmin, http_url
 
 FLOORS = {'طبقه اول', 'طبقه آخر', 'پیلوت', 'فرقی نمی‌کند', 'سایر طبقات'}
 NUMBERS = {'area','totalPrice','pricePerMeter','rent','mortgagePrice','monthlyRent','latitude','longitude','buildYear','roomCount','totalFloor','floor','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','monthlyCharge','monthlyChargeFrom','monthlyChargeTo'}
-FIELDS = NUMBERS | {'contractType','propertyType','priority','landUse','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','ownerNationalId','ownerNationalCode','customerName','customerPhone','customerPhone2','customerJob','customerNationalId','customerNationalCode','description','internalNote','images','virtualTourLink','floorPreferences','requesterType','title','documentTypeOther','technical','virtualTourUrl','otherLink','external_links'}
+FIELDS = NUMBERS | {'contractType','propertyType','priority','landUse','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','customerName','customerPhone','customerPhone2','customerJob','description','internalNote','images','virtualTourLink','floorPreferences','requesterType','title','documentTypeOther','technical','virtualTourUrl','otherLink','external_links'}
 PARTY_IDS = {'ownerNationalId', 'ownerNationalCode', 'customerNationalId', 'customerNationalCode'}
 FIELDS -= PARTY_IDS
 PROPERTY_TYPES = {'آپارتمان', 'باغ ویلا', 'ساختمان کلنگی', 'ساختمان ویلایی', 'تجاری', 'اداری', 'ساختمان یکجا', 'زمین', 'صنعتی', 'پیش فروش'}
@@ -152,10 +152,13 @@ def validate_payload(request, kind, previous=None, *, require_complete=False):
     if 'technical' in data:
         if isinstance(incoming.get('technical'), dict) and previous and property_type(previous.get('propertyType')) == data['propertyType']:
             data['technical'] = {**(previous.get('technical') or {}), **incoming['technical']}
-        data['technical'] = clean_technical(data['propertyType'], data['technical'], data) if kind == 'file' else {}
+        data['technical'] = clean_technical(data['propertyType'], data['technical'], data)
+        if kind == 'request':
+            for field in ('floorPrices', 'priceMode'):
+                data['technical'].pop(field, None)
         prices = data['technical'].get('floorPrices', [])
         by_floor = data['technical'].get('priceMode') == 'floor'
-        if data['contractType'] == 'فروش' and (by_floor or not data.get('totalPrice')):
+        if kind == 'file' and data['contractType'] == 'فروش' and (by_floor or not data.get('totalPrice')):
             if prices and len(prices) == data.get('totalFloor') and all(prices):
                 data['totalPrice'] = sum(prices)
                 data['pricePerMeter'] = round(data['totalPrice'] / data['area']) if data.get('area') else 0
@@ -175,7 +178,7 @@ def validate_payload(request, kind, previous=None, *, require_complete=False):
         if not isinstance(values,list) or len(values)>100 or any(not isinstance(v,str) or len(v)>150 for v in values): raise ValidationError({key:'گزینه‌های انتخاب‌شده معتبر نیست.'})
         data[key]=list(dict.fromkeys(values))
     if kind=='request':
-        for key in ('address','occupancyStatus','bathroom','totalFloorFrom','totalFloorTo','totalFloor'): data.pop(key,None)
+        for key in ('address','occupancyStatus','bathroom','totalFloorFrom','totalFloorTo'): data.pop(key,None)
         if not set(data['floorPreferences'])<=FLOORS: raise ValidationError({'floorPreferences':'طبقه انتخاب‌شده معتبر نیست.'})
         if 'فرقی نمی‌کند' in data['floorPreferences']: data['floorPreferences']=['فرقی نمی‌کند']
     if data.get('province') and data.get('city'):
@@ -234,11 +237,14 @@ def validate_payload(request, kind, previous=None, *, require_complete=False):
     return data
 
 def serialize(row,user=None):
-    result={**{key:value for key,value in row.data.items() if key not in PARTY_IDS},**({'requesterName':row.created_by.full_name,'requesterPhone':row.created_by.phone} if row.kind=='request' else {}),'id':row.pk,'created_at':row.created_at.isoformat(),'updated_at':row.updated_at.isoformat(),'publication_state':row.publication_state,'assigned_expert_id':row.assigned_expert_id,'office_id':row.office_id,'featured':row.featured,'archived':bool(row.archived_at)}
+    result={**{key:value for key,value in row.data.items() if key not in PARTY_IDS | {'privateDocuments'}},**({'requesterName':row.created_by.full_name,'requesterPhone':row.created_by.phone} if row.kind=='request' else {}),'id':row.pk,'created_at':row.created_at.isoformat(),'updated_at':row.updated_at.isoformat(),'publication_state':row.publication_state,'assigned_expert_id':row.assigned_expert_id,'office_id':row.office_id,'featured':row.featured,'archived':bool(row.archived_at)}
     if not result.get('county') and result.get('province') and result.get('city'):
         from .geography_api import county_name
         if county := county_name(str(result['province']), str(result['city'])):
             result['county'] = county
+    if user is not None and user.role in ('agency', 'expert', 'superadmin'):
+        result['created_by_name'] = row.created_by.full_name
+        result['created_by_avatar'] = row.created_by.avatar.url if row.created_by.avatar else None
     if row.kind == 'file':
         contact = property_contact(row)
         result.pop('work_phone', None)
@@ -264,7 +270,7 @@ class PropertyListView(APIView):
         audience=params.get('requesterType')
         if audience: rows=[r for r in rows if r.data.get('requesterType','customer')==audience]
         search=normalize(params.get('search'))
-        if search: rows=[r for r in rows if search in normalize(' '.join(str(v) for k,v in r.data.items() if k not in PARTY_IDS | {'images','virtualTourLink'}))]
+        if search: rows=[r for r in rows if search in normalize(' '.join(str(v) for k,v in r.data.items() if k not in PARTY_IDS | {'images','virtualTourLink','privateDocuments'}))]
         from .geography_api import county_name
         for key in ['propertyType','contractType','province','county','city','district','neighborhood','status','roomCount','buildYear','totalFloor','floor','landUse','documentType']:
             expected=property_type(params.get(key)) if key == 'propertyType' else normalize(params.get(key))

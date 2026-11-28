@@ -28,7 +28,9 @@ export function TechnicalStep({property, setProperty, resource, mode}: ModeStepP
     }
     return (
         <>
-            <DocumentFields property={property} setProperty={setProperty}/>
+            {mode === 'request' && property.propertyType !== 'آپارتمان'
+                ? <FileTechnicalFields property={property} setProperty={setProperty} request/>
+                : <DocumentFields property={property} setProperty={setProperty}/>}
             <GridProducer
                 sx={{marginBottom: '16px'}}
                 data={[

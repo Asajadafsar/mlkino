@@ -734,11 +734,15 @@ class PanelUserListView(APIView):
             )
             search = search.translate(str.maketrans('يك۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', 'یک01234567890123456789')).replace('\u200c', ' ')
             for word in search[:200].split():
-                queryset = queryset.filter(
+                matches = (
                     models.Q(given_name__icontains=word) | models.Q(family_name__icontains=word)
                     | models.Q(office_name__icontains=word) | models.Q(phone__icontains=word)
-                    | models.Q(email__icontains=word)
+                    | models.Q(email__icontains=word) | models.Q(expert_profile__expert_code__iexact=word)
                 )
+                code = word.removeprefix('#')
+                if code.isascii() and code.isdecimal() and len(code) <= 9:
+                    matches |= models.Q(pk=int(code))
+                queryset = queryset.filter(matches)
 
         account_status = request.query_params.get(
             "account_status"

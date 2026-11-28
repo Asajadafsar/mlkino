@@ -76,7 +76,7 @@ export function PropertyRecordForm({
             </Stack>,
             () => <TechnicalStep {...stepProps} mode={mode} />,
             () => <Stack gap={2}>
-                <ImagesStep setProperty={setProperty} />
+                <ImagesStep {...stepProps} />
                 <DescriptionStep {...stepProps} />
             </Stack>,
         ],

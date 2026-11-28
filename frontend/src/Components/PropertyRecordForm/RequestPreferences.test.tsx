@@ -39,7 +39,7 @@ test('monthly charge appears only for apartment rental files and requests',async
 test('garden villas show optional water quota, utilities, and their own technical fields', () => {
     render(<TechnicalStep mode="file" property={{propertyType: 'باغ ویلا'} as any} setProperty={jest.fn()} resource="files"/>)
     expect(screen.getByRole('combobox', {name: 'نوع سند'})).toBeInTheDocument()
-    expect(screen.getByRole('spinbutton', {name: 'سهم آب کشاورزی (دقیقه)'})).toHaveAttribute('max', '59')
+    expect(screen.getByRole('textbox', {name: 'سهم آب کشاورزی (دقیقه)'})).toHaveAttribute('inputmode', 'numeric')
     expect(screen.getByRole('checkbox', {name: 'آب'})).toBeInTheDocument()
     expect(screen.queryByRole('checkbox', {name: 'فاضلاب'})).toBeNull()
     expect(screen.queryByRole('textbox', {name: 'حمام'})).toBeNull()

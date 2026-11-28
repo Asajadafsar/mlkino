@@ -74,15 +74,57 @@ class WorkflowTests(TestCase):
         self.assertTrue(ExpertPermission.objects.filter(workspace=self.agency,expert=self.expert).exists())
         from .models import ExpertShareAgreement
         self.assertEqual(ExpertShareAgreement.objects.get(workspace=self.agency,expert=self.expert).share_percent,Decimal('35'))
-    def test_contact_national_code_deduplicates_and_exposes_related_records(self):
-        self.login(self.agency)
-        first=self.post('workflows/contacts/',{'name':'مالک اول','phone':'09121111111','national_code':'1000000001','roles':['owner']})
-        self.assertEqual(first.status_code,201,first.data)
-        second=self.post('workflows/contacts/',{'name':'مالک به‌روزشده','phone':'09121111111','national_code':'1000000001','roles':['owner','landlord']})
-        self.assertEqual(second.status_code,201,second.data);self.assertEqual(first.data['data']['id'],second.data['data']['id'])
-        self.assertEqual(CRMContact.objects.filter(workspace=self.agency,national_code='1000000001').count(),1)
-        lookup=self.client.get('/panel/workflows/contacts/',{'national_code':'1000000001'})
-        self.assertEqual(lookup.data['data']['total_results'],1)
+    def test_contacts_are_created_from_properties_by_phone(self):
+        self.login(self.expert)
+        self.assertEqual(self.post('workflows/contacts/', {'name':'مالک','phone':self.owner.phone,'roles':['owner']}).status_code, 400)
+        data = dict(self.row.data, ownerNationalCode='1000000001')
+        first = self.post('files/', data)
+        self.assertEqual(first.status_code, 201, first.data)
+        second = self.post('files/', dict(data, ownerNationalCode='1234567891'))
+        self.assertEqual(second.status_code, 201, second.data)
+        contact = CRMContact.objects.get(workspace=self.agency, phone=self.owner.phone)
+        self.assertEqual(contact.user_id, self.owner.pk)
+        self.assertIsNone(contact.national_code)
+        self.assertEqual(contact.properties.count(), 2)
+
+    def test_multipart_images_and_private_documents_have_separate_visibility(self):
+        import json
+        from io import BytesIO
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        from PIL import Image
+
+        def photo():
+            buffer = BytesIO()
+            Image.new('RGB', (48, 48), 'blue').save(buffer, 'PNG')
+            return SimpleUploadedFile('test.png', buffer.getvalue(), content_type='image/png')
+
+        with TemporaryDirectory() as workspace, override_settings(MEDIA_ROOT=Path(workspace) / 'media'):
+            self.login(self.expert)
+            response = self.client.post('/panel/files/', {'payload': json.dumps(self.row.data), 'images': photo()}, format='multipart')
+            self.assertEqual(response.status_code, 201, response.data)
+            record = response.data['data']
+            self.assertEqual(len(record['images']), 1)
+            url = f"/panel/files/{record['id']}/"
+            updated = self.client.patch(url, {'description': 'ویرایش بدون تغییر تصویر'}, format='json')
+            self.assertEqual(updated.data['data']['images'], record['images'])
+            documents = f"/panel/workflows/properties/{record['id']}/documents/"
+            attached = self.client.post(documents, {'document': photo()}, format='multipart')
+            self.assertEqual(attached.status_code, 201, attached.data)
+            self.assertEqual(self.client.get(documents + '0/').status_code, 200)
+            self.assertNotIn('privateDocuments', self.client.get(url).data['data'])
+            self.assertTrue(any((Path(workspace) / 'media-private').rglob('*.webp')))
+            self.assertFalse(any(path.name == 'property-documents' for path in (Path(workspace) / 'media').rglob('*')))
+            for user in (self.buyer, self.next):
+                self.login(user)
+                self.assertIn(self.client.get(documents + '0/').status_code, (403, 404))
+            self.login(self.expert)
+            self.assertEqual(self.post(f"workflows/properties/{record['id']}/publish/", {'publish': True}).status_code, 200)
+            self.login(None)
+            self.assertNotIn('privateDocuments', self.client.get(f"/panel/public/catalog/{record['id']}/").data['data'])
+
     def test_pin_is_private_per_user(self):
         self.row.office=self.agency;self.row.assigned_expert=self.expert;self.row.save()
         self.login(self.expert);self.assertEqual(self.client.post(f'/panel/workflows/properties/{self.row.pk}/pin/',{},format='json').status_code,201)

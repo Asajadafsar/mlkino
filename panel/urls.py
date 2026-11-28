@@ -1,6 +1,6 @@
 from .reporting_api import WorkflowReportsView
 from .public_api import PublicCatalogView, PublicConfigView, PublicLocationsView, PublicMapTileView, PublicMapView, PublicVisitSlotsView
-from .workflow_api import PublicVisitBookingView
+from .workflow_api import PublicVisitBookingView, PropertyDocumentsView
 from .workflow_api import (ContactsView, ExpertPermissionsView, AssignmentsView, AssignmentRespondView, AssignmentReferView, OwnerSubmissionView, PropertyPublishView, FavoritesView, PropertyPinView, VisitSlotsView, VisitSlotDetailView, VisitsView, OffersView, PropertyChatView, ArchiveView, RoutingSettingsView, BusinessRolesView, WorkflowOverviewView, ActivityAttachmentView, SavedFiltersView, PropertyContactView)
 from .finance_api import FinancialSettingsView, CommissionCalculateView, FinancialDocumentView, FinancialPostView, LedgerView, FinancialReceiptView
 from .role_api import UserRoleView
@@ -41,6 +41,8 @@ urlpatterns = [
     path('workflows/assignments/<int:pk>/respond/',AssignmentRespondView.as_view()),
     path('workflows/assignments/<int:pk>/refer/',AssignmentReferView.as_view()),
     path('workflows/owner-submissions/',OwnerSubmissionView.as_view()),
+    path('workflows/properties/<int:pk>/documents/', PropertyDocumentsView.as_view()),
+    path('workflows/properties/<int:pk>/documents/<int:index>/', PropertyDocumentsView.as_view()),
     path('workflows/properties/<int:pk>/publish/',PropertyPublishView.as_view()),
     path('workflows/properties/<int:pk>/contact/',PropertyContactView.as_view()),
     path('workflows/properties/<int:pk>/chat/',PropertyChatView.as_view()),
