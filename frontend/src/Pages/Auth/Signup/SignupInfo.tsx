@@ -27,7 +27,6 @@ type SignupInfoForm = {
     postal_code: string
     address: string
     password: string
-    password_confirm: string
     user_type: 'consumer' | 'investor'
 }
 interface AddressType {
@@ -39,25 +38,24 @@ interface AddressType {
 interface Props {
     phone: string
     onBack: () => void
-    initialValues?: Partial<SignupInfoForm>
+    initialValues?: Partial<SignupInfoForm> & {password_confirm?: string}
 }
 
 type InfoSubStep = 0 | 1
 
-const SUB_STEP_FIELDS: Record<InfoSubStep, (keyof SignupInfoForm)[]> = {
-    0: ['first_name', 'last_name', 'email', 'avatar', 'national_code', 'birth_date'],
-    1: ['province', 'city', 'postal_code', 'address', 'password', 'password_confirm', 'user_type'],
-}
+const PERSONAL_FIELDS = ['first_name', 'last_name', 'email', 'avatar', 'national_code', 'birth_date'] as const
 
 const userTypeOptions = [
     {label: 'مصرف‌کننده', value: 'consumer'},
     {label: 'سرمایه‌گذار', value: 'investor'},
 ]
 
-const subStepLabels = ['اطلاعات شخصی', 'آدرس و رمز عبور']
 
 const SignupInfo = ({phone, onBack, initialValues}: Props) => {
+    const hasInitialPassword = Boolean(initialValues?.password)
+    const subStepLabels = ['اطلاعات شخصی', hasInitialPassword ? 'آدرس و نوع کاربر' : 'آدرس و رمز عبور']
     const dispatch = useDispatch()
+    const [submitError, setSubmitError] = useState('')
     const [subStep, setSubStep] = useState<InfoSubStep>(0)
     const manual = false
     const [postalBusy,setPostalBusy]=useState(false)
@@ -71,6 +69,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
         watch,
         control,
         setValue,
+        setError,
         getValues,
         formState: {errors, isSubmitting},
     } = useForm<SignupInfoForm>({
@@ -87,13 +86,11 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
             postal_code: '',
             address: '',
             password: '',
-            password_confirm: '',
             user_type: 'consumer',
             ...initialValues,
         },
     })
 
-    const password = watch('password')
     const avatar = watch('avatar')
     useEffect(()=>{if(!avatar){setAvatarPreview('');return}const url=URL.createObjectURL(avatar);setAvatarPreview(url);return()=>URL.revokeObjectURL(url)},[avatar])
     const location = useLocation()
@@ -113,7 +110,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
     register('user_type', {required: 'نوع کاربر الزامی است'})
 
     const goNext = async () => {
-        const isValid = await trigger(SUB_STEP_FIELDS[0])
+        const isValid = await trigger([...PERSONAL_FIELDS])
         if (isValid) setSubStep(1)
     }
 
@@ -139,11 +136,12 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
             city: data.city,
             postal_code: data.postal_code,
             address: data.address,
-            password: data.password,
-            password_confirm: data.password_confirm,
+            password: initialValues?.password || data.password,
+            password_confirm: initialValues?.password_confirm || data.password,
             user_type: data.user_type,
         }
 
+        setSubmitError('')
         dispatch(setUtil({loading: true}))
         try {
             // Keep the API field names exactly as specified by the backend schema.
@@ -151,13 +149,14 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
             dispatch(setUtil({open:true,message:result?.data?.message||'اطلاعات ثبت شد',severity:result?.data?.data?.user?.verification_status==='pending'?'info':'success'}))
             navigate(authDestination(location.search))
         } catch (error: any) {
-            dispatch(
-                setUtil({
-                    open: true,
-                    message: error?.response?.data?.message || 'ثبت اطلاعات با خطا مواجه شد',
-                    severity: 'error',
-                }),
-            )
+            const response = error?.response?.data
+            const details = Array.isArray(response?.errors) ? response.errors as {field: string; message: string}[] : []
+            const personalErrors = PERSONAL_FIELDS.filter(field => details.some(detail => detail.field === field))
+            for (const field of personalErrors) {
+                setError(field, {type: 'server', message: details.find(detail => detail.field === field)?.message})
+            }
+            if (personalErrors.length) setSubStep(0)
+            setSubmitError(details.map(detail => detail.message).filter(Boolean).join('؛ ') || response?.message || 'ثبت اطلاعات با خطا مواجه شد.')
         } finally {
             dispatch(setUtil({loading: false}))
         }
@@ -202,6 +201,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                 </Stack>
             </Box>
 
+            {submitError && <Alert severity="error">{submitError}</Alert>}
             {subStep === 0 && (
                 <>
                     <Stack direction={{xs: 'column', sm: 'row'}} spacing={2}>
@@ -353,7 +353,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                     <Stack direction={{xs:'column',sm:'row'}} spacing={2}>{(['province','city'] as const).map(key=><Controller key={key} name={key} control={control} rules={{required:manual?'این فیلد الزامی است':false}} render={({field,fieldState})=><CustomTextField label={key==='province'?'استان':'شهر'} name={key} value={field.value||''} fullWidth disabled={!manual} onChange={field.onChange} error={!!fieldState.error} helperText={fieldState.error?.message}/>}/>)}</Stack>
                     <Controller name="address" control={control} rules={{required:manual?'آدرس کامل را وارد کنید':false,minLength:manual?{value:10,message:'نشانی حداقل ۱۰ حرف باشد'}:undefined}} render={({field,fieldState})=><CustomTextField label="آدرس" name="address" value={field.value||''} disabled={!manual} fullWidth multiline minRows={2} onChange={field.onChange} error={!!fieldState.error} helperText={fieldState.error?.message}/>}/>
 
-                    <Stack direction={{xs: 'column', sm: 'row'}} spacing={2}>
+                    {!hasInitialPassword && (
                         <CustomTextField
                             label="رمز عبور"
                             name="password"
@@ -371,22 +371,7 @@ const SignupInfo = ({phone, onBack, initialValues}: Props) => {
                             helperText={errors.password?.message}
                             fullWidth
                         />
-                        <CustomTextField
-                            label="تکرار رمز عبور"
-                            name="password_confirm"
-                            type="password"
-                            register={{
-                                ...register('password_confirm', {
-                                    required: 'تکرار رمز عبور الزامی است',
-                                    validate: (value) =>
-                                        value === password || 'رمز عبور و تکرار آن یکسان نیست',
-                                }),
-                            }}
-                            error={!!errors.password_confirm}
-                            helperText={errors.password_confirm?.message}
-                            fullWidth
-                        />
-                    </Stack>
+                    )}
 
                     <Stack direction="row" spacing={1.5} mt={1}>
                         <Button

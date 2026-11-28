@@ -32,6 +32,15 @@ class RegistrationContractTests(TestCase):
         self.client.force_authenticate(self.user)
         return self.client.post('/api/accounts/complete-register/', self.payload, format='multipart')
 
+    @patch('accounts.views.shahkar_match')
+    def test_duplicate_national_code_has_a_specific_error(self, identity):
+        User.objects.create_user('09127005072', national_code=self.payload['national_code'])
+        response = self.complete()
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('این کد ملی قبلاً ثبت شده است.', response.data['message'])
+        self.assertEqual(response.data['errors'][0]['field'], 'national_code')
+        identity.assert_not_called()
+
     @patch('accounts.views.postal_lookup')
     @patch('accounts.views.shahkar_match', return_value=True)
     def test_verified_registration_preserves_exact_password(self, identity, postal):

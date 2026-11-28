@@ -14,7 +14,7 @@ from .property_api import normalize, property_type, record_field, property_conta
 from .geography_api import IranLocationsView,MapTileView,county_name
 from .workflow_services import feature
 
-SAFE_FIELDS=('title','propertyType','landUse','contractType','province','county','city','district','neighborhood','area','totalPrice','mortgagePrice','monthlyRent','roomCount','images','latitude','longitude','description','documentType','documentTypeOther','technical','heating','cooling','direction','facade','amenities','buildYear','totalFloor','floor','external_links','image_variants','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','floorPreferences')
+SAFE_FIELDS=('title','propertyType','landUse','contractType','province','county','city','district','neighborhood','area','totalPrice','mortgagePrice','monthlyRent','roomCount','images','latitude','longitude','description','technical','heating','cooling','direction','facade','amenities','buildYear','totalFloor','floor','external_links','image_variants','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','floorPreferences')
 ACTIVE_BOOKINGS = ('pending', 'confirmed')
 def public_rows():
     membership=AgencyExpertLink.objects.filter(agency_id=OuterRef('office_id'),expert_id=OuterRef('assigned_expert_id'))

@@ -13,5 +13,6 @@ export function canAccessUserRoute(role: UserRole | string | null, pathname: str
     if (pathname === '/tasks/create') return role === UserRole.SUPERADMIN || role === UserRole.AGENCY
     if (!pathname.startsWith('/users')) return true
     if (role === UserRole.SUPERADMIN) return true
+    if (pathname.replace(/\/+$/, '') === '/users/expert/create') return false
     return role === UserRole.AGENCY && (pathname === '/users' || pathname === '/users/expert' || pathname.startsWith('/users/expert/'))
 }

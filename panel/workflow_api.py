@@ -167,7 +167,12 @@ class OwnerSubmissionView(APIView):
     @transaction.atomic
     def post(self,request):
         require_estate_write(request.user)
-        feature('files');d=validate_payload(request,'file',require_complete=True);d['requesterType']='owner';d['ownerSubmission']=True;d['source']='landing'
+        feature('files')
+        d=validate_payload(request,'file',previous={
+            'ownerName': request.user.full_name,
+            'ownerPhone': request.user.phone,
+        },require_complete=True)
+        d.update(requesterType='owner', ownerSubmission=True, source='landing')
         draft=d.get('publicationStatus')=='draft'
         row=PropertyRecord.objects.create(kind='file',created_by=request.user,data=d,publication_state='draft' if draft else 'pending')
         audit(request.user,'property.owner.submitted','property',row.pk,property=row)

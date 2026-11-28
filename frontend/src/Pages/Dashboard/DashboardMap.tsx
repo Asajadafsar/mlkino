@@ -44,7 +44,7 @@ export default function DashboardMap({points, onSelect, matching, mapped, onExpa
         let frame = 0
         const resize = () => {
             cancelAnimationFrame(frame)
-            frame = requestAnimationFrame(() => instance.invalidateSize())
+            frame = requestAnimationFrame(() => instance.invalidateSize({pan:false,debounceMoveend:true}))
         }
         const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(resize)
         observer?.observe(container.current)
@@ -98,6 +98,7 @@ export default function DashboardMap({points, onSelect, matching, mapped, onExpa
             marker.bindPopup(popup, {maxHeight: 340})
         }
         if (points.length) {
+            instance.invalidateSize({pan:false})
             const bounds = L.latLngBounds(points.map(point => L.latLng(point.latitude, point.longitude)))
             instance.fitBounds(bounds, {padding: [45, 35], maxZoom: points.some(point => point.precision !== 'city') ? 16 : 11, animate: false})
         } else {

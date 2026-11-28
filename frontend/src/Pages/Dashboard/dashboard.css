@@ -309,4 +309,6 @@
     width:100%; margin-inline:0; min-height:260px; height:clamp(260px,48vh,430px); height:clamp(260px,48dvh,430px);
   }
   .dash-explorer-toolbar { flex-wrap:wrap; }
+  .dash-explorer-full { padding-inline: 8px; }
+  .dash-explorer-full .dashboard-live-map { touch-action: none; }
 }
