@@ -336,7 +336,7 @@ class PropertyListView(APIView):
         if professional and (kind != 'file' or data.get('ownerPhone')):
             touch_contact(row,request.user)
         audit(request.user,'property.created','property',row.pk,property=row)
-        if kind=='request' and data.get('publicationStatus')!='draft':dispatch(row.pk,request.user)
+        if kind=='request' and not professional and data.get('publicationStatus')!='draft':dispatch(row.pk,request.user)
         return envelope(serialize(row,request.user),message='اطلاعات ثبت شد.',code=201)
 
 class PropertyDetailView(APIView):
@@ -374,7 +374,7 @@ class PropertyDetailView(APIView):
             old_contact = old_data.get('partyContactId')
             if old_contact and old_contact != contact.pk:
                 row.crm_contacts.remove(old_contact)
-        if row.data.get('publicationStatus')=='pending':
+        if row.data.get('publicationStatus')=='pending' and (kind=='file' or row.data.get('selfServiceRequest')):
             from .workflow_services import dispatch
             dispatch(row.pk,request.user)
         return envelope(serialize(row,request.user),message='تغییرات ذخیره شد.')

@@ -808,7 +808,9 @@ class PanelUserListView(APIView):
                 AgencyExpertLink.objects.create(agency_id=agency_id, expert=user)
                 profile_serializer.save(user=user)
             elif user.role == User.Role.AGENCY:
+                from accounts.models import OfficeSubscription
                 profile_serializer.save(manager=user)
+                OfficeSubscription.objects.get_or_create(office=user)
         except IntegrityError:
             return error_response(
                 message="شماره موبایل، ایمیل یا کد ملی تکراری است یا ارتباط کارشناس قابل ثبت نیست.",

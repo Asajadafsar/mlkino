@@ -6,7 +6,7 @@ from django.test import override_settings
 from io import BytesIO
 from tempfile import TemporaryDirectory
 from PIL import Image
-from accounts.models import AgencyExpert, ExpertProfile
+from accounts.models import AgencyExpert, ExpertProfile, OfficeSubscription
 
 User = get_user_model()
 
@@ -95,3 +95,11 @@ class UserManagementScopeTests(TestCase):
         self.assertTrue(created.avatar.name)
         self.assertTrue(created.national_code_image.name)
         self.assertEqual(response.data['data']['agency_profile']['agency_name'], 'املاک نمونه')
+        self.assertEqual(OfficeSubscription.objects.get(office=created).active_tier, 'free')
+        agency_client = APIClient()
+        login = agency_client.post('/api/accounts/login/password/', {
+            'phone': created.phone, 'password': payload['password'],
+        }, format='json')
+        self.assertEqual(login.status_code, 200, login.data)
+        self.assertEqual(agency_client.get('/api/accounts/profile/').data['data']['role'], 'agency')
+        self.assertEqual(agency_client.get('/api/accounts/role-applications/').data['subscription']['tier'], 'free')

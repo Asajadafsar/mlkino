@@ -4,8 +4,10 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils import timezone
 from django.core.cache import cache
+from django.core.management import call_command
+from io import StringIO
 from rest_framework.test import APIClient
-from accounts.models import User,AccountNotification
+from accounts.models import AgencyExpert, AgencyProfile, User,AccountNotification
 from .models import (PropertyRecord,AgencyExpertLink,PropertyReferral,CRMContact,ExpertPermission,PropertyPin,VisitSlot,PropertyVisit,VisitAssignment,FinancialDocument,FinancialRateVersion,UserBusinessRole)
 from .workflow_services import dispatch,respond,expire_due,expire_visit_due
 
@@ -336,6 +338,71 @@ class WorkflowTests(TestCase):
         self.assertEqual(self.client.get('/panel/workflows/contacts/').data['data']['total_results'],1)
         self.assertEqual(ExpertProfile.objects.get(pk=profile.pk).job_details,'اطلاعات حفظ‌شده')
         self.assertEqual(self.client.get(f'/panel/public/catalog/{self.row.pk}/').status_code,200)
+    def test_customer_request_rotates_by_geography_then_assigns_on_acceptance(self):
+        from .settings_models import PanelSettings
+
+        def office_expert(phone, expert_phone, province, city, district, neighborhood):
+            office = User.objects.create_user(phone, role='agency')
+            expert = User.objects.create_user(expert_phone, role='expert')
+            AgencyProfile.objects.create(manager=office, agency_name=phone, office_province=province,
+                                         office_city=city, office_district=district, office_neighborhood=neighborhood)
+            AgencyExpert.objects.create(agency=office, expert=expert)
+            AgencyExpertLink.objects.create(agency=office, expert=expert)
+            return office, expert
+
+        local, local_expert = office_expert('09000001201', '09000001211', 'قم', 'قم', '۳', 'شهرک امام حسن')
+        nearby, nearby_expert = office_expert('09000001202', '09000001212', 'قم', 'قم', 'منطقه ۳', 'محله دیگر')
+        internal, internal_expert = office_expert('09000001203', '09000001213', 'تهران', 'تهران', '۳', 'شهرک امام حسن')
+        blocked, blocked_expert = office_expert('09000001204', '09000001214', 'قم', 'قم', '۳', 'شهرک امام حسن')
+        ExpertPermission.objects.create(workspace=blocked, expert=blocked_expert, updated_by=blocked, permissions={'can_manage_requests': False})
+
+        self.login(self.buyer)
+        setting_url = '/panel/workflows/settings/'
+        self.assertEqual(self.client.put(setting_url, {'request_preferred_office_id': internal.pk}, format='json').status_code, 403)
+        self.login(self.admin)
+        response = self.client.put(setting_url, {'request_preferred_office_id': internal.pk, 'response_minutes': 5}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertIn(internal.pk, [office['id'] for office in response.data['data']['office_options']])
+        self.assertEqual(PanelSettings.objects.get().data['workflow']['routing']['request_preferred_office_id'], internal.pk)
+
+        submitted = self.post('requests/', {'contractType': 'فروش', 'propertyType': 'آپارتمان', 'province': 'قم',
+                                                'city': 'قم', 'district': ['منطقه ۳'], 'neighborhood': ['شهرک امام حسن']}, self.buyer)
+        self.assertEqual(submitted.status_code, 201, submitted.data)
+        row = PropertyRecord.objects.get(pk=submitted.data['data']['id'])
+        first = row.referrals.get(status='pending')
+        self.assertEqual(first.expert_id, internal_expert.pk)
+        self.assertAlmostEqual((first.expires_at - first.created_at).total_seconds(), 1200, delta=2)
+        with patch('panel.workflow_services.timezone.now', return_value=first.expires_at-timedelta(seconds=1)):
+            call_command('process_referrals', stdout=StringIO())
+        self.assertEqual(row.referrals.get(status='pending').pk, first.pk)
+        with patch('panel.workflow_services.timezone.now', return_value=first.expires_at):
+            call_command('process_referrals', stdout=StringIO())
+        first.refresh_from_db()
+        self.assertEqual(first.status, 'expired')
+        second = row.referrals.get(status='pending')
+        self.assertEqual(second.expert_id, local_expert.pk)
+
+        self.login(local_expert)
+        overview = self.client.get('/panel/workflows/assignments/', {'referral': second.pk}).data['data']['results']
+        self.assertEqual(overview[0]['property_kind'], 'request')
+        self.assertEqual(overview[0]['location']['neighborhood'], ['شهرک امام حسن'])
+        self.assertNotIn('requesterPhone', overview[0])
+        self.assertEqual(self.post(f'workflows/assignments/{second.pk}/respond/', {'decision': 'reject'}).status_code, 200)
+        third = row.referrals.get(status='pending')
+        self.assertEqual(third.expert_id, nearby_expert.pk)
+        self.assertEqual(self.post(f'workflows/assignments/{third.pk}/respond/', {'decision': 'accept'}, self.admin).status_code, 403)
+        self.assertEqual(self.post(f'workflows/assignments/{third.pk}/respond/', {'decision': 'accept'}, nearby_expert).status_code, 200)
+        row.refresh_from_db()
+        self.assertEqual((row.assigned_expert_id, row.office_id), (nearby_expert.pk, nearby.pk))
+        self.assertEqual(self.client.get(f'/panel/requests/{row.pk}/').status_code, 200)
+        self.assertFalse(row.referrals.filter(status='pending').exists())
+        self.assertEqual(row.referrals.count(), 3)
+
+        self.login(self.admin)
+        self.assertEqual(self.client.put(setting_url, {'request_preferred_office_id': None}, format='json').status_code, 200)
+        direct = PropertyRecord.objects.create(kind='request', created_by=self.buyer, data=row.data)
+        self.assertEqual(dispatch(direct.pk).expert_id, local_expert.pk)
+
     def test_rental_acceptance_links_landlord_and_tenant_crm_roles(self):
         self.row.data['contractType']='رهن و اجاره';self.row.save()
         ref=dispatch(self.row.pk);respond(ref.pk,self.expert,'accept')
