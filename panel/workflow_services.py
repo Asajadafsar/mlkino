@@ -1,10 +1,10 @@
 import uuid
 from datetime import timedelta
 from django.db import transaction
-from django.db.models import Q,Count
+from django.db.models import Q, Count, F
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied,ValidationError
-from accounts.models import User,ActivityLog
+from accounts.models import User, ActivityLog
 from accounts.notices import notify
 from .models import (AgencyExpertLink,PropertyRecord,PropertyReferral,WorkflowEvent,CRMContact,
     UserBusinessRole,ExpertPermission,PropertyVisit,VisitAssignment,ExpertShareAgreement)
@@ -12,7 +12,8 @@ from .settings_api import is_superadmin
 from .settings_runtime import system_settings
 from .property_api import normalize, require_file_fields
 
-ROUTING_DEFAULTS={'enabled':True,'mode':'round_robin','response_minutes':20,'max_attempts':20,'geographic_priority':['neighborhood','district','city','province','other'],'expert_order':[],'notifications':True}
+CUSTOMER_REQUEST_MINUTES = 20
+ROUTING_DEFAULTS={'enabled':True,'mode':'round_robin','response_minutes':20,'max_attempts':20,'geographic_priority':['neighborhood','district','city','province','other'],'expert_order':[],'notifications':True,'request_preferred_office_id':None}
 EXPERT_PERMISSION_DEFAULTS={
     'can_manage_files':True,'can_manage_requests':True,'can_manage_visits':True,
     'can_manage_contacts':True,'can_manage_followups':True,'can_manage_finance':True,
@@ -43,7 +44,7 @@ def require_expert_permission(user,key,workspace_id=None):
         raise PermissionDenied('مدیر دفتر این اختیار را برای حساب شما فعال نکرده است.')
 
 def audit(actor,event,entity,pk,property=None,**metadata):
-    clean={k:v for k,v in metadata.items() if k in ('status','attempt','decision','reference','previous_status')}
+    clean={k:v for k,v in metadata.items() if k in ('status','attempt','decision','reference','previous_status','office_id')}
     WorkflowEvent.objects.create(property=property,actor=actor,event=event,metadata={'entity_type':entity,'entity_id':pk,**clean})
     session=getattr(actor,'_mlkino_impersonation_session',None)
     ActivityLog.objects.create(actor=actor,real_actor=session.actor if session else actor,impersonation_session=session,event=event,category='workflow',metadata={'target_type':entity,'target_id':str(pk),**clean},request_id=uuid.uuid4())
@@ -92,6 +93,75 @@ def candidates(row,config):
         return rank,order.index(user.pk) if user.pk in order else len(order),user.referral_load,user.pk
     return sorted(users,key=priority)
 
+def is_customer_request(row):
+    return row.kind == 'request' and row.data.get('selfServiceRequest', row.created_by.role == User.Role.USER)
+
+
+def request_expert_links():
+    links = AgencyExpertLink.objects.filter(
+        agency__role=User.Role.AGENCY, agency__is_active=True, agency__account_status=User.AccountStatus.ACTIVE,
+        expert__role=User.Role.EXPERT, expert__is_active=True, expert__account_status=User.AccountStatus.ACTIVE,
+    ).select_related('agency__agency_profile', 'expert', 'expert__agency_membership')
+    return links.filter(
+        Q(expert__agency_membership__isnull=True) |
+        Q(expert__agency_membership__is_active=True, expert__agency_membership__agency_id=F('agency_id')),
+    )
+
+
+def request_geography(value, field):
+    value = normalize(value)
+    return value.removeprefix('منطقه').strip() if field == 'district' else value
+
+
+def request_candidates(row, config):
+    previous_ids = set(row.referrals.exclude(expert=None).values_list('expert_id', flat=True))
+    links = list(request_expert_links().exclude(expert_id__in=previous_ids).order_by('id'))
+    expert_ids = {link.expert_id for link in links}
+    blocked = {
+        (permission.expert_id, permission.workspace_id)
+        for permission in ExpertPermission.objects.filter(expert_id__in=expert_ids)
+        if permission.permissions.get('can_manage_requests') is False
+    }
+    loads = dict(PropertyReferral.objects.filter(expert_id__in=expert_ids, status='pending')
+                 .values_list('expert_id').annotate(total=Count('pk')))
+    previous_offices = set(WorkflowEvent.objects.filter(property=row, event='routing.assigned')
+                           .values_list('metadata__office_id', flat=True))
+    order = {pk: index for index, pk in enumerate(config['expert_order'])}
+    fields = ('province', 'city', 'district', 'neighborhood')
+    requested = {
+        field: {request_geography(value, field) for value in
+                (row.data[field] if isinstance(row.data.get(field), list) else [row.data.get(field)])} - {''}
+        for field in fields
+    }
+    preferred = config['request_preferred_office_id']
+    # The internal office gets the first offer. Subsequent attempts use geography.
+    preferred = preferred if not previous_ids else None
+    ranked = []
+    for link in links:
+        if (link.expert_id, link.agency_id) in blocked:
+            continue
+        profile = getattr(link.agency, 'agency_profile', None)
+        office = {
+            'province': getattr(profile, 'office_province', '') or link.agency.province,
+            'city': getattr(profile, 'office_city', '') or link.agency.city,
+            'district': getattr(profile, 'office_district', ''),
+            'neighborhood': getattr(profile, 'office_neighborhood', ''),
+        }
+        match = {field: request_geography(office[field], field) in requested[field] for field in fields}
+        province_ok = not requested['province'] or match['province']
+        city_ok = province_ok and match['city']
+        district_ok = city_ok and (not requested['district'] or match['district'])
+        matches = {'province': match['province'], 'city': city_ok,
+                   'district': city_ok and match['district'], 'neighborhood': district_ok and match['neighborhood']}
+        rank = next((i for i, field in enumerate(config['geographic_priority']) if matches.get(field)), None)
+        first = link.agency_id == preferred
+        if rank is None and not first:
+            continue
+        ranked.append(((not first, rank if rank is not None else len(fields), link.agency_id in previous_offices,
+                        loads.get(link.expert_id, 0), order.get(link.expert_id, len(order)), link.pk), link))
+    return [link for _rank, link in sorted(ranked, key=lambda item: item[0])]
+
+
 @transaction.atomic
 def dispatch(property_id,actor=None,explicit_expert=None):
     row=PropertyRecord.objects.select_for_update(of=('self',)).get(pk=property_id)
@@ -101,15 +171,32 @@ def dispatch(property_id,actor=None,explicit_expert=None):
     config=policy()
     if not config['enabled'] and explicit_expert is None:return None
     attempt=row.referrals.count()+1
-    eligible=candidates(row,config)
-    chosen=explicit_expert or (eligible[0] if eligible and attempt<=config['max_attempts'] and config['mode']!='market' else None)
-    if chosen and (chosen.role!='expert' or not chosen.is_active or chosen.account_status!='active'):raise ValidationError('کارشناس فعال و مجاز انتخاب کنید.')
+    chosen = explicit_expert
+    office_id = None
+    customer_request = is_customer_request(row)
+    if explicit_expert and customer_request:
+        link = next((link for link in request_expert_links().filter(expert=explicit_expert).order_by('id')
+                     if expert_permissions(explicit_expert, link.agency_id)['can_manage_requests']), None)
+        if not link:
+            raise ValidationError('کارشناس باید عضو یک دفتر فعال و مجاز به مدیریت درخواست باشد.')
+        office_id = link.agency_id
+    if not chosen and attempt <= config['max_attempts'] and config['mode'] != 'market':
+        if customer_request:
+            options = request_candidates(row, config)
+            if options:
+                chosen, office_id = options[0].expert, options[0].agency_id
+        else:
+            eligible = candidates(row, config)
+            chosen = eligible[0] if eligible else None
+    if chosen and (chosen.role != 'expert' or not chosen.is_active or chosen.account_status != 'active'):
+        raise ValidationError('کارشناس فعال و مجاز انتخاب کنید.')
     status='pending' if chosen else 'market'
-    referral=PropertyReferral.objects.create(property=row,expert=chosen,status=status,attempt=attempt,expires_at=timezone.now()+timedelta(minutes=config['response_minutes']) if chosen else None)
+    minutes = CUSTOMER_REQUEST_MINUTES if customer_request else config['response_minutes']
+    referral=PropertyReferral.objects.create(property=row,expert=chosen,status=status,attempt=attempt,expires_at=timezone.now()+timedelta(minutes=minutes) if chosen else None)
     row.publication_state='pending'
-    if not chosen and config.get('market_office_id'):row.office_id=config['market_office_id']
+    if not chosen and not customer_request and config.get('market_office_id'):row.office_id=config['market_office_id']
     row.save(update_fields=['publication_state','office','updated_at'])
-    audit(actor,'routing.assigned' if chosen else 'routing.market','referral',referral.pk,property=row,status=status,attempt=attempt)
+    audit(actor,'routing.assigned' if chosen else 'routing.market','referral',referral.pk,property=row,status=status,attempt=attempt,office_id=office_id)
     if chosen and config['notifications']:notify(chosen,'referral','درخواست جدید برای بررسی',link=f'/assignments?referral={referral.pk}')
     if not chosen:
         for manager in User.objects.filter(role='superadmin',is_active=True):notify(manager,'referral','درخواست در بازار املاک ملکینو',link='/assignments')
@@ -121,25 +208,36 @@ def respond(referral_id,user,decision,publish=False):
     ref=PropertyReferral.objects.select_related('property').get(pk=referral_id)
     row=PropertyRecord.objects.select_for_update(of=('self',)).get(pk=ref.property_id)
     ref=PropertyReferral.objects.select_for_update(of=('self',)).get(pk=referral_id)
-    if ref.expert_id!=user.pk and not is_superadmin(user):raise PermissionDenied('این ارجاع متعلق به شما نیست.')
+    if ref.expert_id!=user.pk and (is_customer_request(row) or not is_superadmin(user)):raise PermissionDenied('این ارجاع متعلق به شما نیست.')
     target='accepted' if decision=='accept' else 'rejected'
     if ref.status==target:return ref
-    if ref.status!='pending':raise ValidationError('این ارجاع دیگر قابل پاسخ نیست.')
+    if ref.status!='pending' or row.archived_at:raise ValidationError('این ارجاع دیگر قابل پاسخ نیست.')
     if decision=='accept' and (not ref.expert or ref.expert.role!='expert' or not ref.expert.is_active or ref.expert.account_status!='active'):raise ValidationError('کارشناس این ارجاع فعال نیست؛ پرونده باید دوباره ارجاع شود.')
     if ref.expires_at<=timezone.now():
         ref.status='expired';ref.save(update_fields=['status','updated_at']);audit(user,'routing.expired','referral',ref.pk,property=row,status='expired');dispatch(row.pk,user);return ref
+    office_id = None
+    if decision == 'accept' and is_customer_request(row):
+        offer = row.workflow_events.filter(event='routing.assigned', metadata__entity_id=ref.pk).first()
+        office_id = offer.metadata.get('office_id') if offer else None
+        links = request_expert_links().filter(expert_id=ref.expert_id)
+        if office_id is not None:
+            links = links.filter(agency_id=office_id)
+        link = links.order_by('id').first()
+        if not link or not expert_permissions(ref.expert, link.agency_id)['can_manage_requests']:
+            raise PermissionDenied('عضویت یا دسترسی رسیدگی به این درخواست دیگر فعال نیست.')
+        office_id = link.agency_id
     if decision == 'accept' and publish and row.kind == 'file':
         require_file_fields(row.data)
     ref.status=target;ref.save(update_fields=['status','updated_at'])
     audit(user,'routing.responded','referral',ref.pk,property=row,decision=decision,status=target)
     if decision=='accept':
-        row.assigned_expert_id=ref.expert_id;row.office_id=workspace(ref.expert);row.publication_state='published' if publish else 'draft';row.data={**row.data,'publicationStatus':row.publication_state};row.save(update_fields=['assigned_expert','office','publication_state','data','updated_at']);touch_contact(row,ref.expert)
+        row.assigned_expert_id=ref.expert_id;row.office_id=office_id or workspace(ref.expert);row.publication_state='published' if publish else 'draft';row.data={**row.data,'publicationStatus':row.publication_state};row.save(update_fields=['assigned_expert','office','publication_state','data','updated_at']);touch_contact(row,ref.expert)
         notify(row.created_by,'referral','درخواست شما پذیرفته شد',link=f'/{"files" if row.kind=="file" else "requests"}/{row.pk}')
     else:dispatch(row.pk,user)
     return ref
 
 def expire_due(limit=200):
-    ids=list(PropertyReferral.objects.filter(status='pending',expires_at__lte=timezone.now()).values_list('pk',flat=True)[:limit])
+    ids=list(PropertyReferral.objects.filter(status='pending',expires_at__lte=timezone.now()).order_by('expires_at', 'pk').values_list('pk',flat=True)[:limit])
     count=0
     for pk in ids:
         with transaction.atomic():

@@ -22,7 +22,7 @@ from .models import (PropertyRecord,AgencyExpertLink,CRMContact,ExpertPermission
 from .settings_api import envelope,is_superadmin
 from .settings_models import PanelSettings
 from .workflow_services import (workspaces,workspace,audit,feature,dispatch,respond,policy,ROUTING_DEFAULTS,
-    EXPERT_PERMISSION_DEFAULTS,expert_permissions,require_expert_permission,touch_contact,dispatch_visit,respond_visit,
+    EXPERT_PERMISSION_DEFAULTS,expert_permissions,is_customer_request,require_expert_permission,touch_contact,dispatch_visit,respond_visit,
     visit_office_id,calculate_visit_commission)
 from .property_api import scope,serialize as property_serialize,validate_payload,normalize,require_estate_write,property_contact,require_file_fields
 from .public_api import public_serialize,public_rows,ACTIVE_BOOKINGS
@@ -142,11 +142,26 @@ def referral_scope(user):
     if user.role=='agency':return qs.filter(Q(property__office=user)|Q(expert_id__in=AgencyExpertLink.objects.filter(agency=user).values('expert_id')))
     if user.role=='expert':return qs.filter(Q(expert=user)|Q(property__created_by=user))
     return qs.filter(property_id__in=scope(user).values('pk'))
-def referral_json(r):return {'id':r.pk,'property_id':r.property_id,'property_title':r.property.data.get('title') or r.property.data.get('propertyType','ملک'),'expert_id':r.expert_id,'expert_name':r.expert.full_name if r.expert else 'بازار املاک ملکینو','status':r.status,'expires_at':r.expires_at.isoformat() if r.expires_at else None,'attempt':r.attempt,'created_at':r.created_at.isoformat(),'history':[{'event':e.event,'actor_id':e.actor_id,'created_at':e.created_at.isoformat()} for e in r.property.workflow_events.all()[:100]]}
+def referral_json(r):
+    data = r.property.data
+    return {
+        'id': r.pk, 'property_id': r.property_id, 'property_kind': r.property.kind,
+        'property_title': data.get('title') or data.get('propertyType', 'ملک'),
+        'location': {key: data.get(key) for key in ('province', 'city', 'district', 'neighborhood')},
+        'contract_type': data.get('contractType'),
+        'expert_id': r.expert_id, 'expert_name': r.expert.full_name if r.expert else 'بازار املاک ملکینو',
+        'status': r.status, 'expires_at': r.expires_at.isoformat() if r.expires_at else None,
+        'attempt': r.attempt, 'created_at': r.created_at.isoformat(),
+        'history': [{'event': e.event, 'actor_id': e.actor_id, 'created_at': e.created_at.isoformat()}
+                    for e in r.property.workflow_events.all()[:100]],
+    }
+
 class AssignmentsView(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request):
         feature('assignments');qs=referral_scope(request.user)
+        if request.query_params.get('referral'):
+            qs = qs.filter(pk=ident(request.query_params['referral']))
         if request.query_params.get('status'):qs=qs.filter(status=request.query_params['status'])
         if request.query_params.get('kind') in ('file','request'):qs=qs.filter(property__kind=request.query_params['kind'])
         if request.query_params.get('source') in ('landing','panel'):qs=qs.filter(property__data__source=request.query_params['source'])
@@ -155,7 +170,8 @@ class AssignmentRespondView(APIView):
     permission_classes=[IsAuthenticated]
     def post(self,request,pk):
         feature('assignments');referral=get_object_or_404(referral_scope(request.user),pk=pk)
-        if request.user.role=='expert':require_expert_permission(request.user,'can_manage_files' if referral.property.kind=='file' else 'can_manage_requests')
+        if request.user.role=='expert' and not is_customer_request(referral.property):
+            require_expert_permission(request.user,'can_manage_files' if referral.property.kind=='file' else 'can_manage_requests')
         decision=request.data.get('decision')
         if decision not in ('accept','reject') or not isinstance(request.data.get('publish',False),bool):raise ValidationError('پاسخ ارجاع معتبر نیست.')
         return envelope(referral_json(respond(pk,request.user,decision,request.data.get('publish',False))))
@@ -566,7 +582,17 @@ class RoutingSettingsView(APIView):
     permission_classes=[IsAuthenticated]
     def check(self,user):
         if not is_superadmin(user):raise PermissionDenied('تنظیمات توزیع فقط برای سوپرادمین مجاز است.')
-    def get(self,request):self.check(request.user);return envelope(policy())
+    def payload(self, routing):
+        offices = User.objects.filter(role='agency', is_active=True, account_status='active').select_related('agency_profile').order_by('id')
+        return {**routing, 'office_options': [
+            {'id': office.pk, 'name': getattr(getattr(office, 'agency_profile', None), 'agency_name', '') or office.full_name or str(office.pk)}
+            for office in offices
+        ]}
+
+    def get(self,request):
+        self.check(request.user)
+        return envelope(self.payload(policy()))
+
     @transaction.atomic
     def put(self,request):
         self.check(request.user);d=request.data;allowed=set(ROUTING_DEFAULTS)|{'market_office_id'}
@@ -579,9 +605,12 @@ class RoutingSettingsView(APIView):
             if isinstance(result[key],bool) or not isinstance(result[key],int) or not 1<=result[key]<=maximum:raise ValidationError('تایمر یا حداکثر تلاش خارج از محدوده است.')
         if not isinstance(result['geographic_priority'],list) or set(result['geographic_priority'])!={'neighborhood','district','city','province','other'} or len(result['geographic_priority'])!=5:raise ValidationError('اولویت جغرافیایی باید شامل هر پنج مرحله بدون تکرار باشد.')
         if not isinstance(result['expert_order'],list) or len(result['expert_order'])>1000 or any(not isinstance(x,int) for x in result['expert_order']):raise ValidationError('ترتیب کارشناسان معتبر نیست.')
+        if result['request_preferred_office_id'] is not None:
+            office = get_object_or_404(User, pk=ident(result['request_preferred_office_id']), role='agency', is_active=True, account_status='active')
+            result['request_preferred_office_id'] = office.pk
         if result.get('market_office_id'):get_object_or_404(User,pk=ident(result['market_office_id']),role='agency',is_active=True)
         obj,_=PanelSettings.objects.select_for_update(of=('self',)).get_or_create(pk=1);cfg=dict(obj.data or {});wf=dict(cfg.get('workflow',{}));wf['routing']=result;cfg['workflow']=wf;obj.data=cfg;obj.save();cache.delete('mlkino:system-settings');audit(request.user,'routing.settings.changed','settings',1)
-        return envelope(result)
+        return envelope(self.payload(result))
 
 class BusinessRolesView(APIView):
     permission_classes=[IsAuthenticated]
