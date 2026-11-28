@@ -11,6 +11,7 @@ beforeEach(()=>{jest.clearAllMocks();(DataProvider.get as jest.Mock).mockResolve
 function show(){render(<MemoryRouter><DashboardExplorer admin manager filters={{}} onChange={()=>{}}/></MemoryRouter>)}
 test('the same agencies, experts and contracts are available in list and form views without coordinates',async()=>{
  show()
+ for(const layer of screen.getAllByRole('checkbox')) expect((layer as HTMLInputElement).checked).toBe(false)
  await screen.findByRole('button',{name:'نمونه نقشه'})
  fireEvent.click(screen.getByRole('button',{name:'فهرست'}))
  expect(screen.getByRole('button',{name:'جزئیات دفتر قم'})).toBeTruthy()

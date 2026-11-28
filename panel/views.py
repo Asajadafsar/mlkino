@@ -242,9 +242,11 @@ def _agency_experts_queryset(user):
     ).values_list("expert_id", flat=True)
 
     return User.objects.filter(
-        id__in=expert_ids,
+        models.Q(id__in=expert_ids) | models.Q(
+            panel_agency_links__agency=user, agency_membership__isnull=True,
+        ),
         role=User.Role.EXPERT,
-    )
+    ).distinct()
 
 
 def _managed_users(user):
@@ -643,12 +645,8 @@ class PanelUserCreateSerializer(serializers.ModelSerializer):
         elif attrs.get("national_code_image"):
             raise serializers.ValidationError({"national_code_image": "تصویر کارت ملی فقط برای ثبت املاکی قابل استفاده است."})
         if _is_agency(request.user):
-            if role != User.Role.EXPERT:
-                raise serializers.ValidationError({"role": "املاکی فقط می‌تواند کارشناس ایجاد کند."})
-            if "agency_id" in attrs and attrs["agency_id"] != request.user.pk:
-                raise serializers.ValidationError({"agency_id": "اجازه افزودن کارشناس به دفتر دیگری را ندارید."})
-            attrs["agency_id"] = request.user.pk
-        elif not _is_superadmin(request.user):
+            raise serializers.ValidationError({"role": "کارشناس فقط از مسیر درخواست همکاری به دفتر اضافه می‌شود."})
+        if not _is_superadmin(request.user):
             raise serializers.ValidationError("دسترسی غیرمجاز.")
         if attrs.get('is_superuser') and not request.user.is_superuser:
             raise serializers.ValidationError({'is_superuser': 'فقط سوپریوزر اجازه اعطای این دسترسی را دارد.'})
@@ -736,11 +734,15 @@ class PanelUserListView(APIView):
             )
             search = search.translate(str.maketrans('يك۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', 'یک01234567890123456789')).replace('\u200c', ' ')
             for word in search[:200].split():
-                queryset = queryset.filter(
+                matches = (
                     models.Q(given_name__icontains=word) | models.Q(family_name__icontains=word)
                     | models.Q(office_name__icontains=word) | models.Q(phone__icontains=word)
-                    | models.Q(email__icontains=word)
+                    | models.Q(email__icontains=word) | models.Q(expert_profile__expert_code__iexact=word)
                 )
+                code = word.removeprefix('#')
+                if code.isascii() and code.isdecimal() and len(code) <= 9:
+                    matches |= models.Q(pk=int(code))
+                queryset = queryset.filter(matches)
 
         account_status = request.query_params.get(
             "account_status"
@@ -801,7 +803,9 @@ class PanelUserListView(APIView):
         try:
             user = User.objects.create_user(password=password, **values)
             if user.role == User.Role.EXPERT:
+                from panel.models import AgencyExpertLink
                 AgencyExpert.objects.create(agency_id=agency_id, expert=user)
+                AgencyExpertLink.objects.create(agency_id=agency_id, expert=user)
                 profile_serializer.save(user=user)
             elif user.role == User.Role.AGENCY:
                 profile_serializer.save(manager=user)
@@ -1102,7 +1106,12 @@ class PanelUserDetailView(APIView):
         target.account_status = User.AccountStatus.INACTIVE
         target.save(update_fields=["is_active", "account_status"])
         if target.role == User.Role.EXPERT:
-            AgencyExpert.objects.filter(expert=target).update(is_active=False)
+            if _is_agency(request.user):
+                from panel.models import AgencyExpertLink
+                AgencyExpert.objects.update_or_create(expert=target, defaults={'agency': request.user, 'is_active': False})
+                AgencyExpertLink.objects.filter(agency=request.user, expert=target).delete()
+            else:
+                AgencyExpert.objects.filter(expert=target).update(is_active=False)
         record_activity(request, event="user.deactivate", target_type="user", target_id=target.pk, target_label=getattr(target, "full_name", ""), description="حساب کاربر غیرفعال شد.")
 
         return success_response(
@@ -1682,7 +1691,7 @@ from rest_framework.authentication import CSRFCheck
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from accounts.cookies import ACCESS_COOKIE, get_cookie_options
-from accounts.authentication import CookieJWTAuthentication
+from accounts.authentication import CookieJWTAuthentication, can_manage_expert_session
 from accounts.models import ActivityLog
 from panel.models import ImpersonationSession, ImpersonationAudit
 
@@ -1743,9 +1752,11 @@ class StartImpersonationView(APIView):
             revoked_at__isnull=True, expires_at__gt=timezone.now(),
         ).exists():
             return error_response("ابتدا از نشست مدیریتی فعلی خارج شوید.", status_code=409)
-        if not _is_superadmin(request.user):
-            raise PermissionDenied("فقط سوپرادمین مجاز است.")
-        target = get_object_or_404(User, pk=user_id, is_active=True, account_status=User.AccountStatus.ACTIVE)
+        if not (_is_superadmin(request.user) or _is_agency(request.user)):
+            raise PermissionDenied("دسترسی به ورود مدیریتی مجاز نیست.")
+        target = get_object_or_404(_managed_users(request.user), pk=user_id, is_active=True, account_status=User.AccountStatus.ACTIVE)
+        if not _is_superadmin(request.user) and not can_manage_expert_session(request.user, target):
+            raise PermissionDenied("ورود مدیریتی فقط برای کارشناس فعال دفتر مجاز است.")
         if target.pk == request.user.pk or _is_superadmin(target):
             return error_response("ورود به حساب مدیر مجاز نیست.", status_code=403)
         raw = secrets.token_urlsafe(48)
@@ -1771,8 +1782,8 @@ class ImpersonationStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if not _is_superadmin(request.user):
-            raise PermissionDenied("فقط سوپرادمین مجاز است.")
+        if not (_is_superadmin(request.user) or _is_agency(request.user)):
+            raise PermissionDenied("دسترسی به ورود مدیریتی مجاز نیست.")
         raw = request.COOKIES.get(IMPERSONATION_COOKIE)
         session = None
         if raw:
@@ -1780,6 +1791,8 @@ class ImpersonationStatusView(APIView):
                 actor=request.user, token_hash=hashlib.sha256(raw.encode()).hexdigest(),
                 revoked_at__isnull=True, expires_at__gt=timezone.now(), target__is_active=True,
             ).first()
+        if session and not _is_superadmin(request.user) and not can_manage_expert_session(request.user, session.target):
+            session = None
         return success_response("وضعیت ورود مدیریتی", data={
             "active": bool(session), "actor_id": request.user.pk,
             "target_id": session.target_id if session else None,
@@ -1794,8 +1807,8 @@ class StopImpersonationView(APIView):
 
     def post(self, request):
         _require_csrf(request)
-        if not _is_superadmin(request.user):
-            raise PermissionDenied("فقط سوپرادمین مجاز است.")
+        if not (_is_superadmin(request.user) or _is_agency(request.user)):
+            raise PermissionDenied("دسترسی به ورود مدیریتی مجاز نیست.")
         raw = request.COOKIES.get(IMPERSONATION_COOKIE)
         if raw:
             with transaction.atomic():

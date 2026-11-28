@@ -3,36 +3,42 @@ import {Box, Button, IconButton, Stack, Typography} from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 
+const EMPTY_IMAGES: (File | string)[] = []
+
 export function CustomImagesField({
     name,
     setData,
     label,
+    images = EMPTY_IMAGES,
 }: {
     name: string
     setData: React.Dispatch<React.SetStateAction<any>>
     label: string
+    images?: (File | string)[]
 }) {
-    const [files, setLocalFiles] = useState<File[]>([])
+    const [error, setError] = useState('')
     const [previews, setPreviews] = useState<string[]>([])
 
     useEffect(() => {
-        const urls = files.map((file) => URL.createObjectURL(file))
+        const urls = images.map(image => typeof image === 'string' ? image : URL.createObjectURL(image))
         setPreviews(urls)
-        return () => urls.forEach((url) => URL.revokeObjectURL(url))
-    }, [files])
+        return () => urls.filter(url => url.startsWith('blob:')).forEach(url => URL.revokeObjectURL(url))
+    }, [images])
 
     const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selected = Array.from(e.target.files ?? [])
-        const next = [...files, ...selected]
-        setLocalFiles(next)
-        setData((prev: any) => ({...prev, [name]: next}))
         e.target.value = ''
+        if (images.length + selected.length > 15 || selected.some(file => file.size > 5 * 1024 * 1024)) {
+            setError('حداکثر ۱۵ تصویر، هرکدام تا ۵ مگابایت، قابل ثبت است.')
+            return
+        }
+        setError('')
+        setData((prev: any) => ({...prev, [name]: [...images, ...selected]}))
     }
 
     const handleRemove = (index: number) => {
-        const next = files.filter((_, i) => i !== index)
-        setLocalFiles(next)
-        setData((prev: any) => ({...prev, [name]: next}))
+        setError('')
+        setData((prev: any) => ({...prev, [name]: images.filter((_, i) => i !== index)}))
     }
 
     return (
@@ -55,6 +61,7 @@ export function CustomImagesField({
                 />
             </Button>
 
+            {error && <Typography role="alert" color="error">{error}</Typography>}
             {previews.length > 0 && (
                 <Stack direction="row" flexWrap="wrap" gap={1.5}>
                     {previews.map((src, index) => (

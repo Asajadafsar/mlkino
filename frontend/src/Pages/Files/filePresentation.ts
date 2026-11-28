@@ -1,5 +1,5 @@
 import type {PropertyType} from '../../Components/PropertyRecordForm'
-export type FileRecord=Partial<PropertyType>&{id:number;demo?:boolean;creatorRole?:string;created_at?:string;updated_at?:string;archived?:boolean;publication_state?:string;external_links?:Record<string,string>;created_by_name?:string}
+export type FileRecord=Partial<PropertyType>&{id:number;demo?:boolean;creatorRole?:string;created_at?:string;updated_at?:string;archived?:boolean;publication_state?:string;external_links?:Record<string,string>;created_by_name?:string;created_by_avatar?:string}
 export const fileTitle=(file:Partial<FileRecord>)=>file.title||[file.propertyType||'ملک',file.area?Number(file.area).toLocaleString('fa-IR')+' متری':'',file.city].filter(Boolean).join(' ')
 export const fileCode=(file:Partial<FileRecord>)=>'MLK-'+String(file.id||'').padStart(5,'0')
 export const fileStatus=(file:FileRecord)=>file.archived?'آرشیو شده':file.status||'ثبت شده'

@@ -1,3 +1,4 @@
+import {apiErrorMessage} from '../../Core/ApiError'
 import {Button, Stack, Typography} from '@mui/material'
 import {Box} from '@mui/system'
 import {useDispatch} from 'react-redux'
@@ -46,15 +47,12 @@ export function CreatePage(props) {
             const res = await DataProvider.post(resource, {
                 data: buildRequestData ? buildRequestData(formDetails) : isFormData ? formData : formDetails,
                 timeout,
-                headers: {
-                    'Content-Type': isFormData ? 'multipart/form-data' : 'application/json',
-                },
             })
             if (onSuccess) await onSuccess()
             else navigate(`/${redirect ? redirect : resource}`)
             dispatch(setUtil({open: true, message: res.message, severity: 'success'}))
         } catch (error: any) {
-            dispatch(setUtil({open: true, message: error.message, severity: 'error'}))
+            dispatch(setUtil({open: true, message: apiErrorMessage(error, 'ثبت اطلاعات انجام نشد.'), severity: 'error'}))
         }
         dispatch(setUtil({loading: false}))
     }

@@ -48,17 +48,11 @@ class UserManagementScopeTests(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual([row['id'] for row in response.data['data']['results']], [self.expert.pk])
 
-    def test_new_expert_is_attached_to_calling_agency_and_cannot_be_attached_elsewhere(self):
+    def test_agency_must_use_collaboration_instead_of_manually_creating_experts(self):
         payload = {'phone': '09123333006', 'password': 'expert-password', 'first_name': 'کارشناس', 'last_name': 'جدید', 'role': 'expert'}
         response = self.client.post('/panel/users/', payload, format='json')
-        self.assertEqual(response.status_code, 201, response.data)
-        created = User.objects.get(pk=response.data['data']['id'])
-        self.assertTrue(created.check_password('expert-password'))
-        self.assertTrue(AgencyExpert.objects.filter(agency=self.agency, expert=created, is_active=True).exists())
-        payload.update(phone='09123333007', agency_id=self.other_agency.pk)
-        self.assertEqual(self.client.post('/panel/users/', payload, format='json').status_code, 400)
-        payload.update(role='user')
-        self.assertEqual(self.client.post('/panel/users/', payload, format='json').status_code, 400)
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertFalse(User.objects.filter(phone=payload['phone']).exists())
 
     def test_other_roles_cannot_access_user_management(self):
         for user in (self.member, self.expert):

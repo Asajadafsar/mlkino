@@ -1,5 +1,11 @@
 """Authenticated, tenant-scoped estate workflows built on existing records."""
 from datetime import timedelta
+from pathlib import Path
+
+from django.conf import settings
+from django.core.files.storage import FileSystemStorage
+from django.http import FileResponse
+from accounts.media_processing import sanitized_document
 import re
 from django.db import transaction
 from django.db.models import Q,Count
@@ -83,6 +89,10 @@ class ContactsView(APIView):
         roles=d.get('roles')
         if roles is None:roles=[{'lessor':'landlord'}.get(d['kind'],d['kind'])] if d.get('kind') else row.roles if row else ['owner']
         if not isinstance(roles,list) or not roles or not set(roles)<={'owner','buyer','landlord','tenant','expert'}:raise ValidationError('نوع مخاطب معتبر نیست.')
+        if row is None and roles != ['expert']:
+            raise ValidationError('مخاطبان ملکی از طریق ثبت فایل یا درخواست ساخته می‌شوند.')
+        if row and set(roles) != set(row.roles):
+            raise ValidationError('نوع مخاطب ملکی با ثبت یا تغییر پرونده تعیین می‌شود.')
         ws=ident(d.get('workspace_id') or (row.workspace_id if row else workspace(request.user)))
         get_object_or_404(User.objects.select_for_update(of=('self',)),pk=ws)
         if ws not in workspaces(request.user):raise PermissionDenied('دفتر متعلق به شما نیست.')
@@ -167,12 +177,78 @@ class OwnerSubmissionView(APIView):
     @transaction.atomic
     def post(self,request):
         require_estate_write(request.user)
-        feature('files');d=validate_payload(request,'file',require_complete=True);d['requesterType']='owner';d['ownerSubmission']=True;d['source']='landing'
+        feature('files')
+        d=validate_payload(request,'file',previous={
+            'ownerName': request.user.full_name,
+            'ownerPhone': request.user.phone,
+        },require_complete=True)
+        d.update(requesterType='owner', ownerSubmission=True, source='landing')
         draft=d.get('publicationStatus')=='draft'
         row=PropertyRecord.objects.create(kind='file',created_by=request.user,data=d,publication_state='draft' if draft else 'pending')
         audit(request.user,'property.owner.submitted','property',row.pk,property=row)
         if not draft:dispatch(row.pk,request.user)
         return envelope(property_serialize(row),code=201)
+class PropertyDocumentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def property(self, request, pk, lock=False):
+        rows = scope(request.user)
+        if lock:
+            rows = rows.select_for_update(of=('self',))
+        row = get_object_or_404(rows, kind='file', pk=pk)
+        can_manage(request.user, row)
+        if request.user.role == 'expert':
+            require_expert_permission(request.user, 'can_manage_files', row.office_id)
+        return row
+
+    def storage(self):
+        media = Path(settings.MEDIA_ROOT)
+        return FileSystemStorage(location=media.with_name(media.name + '-private') / 'property-documents',
+                                 file_permissions_mode=0o600, directory_permissions_mode=0o700)
+
+    def get(self, request, pk, index=None):
+        row = self.property(request, pk)
+        documents = row.data.get('privateDocuments', [])
+        if index is None:
+            return envelope([{'index': i, 'name': document['name']} for i, document in enumerate(documents)])
+        if index >= len(documents):
+            from django.http import Http404
+            raise Http404
+        document = documents[index]
+        try:
+            file = self.storage().open(document['file'], 'rb')
+        except FileNotFoundError:
+            from django.http import Http404
+            raise Http404
+        response = FileResponse(file, as_attachment=True, filename=document['name'],
+                                content_type='application/octet-stream')
+        response['Cache-Control'] = 'private, no-store'
+        response['X-Content-Type-Options'] = 'nosniff'
+        return response
+
+    @transaction.atomic
+    def post(self, request, pk):
+        row = self.property(request, pk, lock=True)
+        documents = row.data.get('privateDocuments', [])
+        if len(documents) >= 10:
+            raise ValidationError('حداکثر ۱۰ مدرک برای هر فایل مجاز است.')
+        upload = request.FILES.get('document')
+        if not upload or upload.size > 10 * 1024 * 1024:
+            raise ValidationError('مدرک PDF یا تصویر حداکثر ۱۰ مگابایت انتخاب کنید.')
+        clean = sanitized_document(upload)
+        name = (Path(upload.name).stem[:120] or 'مدرک') + Path(clean.name).suffix
+        storage = self.storage()
+        file = storage.save(f'{row.pk}/{clean.name}', clean)
+        try:
+            row.data = {**row.data, 'privateDocuments': [*documents, {'name': name, 'file': file}]}
+            row.save(update_fields=['data', 'updated_at'])
+            audit(request.user, 'property.document.attached', 'property', row.pk, property=row)
+        except Exception:
+            storage.delete(file)
+            raise
+        return envelope({'index': len(documents), 'name': name}, code=201)
+
+
 class PropertyPublishView(APIView):
     permission_classes=[IsAuthenticated]
     @transaction.atomic

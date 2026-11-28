@@ -53,13 +53,10 @@ def touch_contact(row,expert):
     prefix='owner' if is_file else 'customer'
     phone=row.data.get(prefix+'Phone') or row.data.get('ownerPhone') or row.created_by.phone
     name=row.data.get(prefix+'Name') or row.data.get('ownerName') or row.created_by.full_name or 'متقاضی'
-    national=row.data.get(prefix+'NationalId') or row.data.get(prefix+'NationalCode')
-    national=normalize(national).replace(' ','') or None
     roles=(['owner','landlord'] if row.data.get('contractType')=='رهن و اجاره' else ['owner']) if is_file else (['tenant'] if row.data.get('contractType')=='رهن و اجاره' else ['buyer'])
     ws=row.office_id or workspace(expert)
-    match=CRMContact.objects.filter(workspace_id=ws,national_code=national).first() if national else None
-    if not match:match=CRMContact.objects.filter(workspace_id=ws,phone=phone).first()
-    defaults={'name':name,'expert':expert,'user':row.created_by if row.created_by.phone==phone else User.objects.filter(phone=phone).first(),'roles':roles,'national_code':national,'phone2':row.data.get(prefix+'Phone2',''),'job':row.data.get(prefix+'Job',''),'data':{'province':row.data.get('province',''),'city':row.data.get('city','')}}
+    match=CRMContact.objects.filter(workspace_id=ws,phone=phone).first()
+    defaults={'name':name,'expert':expert,'user':row.created_by if row.created_by.phone==phone else User.objects.filter(phone=phone).first(),'roles':roles,'phone2':row.data.get(prefix+'Phone2',''),'job':row.data.get(prefix+'Job',''),'data':{'province':row.data.get('province',''),'city':row.data.get('city','')}}
     if match:
         contact,created=match,False
     else:
@@ -68,7 +65,7 @@ def touch_contact(row,expert):
         contact.roles=list(dict.fromkeys(contact.roles+roles));contact.expert=expert
         if defaults['user'] and phone == contact.phone:
             contact.user = defaults['user']
-        contact.name=name or contact.name;contact.national_code=national or contact.national_code
+        contact.name=name or contact.name
         contact.phone2=row.data.get(prefix+'Phone2') or contact.phone2;contact.job=row.data.get(prefix+'Job') or contact.job
         contact.save(update_fields=['name','roles','expert','user','national_code','phone2','job','updated_at'])
     contact.properties.add(row)

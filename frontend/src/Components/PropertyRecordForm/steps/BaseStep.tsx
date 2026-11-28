@@ -77,6 +77,12 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                       ]
                     : []),
 
+                mode === 'request' && <CustomSelectField
+                    key="priority" name="priority" setData={setProperty} resource={resource}
+                    label="سطح درخواست" defaultValue={property.priority || 'متوسط'}
+                    options={toSelectOptions(['متوسط', 'بالا', 'فوری'])}
+                />,
+
                 <CustomSelectField
                     key="propertyType"
                     name="propertyType"
@@ -119,6 +125,7 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                                   label="شارژ ماهانه"
                                   defaultValue={property.monthlyCharge}
                                   thousandSeparator
+                                  wholeNumber
                                   endIcon={<InputAdornment position="end">تومان</InputAdornment>}
                               />
                           ),
@@ -181,10 +188,13 @@ export function BaseStep({property, setProperty, resource, mode, editMode}: Mode
                           <CustomTextField
                               key="address"
                               name="address"
-                              setData={setProperty}
+                              onChange={event => setProperty(previous => ({...previous,
+                                  address: event.target.value.replace(/[0-9٠-٩]/g, digit =>
+                                      String.fromCharCode(1776 + (digit.charCodeAt(0) >= 1632 ? digit.charCodeAt(0) - 1632 : Number(digit)))),
+                              }))}
                               resource={resource}
                               label="آدرس (الزامی)"
-                              defaultValue={property.address}
+                              value={property.address || ''}
                               multiline
                               minRows={3}
                           />,

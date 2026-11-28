@@ -34,6 +34,16 @@ class DashboardReportingTests(TestCase):
         self.assertEqual({(row['kind'], row['id']) for row in response.data['data']['rows']},
                          {('files', self.file.pk), ('requests', self.request.pk)})
 
+    def test_quick_search_filters_type_specific_property_details(self):
+        self.file.data.update(propertyType='باغ ویلا', technical={'pool': True, 'utilities': ['آب', 'برق']})
+        self.file.save(update_fields=['data'])
+        self.client.force_authenticate(self.agency)
+        url = '/panel/dashboard/estate-overview/'
+        filters = {'detail': '1', 'map_layers': 'files', 'propertyType': 'باغ ویلا', 'technical.pool': 'true'}
+        result = self.client.get(url, {**filters, 'technical.utilities': 'آب|برق'})
+        self.assertEqual([row['id'] for row in result.data['data']['rows']], [self.file.pk])
+        self.assertFalse(self.client.get(url, {**filters, 'technical.utilities': 'گاز'}).data['data']['rows'])
+
     def test_filters_change_counts_distribution_timeline_market_and_groups_together(self):
         response=self.report(self.admin,province='قم',city='قم',district='۴',neighborhood='بنیاد',propertyType='آپارتمان',creatorRoles='expert',office=str(self.agency.pk),expert=str(self.expert.pk),areaFrom='۹۰',areaTo='۱۳۰',priceFrom='۱۰۰۰۰۰۰۰۰۰',priceTo='۳۰۰۰۰۰۰۰۰۰',group_by='district')
         self.assertEqual(response.status_code,200,response.data)

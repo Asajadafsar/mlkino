@@ -30,6 +30,20 @@ class OfficeOnboardingTests(TestCase):
     def decision(self, application, **data):
         return self.client.post(f'{self.url}{application}/decision/', {'decision': 'approve', **data}, format='json')
 
+    def test_office_rotates_its_own_collaboration_code(self):
+        original = str(self.subscription.code)
+        self.as_user(self.user)
+        self.assertEqual(self.client.post('/accounts/office-code/').status_code, 403)
+        self.as_user(self.office)
+        response = self.client.post('/accounts/office-code/', {'office_id': self.other.pk})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.subscription.refresh_from_db()
+        self.assertNotEqual(str(self.subscription.code), original)
+        self.assertFalse(OfficeSubscription.objects.filter(office=self.other).exists())
+        self.as_user(self.user)
+        self.assertEqual(self.client.get('/accounts/office-lookup/', {'code': original}).status_code, 404)
+        self.assertEqual(self.client.get('/accounts/office-lookup/', {'code': self.subscription.code}).data['name'], 'دفتر نمونه')
+
     def test_only_selected_office_can_approve_collaboration(self):
         self.as_user(self.user)
         code = str(self.subscription.code)
@@ -55,6 +69,45 @@ class OfficeOnboardingTests(TestCase):
         self.assertTrue(AgencyExpert.objects.filter(agency=self.office, expert=self.user, is_active=True).exists())
         self.assertTrue(AgencyExpertLink.objects.filter(agency=self.office, expert=self.user).exists())
 
+    def test_office_to_expert_requires_destination_then_superadmin(self):
+        self.as_user(self.office)
+        destination = self.other
+        AgencyProfile.objects.create(manager=destination, agency_name='دفتر مقصد', office_address='تهران', occupancy_type='owner')
+        code = OfficeSubscription.objects.create(office=destination).code
+        params = {'kind': 'expert', 'code': str(code), 'confirm_office': True, 'job_title': 'مشاور',
+                  'specialties': ['فروش'], 'experience_years': 2, 'job_details': 'سابقه فروش ملک'}
+        response = self.client.post(self.url, params, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        pk = response.data['id']
+        self.as_user(self.admin)
+        self.assertEqual(self.decision(pk).status_code, 404)
+        self.as_user(destination)
+        self.assertEqual(self.decision(pk).data['status'], 'pending')
+        self.office.refresh_from_db()
+        self.assertEqual(self.office.role, 'agency')
+        self.as_user(self.admin)
+        self.assertEqual(self.decision(pk).data['status'], 'approved')
+        self.office.refresh_from_db()
+        self.assertEqual(self.office.role, 'expert')
+        self.assertTrue(AgencyExpert.objects.filter(expert=self.office, agency=destination, is_active=True).exists())
+        self.assertTrue(OfficeSubscription.objects.filter(office=self.office).exists())
+
+    def test_free_office_approval_activates_without_payment(self):
+        self.user.role = 'expert'
+        self.user.save(update_fields=['role'])
+        AgencyExpert.objects.create(expert=self.user, agency=self.office)
+        AgencyExpertLink.objects.create(expert=self.user, agency=self.office)
+        row = RoleApplication.objects.create(applicant=self.user, kind='office', tier='free',
+                                              details={'applicant_role': 'expert', 'monthly_price': 0})
+        self.as_user(self.admin)
+        response = self.decision(row.pk)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['status'], 'approved')
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, 'agency')
+        self.assertEqual(OfficeSubscription.objects.get(office=self.user).active_tier, 'free')
+        self.assertFalse(AgencyExpert.objects.get(expert=self.user).is_active)
+
     def test_office_review_with_multipart_profile_and_terms(self):
         buffer = BytesIO()
         Image.new('RGB', (48, 48)).save(buffer, format='PNG')
@@ -67,7 +120,7 @@ class OfficeOnboardingTests(TestCase):
                 'logo': SimpleUploadedFile('logo.png', buffer.getvalue(), content_type='image/png'),
                 'has_business_license': 'false',
             }
-            self.assertEqual(self.client.post(self.url, application_data).status_code, 400)
+            self.assertEqual(self.client.post(self.url, {**application_data, 'accept_terms': 'false'}).status_code, 400)
             application_data['tier'] = 'pro'
             application_data['logo'].seek(0)
             response = self.client.post(self.url, application_data)

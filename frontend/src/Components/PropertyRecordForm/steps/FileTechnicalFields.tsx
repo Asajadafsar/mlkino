@@ -1,3 +1,5 @@
+import {latinDigits} from '../../../Core/PersianDate'
+import {numberToPersianWords} from '../../../Core/numberToPersianWords'
 import {Button, Checkbox, FormControlLabel, FormGroup, FormLabel, MenuItem, Stack, TextField} from '@mui/material'
 import DatePickerFilter from '../../Filter/DatePicker'
 import {BASE_DOCUMENT_TYPES, COOLING_OPTIONS, DIRECTION_OPTIONS, HEATING_OPTIONS} from '../constants'
@@ -78,6 +80,7 @@ const specs: Record<string, Field[]> = {
         ['totalFloor', 'تعداد طبقات', 'integer'],
     ],
 }
+export const propertyTechnicalFields = (type: string) => specs[type] || []
 const rootFields = ['direction', 'totalFloor', 'roomCount', 'facade', 'heating', 'cooling']
 const climate = ['باغ ویلا', 'ساختمان کلنگی', 'ساختمان ویلایی', 'تجاری', 'اداری']
 
@@ -108,7 +111,9 @@ export function recordedTechnicalFields(property: Partial<PropertyType>) {
     return fields
 }
 
-export function FileTechnicalFields({property, setProperty}: Pick<ModeStepProps, 'property' | 'setProperty'>) {
+export function FileTechnicalFields({property, setProperty, request = false}: Pick<ModeStepProps, 'property' | 'setProperty'> & {request?: boolean}) {
+    const persian = (value: unknown) => String(value).replace(/[0-9]/g, digit => String.fromCharCode(1776 + Number(digit)))
+    const integer = (value: string) => latinDigits(value)
     const type = property.propertyType
     const details = property.technical || {}
     const fields: Field[] = [...(specs[type] || [])]
@@ -132,10 +137,14 @@ export function FileTechnicalFields({property, setProperty}: Pick<ModeStepProps,
                 if (root) setProperty(previous => ({...previous, [key]: raw}))
                 else update(key, kind === 'boolean' && raw !== '' ? raw === 'true' : raw)
             }
-            return <TextField key={key} label={label} fullWidth value={String(value)}
-                select={Boolean(choices)} type={choices ? undefined : 'number'}
-                inputProps={choices ? undefined : {min: 0, max: key === 'waterMinutes' ? 59 : undefined, step: kind === 'integer' ? 1 : 'any'}}
-                onChange={event => put(event.target.value)}>
+            return <TextField key={key} label={label} fullWidth value={choices ? String(value) : persian(value)}
+                select={Boolean(choices)}
+                inputProps={choices ? undefined : {inputMode: 'numeric'}}
+                helperText={!choices && value !== '' ? numberToPersianWords(String(value)) : undefined}
+                onChange={event => {
+                    const input = choices ? event.target.value : integer(event.target.value)
+                    if (choices || /^[0-9]{0,15}$/.test(input)) put(input)
+                }}>
                 {choices && <MenuItem value="">انتخاب نشده</MenuItem>}
                 {choices?.map(option => <MenuItem key={option} value={option}>
                     {kind === 'boolean' ? (option === 'true' ? 'بله' : 'خیر') : option}
@@ -152,7 +161,7 @@ export function FileTechnicalFields({property, setProperty}: Pick<ModeStepProps,
             value={typeof details.deliveryDate === 'string' ? details.deliveryDate : null}
             onChange={value => update('deliveryDate', value || '')}/>}
         {wholeBuilding && <>
-            {property.contractType === 'فروش' && <TextField fullWidth select label="روش ثبت قیمت ساختمان"
+            {!request && property.contractType === 'فروش' && <TextField fullWidth select label="روش ثبت قیمت ساختمان"
                 value={details.priceMode || 'total'} onChange={event => update('priceMode', event.target.value)}>
                 <MenuItem value="total">قیمت کل (در اطلاعات مالی)</MenuItem>
                 <MenuItem value="floor">قیمت هر طبقه</MenuItem>
@@ -165,7 +174,7 @@ export function FileTechnicalFields({property, setProperty}: Pick<ModeStepProps,
                 <Button onClick={() => update('unitAreas', unitAreas.filter((_, i) => i !== index))}>حذف</Button>
             </Stack>)}
             <Button disabled={unitAreas.length >= 100} onClick={() => update('unitAreas', [...unitAreas, {area: 0, count: 1}])}>افزودن گروه متراژ واحدها</Button>
-            {(property.contractType !== 'فروش' || details.priceMode === 'floor') && Array.from({length: floorCount}, (_, index) => <TextField key={index}
+            {!request && (property.contractType !== 'فروش' || details.priceMode === 'floor') && Array.from({length: floorCount}, (_, index) => <TextField key={index}
                 fullWidth label={`قیمت طبقهٔ ${(index + 1).toLocaleString('fa-IR')} (تومان)`}
                 type="number" value={prices[index] ?? ''} inputProps={{min: 1, step: 1}}
                 onChange={event => update('floorPrices', Array.from({length: floorCount}, (_, floor) =>

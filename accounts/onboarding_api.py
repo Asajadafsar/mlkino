@@ -3,7 +3,7 @@ import secrets
 
 import requests
 from datetime import timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from django.db import transaction
 from django.http import FileResponse
@@ -98,9 +98,22 @@ class OfficeLookup(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if request.user.role != User.Role.USER:
+        if request.user.role not in (User.Role.USER, User.Role.AGENCY):
             raise PermissionDenied()
         return Response(office_info(find_office(request.query_params.get('code')), request))
+
+
+class OfficeCode(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        if active_impersonation(request._request) or not active_offices().filter(pk=request.user.pk).exists():
+            raise PermissionDenied('فقط مدیر فعال دفتر می‌تواند کد همکاری دفتر خود را تغییر دهد.')
+        sub, _ = OfficeSubscription.objects.select_for_update().get_or_create(office=request.user)
+        sub.code = uuid4()
+        sub.save(update_fields=['code'])
+        return Response({'code': sub.code})
 
 
 class Applications(APIView):
@@ -114,7 +127,7 @@ class Applications(APIView):
         incoming = records.none()
         subscription = None
         if is_superadmin(user):
-            incoming = records.exclude(kind='expert')
+            incoming = records.exclude(kind='expert') | records.filter(kind='expert', details__office_approved=True)
         elif user.role == User.Role.AGENCY:
             incoming = records.filter(kind='expert', office=user)
             sub, _ = OfficeSubscription.objects.get_or_create(office=user)
@@ -146,8 +159,12 @@ class Applications(APIView):
         if not user.is_active or user.account_status != User.AccountStatus.ACTIVE or user.registration_required:
             raise PermissionDenied('ابتدا پروفایل و احراز هویت خود را کامل کنید.')
         kind = request.data.get('kind')
-        required_role = {'expert': User.Role.USER, 'office': User.Role.USER, 'upgrade': User.Role.AGENCY}
-        if not isinstance(kind, str) or required_role.get(kind) != user.role:
+        allowed_roles = {
+            'expert': (User.Role.USER, User.Role.AGENCY),
+            'office': (User.Role.USER, User.Role.EXPERT),
+            'upgrade': (User.Role.AGENCY,),
+        }
+        if not isinstance(kind, str) or user.role not in allowed_roles.get(kind, ()):
             raise PermissionDenied()
         if RoleApplication.objects.filter(applicant=user, status__in=['pending', 'await_pay']).exists():
             raise ValidationError('درخواست دیگری در انتظار بررسی است.')
@@ -156,6 +173,8 @@ class Applications(APIView):
             if request.data.get('confirm_office') not in (True, 'true'):
                 raise ValidationError('ابتدا دفتر انتخاب‌شده را تأیید کنید.')
             application.office = find_office(request.data.get('code'))
+            if application.office_id == user.pk:
+                raise ValidationError('برای تغییر نقش، دفتر دیگری را انتخاب کنید.')
             data = request.data.copy()
             if isinstance(data.get('specialties'), str):
                 data.setlist('specialties', data['specialties'].split('|')) if hasattr(data, 'setlist') else data.update(specialties=data['specialties'].split('|'))
@@ -165,8 +184,8 @@ class Applications(APIView):
             application.resume = application.details.pop('resume', None)
         else:
             tier = request.data.get('tier')
-            if not isinstance(tier, str) or tier not in PLANS or not PLANS[tier][0] or tier == 'free':
-                raise ValidationError('برای فعال‌سازی دفتر یک پلن پولی معتبر انتخاب کنید.')
+            if not isinstance(tier, str) or tier not in PLANS or PLANS[tier][0] is None or (kind == 'upgrade' and not PLANS[tier][0]):
+                raise ValidationError('پلن معتبر انتخاب کنید. ارتقا یا تمدید به پلن پولی نیاز دارد.')
             if request.data.get('accept_terms') not in (True, 'true'):
                 raise ValidationError('تأیید قوانین لازم است.')
             application.tier = tier
@@ -177,6 +196,7 @@ class Applications(APIView):
                 serializer = OfficeApplicationSerializer(profile, data=request.data)
                 serializer.is_valid(raise_exception=True)
                 serializer.save(manager=user)
+        application.details["applicant_role"] = user.role
         application.save()
         return Response(application_data(application, request), status=201)
 
@@ -193,7 +213,9 @@ class ApplicationDecision(APIView):
         if not row:
             raise NotFound()
         if row.kind == 'expert':
-            allowed = row.office_id == reviewer.pk and active_offices().filter(pk=reviewer.pk).exists()
+            office_approved = row.details.get('office_approved', False)
+            allowed = (is_superadmin(reviewer) if office_approved else
+                       row.office_id == reviewer.pk and active_offices().filter(pk=reviewer.pk).exists())
         else:
             allowed = is_superadmin(reviewer)
         if not allowed or row.applicant_id == reviewer.pk:
@@ -209,24 +231,34 @@ class ApplicationDecision(APIView):
             note = serializers.CharField(max_length=1000).run_validation(request.data.get('review_note'))
             row.details = {**row.details, 'review_note': note}
         if decision in ('approve', 'confirm_payment'):
-            required_role = User.Role.AGENCY if row.kind == 'upgrade' else User.Role.USER
+            required_role = row.details.get('applicant_role', User.Role.AGENCY if row.kind == 'upgrade' else User.Role.USER)
             if applicant.role != required_role or not applicant.is_active or applicant.account_status != User.AccountStatus.ACTIVE:
                 raise ValidationError('وضعیت حساب متقاضی تغییر کرده است.')
             if row.kind == 'expert':
-                applicant.role = User.Role.EXPERT
-                applicant.save(update_fields=['role'])
-                profile_fields = ('job_title', 'specialties', 'experience_years', 'job_details')
-                profile = {key: row.details[key] for key in profile_fields if key in row.details}
-                ExpertProfile.objects.update_or_create(user=applicant, defaults=profile)
-                AgencyExpert.objects.update_or_create(expert=applicant, defaults={'agency_id': row.office_id, 'is_active': True})
-                AgencyExpertLink.objects.filter(expert=applicant).exclude(agency_id=row.office_id).delete()
-                AgencyExpertLink.objects.get_or_create(expert=applicant, agency_id=row.office_id)
-            elif decision == 'approve':
-                if row.tier == 'free' or not row.details.get('monthly_price'):
-                    raise ValidationError('این درخواست پلن پولی ندارد؛ آن را برای اصلاح به متقاضی بازگردانید.')
+                if not active_offices().filter(pk=row.office_id).exists():
+                    raise ValidationError('دفتر مقصد دیگر فعال نیست.')
+                if applicant.role == User.Role.AGENCY and not row.details.get('office_approved'):
+                    row.details = {**row.details, 'office_approved': True}
+                    next_status = 'pending'
+                else:
+                    applicant.role = User.Role.EXPERT
+                    applicant.save(update_fields=['role'])
+                    profile_fields = ('job_title', 'specialties', 'experience_years', 'job_details')
+                    profile = {key: row.details[key] for key in profile_fields if key in row.details}
+                    ExpertProfile.objects.update_or_create(user=applicant, defaults=profile)
+                    AgencyExpert.objects.update_or_create(expert=applicant, defaults={'agency_id': row.office_id, 'is_active': True})
+                    AgencyExpertLink.objects.filter(expert=applicant).exclude(agency_id=row.office_id).delete()
+                    AgencyExpertLink.objects.get_or_create(expert=applicant, agency_id=row.office_id)
+            elif decision == 'approve' and row.details.get('monthly_price'):
                 next_status = 'await_pay'
             else:
                 subscription, _ = OfficeSubscription.objects.select_for_update().get_or_create(office=applicant)
+                if decision == 'approve':
+                    if row.kind != 'office' or row.tier != 'free':
+                        raise ValidationError('پلن این درخواست معتبر نیست.')
+                    subscription.tier = 'free'
+                    subscription.paid_until = None
+                    subscription.save(update_fields=['tier', 'paid_until'])
                 if decision == 'confirm_payment':
                     reference = row.details.get('payment_reference')
                     if not reference:
@@ -245,6 +277,9 @@ class ApplicationDecision(APIView):
                         raise ValidationError('این شناسه پرداخت قبلاً ثبت شده است.')
                     subscription.save(update_fields=['tier', 'paid_until'])
                 if row.kind == 'office':
+                    if applicant.role == User.Role.EXPERT:
+                        AgencyExpert.objects.filter(expert=applicant).update(is_active=False)
+                        AgencyExpertLink.objects.filter(expert=applicant).delete()
                     applicant.role = User.Role.AGENCY
                     applicant.save(update_fields=['role'])
         row.status = next_status

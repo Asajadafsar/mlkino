@@ -84,6 +84,7 @@ export const drawerItems: DrawerItemType[] = [
         icon: <Dashboard sx={iconStyle} />,
     },
     {title:'ارتقای حساب',groupId:'account',link:'role-applications',role:UserRole.USER,icon:<WorkspacePremium sx={iconStyle}/>},
+    {title:'ارتقای حساب',groupId:'account',link:'role-applications',role:UserRole.EXPERT,icon:<WorkspacePremium sx={iconStyle}/>},
     {title:'اشتراک دفتر',groupId:'management',link:'role-applications',role:UserRole.AGENCY,icon:<WorkspacePremium sx={iconStyle}/>},
     {title:'درخواست دفاتر',groupId:'management',link:'role-applications',role:UserRole.SUPERADMIN,icon:<AssignmentIcon sx={iconStyle}/>},
     {title:'مدیریت پلن‌ها',groupId:'management',link:'plans',role:UserRole.SUPERADMIN,icon:<WorkspacePremium sx={iconStyle}/>},
