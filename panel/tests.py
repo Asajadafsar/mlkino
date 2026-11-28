@@ -4,6 +4,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 from .models import ImpersonationSession
+from accounts.models import AgencyExpert
 
 User = get_user_model()
 
@@ -47,6 +48,24 @@ class PanelRoleFlowTests(TestCase):
     def test_normal_user_cannot_manage_users(self):
         self.client.force_authenticate(self.user)
         self.assertEqual(self.client.get('/panel/users/').status_code, 403)
+
+    def test_office_can_only_view_an_active_expert_of_its_own(self):
+        office = User.objects.create_user('09120000004', 'office-test-password', role='agency')
+        client = APIClient(enforce_csrf_checks=True)
+        self.assertEqual(client.post('/accounts/login/password/', {'phone': office.phone, 'password': 'office-test-password'}, format='json').status_code, 200)
+        client.get('/panel/impersonation/csrf/')
+        headers = {'HTTP_X_CSRFTOKEN': client.cookies['csrftoken'].value}
+        url = f'/panel/users/{self.other.pk}/impersonate/'
+        self.assertEqual(client.post(url, {}, format='json', **headers).status_code, 404)
+        membership = AgencyExpert.objects.create(agency=office, expert=self.other)
+        self.assertEqual(client.post(url, {}, format='json', **headers).status_code, 200)
+        self.assertEqual(client.get('/accounts/profile/').data['data']['id'], self.other.pk)
+        self.assertEqual(client.post('/panel/tickets/', {}, format='json', **headers).status_code, 403)
+        membership.is_active = False
+        membership.save(update_fields=['is_active'])
+        self.assertFalse(client.get('/panel/impersonation/status/').data['data']['active'])
+        self.assertEqual(client.get('/accounts/profile/').data['data']['id'], office.pk)
+        self.assertEqual(client.post('/panel/impersonation/exit/', {}, format='json', **headers).status_code, 200)
 
     def test_passwordless_impersonation_return_and_expiry(self):
         client = APIClient(enforce_csrf_checks=True)

@@ -30,6 +30,20 @@ class OfficeOnboardingTests(TestCase):
     def decision(self, application, **data):
         return self.client.post(f'{self.url}{application}/decision/', {'decision': 'approve', **data}, format='json')
 
+    def test_office_rotates_its_own_collaboration_code(self):
+        original = str(self.subscription.code)
+        self.as_user(self.user)
+        self.assertEqual(self.client.post('/accounts/office-code/').status_code, 403)
+        self.as_user(self.office)
+        response = self.client.post('/accounts/office-code/', {'office_id': self.other.pk})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.subscription.refresh_from_db()
+        self.assertNotEqual(str(self.subscription.code), original)
+        self.assertFalse(OfficeSubscription.objects.filter(office=self.other).exists())
+        self.as_user(self.user)
+        self.assertEqual(self.client.get('/accounts/office-lookup/', {'code': original}).status_code, 404)
+        self.assertEqual(self.client.get('/accounts/office-lookup/', {'code': self.subscription.code}).data['name'], 'دفتر نمونه')
+
     def test_only_selected_office_can_approve_collaboration(self):
         self.as_user(self.user)
         code = str(self.subscription.code)

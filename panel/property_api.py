@@ -17,7 +17,7 @@ from .settings_api import envelope, is_superadmin, http_url
 
 FLOORS = {'طبقه اول', 'طبقه آخر', 'پیلوت', 'فرقی نمی‌کند', 'سایر طبقات'}
 NUMBERS = {'area','totalPrice','pricePerMeter','rent','mortgagePrice','monthlyRent','latitude','longitude','buildYear','roomCount','totalFloor','floor','areaFrom','areaTo','totalPriceFrom','totalPriceTo','mortgagePriceFrom','mortgagePriceTo','monthlyRentFrom','monthlyRentTo','monthlyCharge','monthlyChargeFrom','monthlyChargeTo'}
-FIELDS = NUMBERS | {'contractType','propertyType','landUse','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','ownerNationalId','ownerNationalCode','customerName','customerPhone','customerPhone2','customerJob','customerNationalId','customerNationalCode','description','internalNote','images','virtualTourLink','floorPreferences','requesterType','title','documentTypeOther','technical','virtualTourUrl','otherLink','external_links'}
+FIELDS = NUMBERS | {'contractType','propertyType','priority','landUse','documentType','province','county','city','district','neighborhood','address','budgetType','status','publicationStatus','requestStatus','assignedTo','vacateDate','occupancyDate','occupancyStatus','bathroom','heating','cooling','flooring','facade','direction','amenities','ownerName','ownerPhone','ownerPhone2','ownerJob','ownerNationalId','ownerNationalCode','customerName','customerPhone','customerPhone2','customerJob','customerNationalId','customerNationalCode','description','internalNote','images','virtualTourLink','floorPreferences','requesterType','title','documentTypeOther','technical','virtualTourUrl','otherLink','external_links'}
 PARTY_IDS = {'ownerNationalId', 'ownerNationalCode', 'customerNationalId', 'customerNationalCode'}
 FIELDS -= PARTY_IDS
 PROPERTY_TYPES = {'آپارتمان', 'باغ ویلا', 'ساختمان کلنگی', 'ساختمان ویلایی', 'تجاری', 'اداری', 'ساختمان یکجا', 'زمین', 'صنعتی', 'پیش فروش'}
@@ -198,12 +198,17 @@ def validate_payload(request, kind, previous=None, *, require_complete=False):
                 row=known.get(normalize(name))
                 if row and selected and not any(normalize(x.get('district')) in selected for x in row): raise ValidationError({'neighborhood':'محله با منطقه انتخاب‌شده مطابقت ندارد.'})
     if data.get('requesterType') not in (None,'customer','owner'):raise ValidationError({'requesterType':'نوع درخواست‌کننده معتبر نیست.'})
+    if kind == 'request' and data.get('priority') not in (None, '', 'متوسط', 'بالا', 'فوری'):
+        raise ValidationError({'priority': 'سطح درخواست معتبر نیست.'})
     for prefix in ('owner','customer'):
+        job_field = prefix + 'Job'
+        if re.search(r'\d', str(data.get(job_field) or '')) and data.get(job_field) != (previous or {}).get(job_field):
+            raise ValidationError({job_field: 'عنوان شغل نباید شامل عدد باشد.'})
         phone=data.get(prefix+'Phone')
         if phone:
             from accounts.validators import validate_iranian_mobile
             try:data[prefix+'Phone']=validate_iranian_mobile(normalize(phone).replace(' ',''))
-            except Exception:raise ValidationError({prefix+'Phone':'شماره موبایل معتبر وارد کنید.'})
+            except Exception:raise ValidationError({prefix+'Phone':'شماره موبایل باید ۱۱ رقم باشد و با ۰۹ شروع شود.'})
         phone2=data.get(prefix+'Phone2')
         if phone2:
             clean=re.sub(r'[^0-9+]','',normalize(phone2))

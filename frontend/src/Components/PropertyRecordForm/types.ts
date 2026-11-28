@@ -76,6 +76,7 @@ export type PropertyType = {
 
     amenities: string[]
 
+    priority?: string
     ownerName: string
     ownerPhone: string
     ownerPhone2: string

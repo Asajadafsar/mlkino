@@ -15,11 +15,12 @@ export function ImpersonateButton({target}: {target: {id: number; role: string; 
     const reduxStore = useStore<RootState>()
     const [open, setOpen] = useState(false)
     const [error, setError] = useState('')
-    if (role !== UserRole.SUPERADMIN || ![UserRole.USER, UserRole.AGENCY, UserRole.EXPERT].includes(target.role as UserRole) || target.id === actorId || session?.active) return null
+    const officeView = role === UserRole.AGENCY && target.role === UserRole.EXPERT
+    if ((!officeView && role !== UserRole.SUPERADMIN) || ![UserRole.USER, UserRole.AGENCY, UserRole.EXPERT].includes(target.role as UserRole) || target.id === actorId || session?.active) return null
     const name = target.full_name || [target.first_name, target.last_name].filter(Boolean).join(' ') || `کاربر #${target.id}`
     const enter = async () => {
         const current = reduxStore.getState()
-        if (current.role.role !== UserRole.SUPERADMIN || current.impersonation.pending || !current.impersonation.checked || current.impersonation.session?.active || current.impersonation.actorId === target.id) return
+        if ((current.role.role !== UserRole.SUPERADMIN && !(officeView && current.role.role === UserRole.AGENCY)) || current.impersonation.pending || !current.impersonation.checked || current.impersonation.session?.active || current.impersonation.actorId === target.id) return
         dispatch(setImpersonationPending(true))
         setError('')
         try {
@@ -44,7 +45,7 @@ export function ImpersonateButton({target}: {target: {id: number; role: string; 
         >
             <Box sx={{p: 1}}>
                 <Typography>ورود به حساب {name}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{mt: 1}}>عملیات شما در این نشست با هویت مدیر ثبت می‌شود. برای بازگشت از نوار ورود مدیریتی استفاده کنید.</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{mt: 1}}>{officeView ? 'این نشست فقط برای مشاهده پنل کارشناس است.' : 'عملیات شما در این نشست با هویت مدیر ثبت می‌شود.'} برای بازگشت از نوار ورود مدیریتی استفاده کنید.</Typography>
                 {error && <Alert severity="error" sx={{mt: 2}}>{error}</Alert>}
             </Box>
             <Stack direction="row" justifyContent="flex-end" gap={1} sx={{p: 1, mt: 2}}>

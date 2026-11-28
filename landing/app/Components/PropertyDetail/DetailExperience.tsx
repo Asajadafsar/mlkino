@@ -167,9 +167,8 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
             <div className={styles.metrics}>{metrics.filter(({value}) => value && value !== "—").map(({Icon,value,label}) => <div key={label}><Icon /><strong>{value}</strong><span>{label}</span></div>)}</div>
             <div className={styles.primaryActions}>
               <button type="button" className={styles.goldButton} onClick={() => isRequest ? setMessageOpen(true) : setVisitOpen(true)}>{isRequest ? <HandshakeOutlined /> : <CalendarMonthOutlined />}{isRequest ? "من ملک مناسب دارم" : "درخواست بازدید"}</button>
-              {phone && <a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined /><span>{isRequest ? "تماس با متقاضی" : "تماس با کارشناس"}</span></a>}
+              {phone && <a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined /><span>{isRequest ? "تماس با متقاضی" : "تماس تلفنی با کارشناس"}</span></a>}
             </div>
-            {phone && <a href={`tel:${phone}`} className={styles.contactNumber} aria-label={`شماره تماس ${phone}`}><bdi>{phone}</bdi></a>}
           </section>
           <div className={styles.galleryColumn}>{isRequest ? <div className={styles.requestVisual}><AssignmentOutlined /><span>درخواست {data.contractType}</span><h2>{data.propertyType} در {data.city}</h2><p>{neighborhood}</p><div>{data.amenities.map(amenity => <span key={amenity}>{amenity}</span>)}</div><button type="button" onClick={share}><LinkRounded />اشتراک‌گذاری درخواست</button></div> : <PropertyGallery images={photos} title={title} favorite={favorite} onFavorite={() => setFavorite(value => !value)} onShare={share} />}</div>
         </div>
@@ -188,7 +187,7 @@ export default function DetailExperience({ data, mode = "file" }: { data: Proper
         </div>
       </div>
       <aside className={styles.sidebar}>
-        <div className={styles.advisor}><div className={styles.advisorHeading}><img src="/images/profile.webp" alt="" loading="lazy" decoding="async" /><div><h2>{name}</h2><p>{isRequest ? "متقاضی ملک" : "کارشناس املاک"}</p></div></div><div className={styles.advisorMeta}><span><VerifiedUserOutlined />{isRequest ? "درخواست ثبت‌شده" : data.agencyName || "مشاور ملکینو"}</span><span>کد {formatNumber(data.id)}</span></div>{phone && <a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined /><bdi>{phone}</bdi></a>}{chatEnabled && <button type="button" className={styles.softButton} onClick={() => setMessageOpen(true)}><ChatOutlined />گفتگو در ملکینو</button>}{!isRequest && socialLinks}</div>
+        <div className={styles.advisor}><div className={styles.advisorHeading}><img src="/images/profile.webp" alt="" loading="lazy" decoding="async" /><div><h2>{name}</h2><p>{isRequest ? "متقاضی ملک" : "کارشناس املاک"}</p></div></div><div className={styles.advisorMeta}><span><VerifiedUserOutlined />{isRequest ? "درخواست ثبت‌شده" : data.agencyName || "مشاور ملکینو"}</span><span>کد {formatNumber(data.id)}</span></div>{phone && <a href={`tel:${phone}`} className={styles.blueButton}><PhoneInTalkOutlined /><span>{isRequest ? "تماس با متقاضی" : "تماس تلفنی با کارشناس"}</span></a>}{chatEnabled && <button type="button" className={styles.softButton} onClick={() => setMessageOpen(true)}><ChatOutlined />گفتگو در ملکینو</button>}{!isRequest && socialLinks}</div>
         <section id="sidebar-address" className={styles.sidebarAddress}><h2><LocationOnOutlined />{isRequest ? "محدوده درخواستی" : "موقعیت و آدرس"}</h2>{addressView}</section>
       </aside>
     </div>

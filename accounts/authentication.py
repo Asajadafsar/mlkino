@@ -12,6 +12,15 @@ BLOCKED_PATH_PARTS = (
 )
 
 
+def can_manage_expert_session(actor, target):
+    if actor.role != actor.Role.AGENCY or actor.account_status != actor.AccountStatus.ACTIVE:
+        return False
+    if target.role != target.Role.EXPERT or not target.is_active or target.account_status != target.AccountStatus.ACTIVE:
+        return False
+    from .models import AgencyExpert
+    return AgencyExpert.objects.filter(agency=actor, expert=target, is_active=True).exists()
+
+
 class CookieJWTAuthentication(SessionJWTAuthentication):
     def authenticate(self, request):
         raw_token = request.COOKIES.get(ACCESS_COOKIE)
@@ -45,11 +54,13 @@ class CookieJWTAuthentication(SessionJWTAuthentication):
         # must never switch identities or invalidate a valid primary session.
         if (not session or session.actor_id != actor.pk or session.revoked_at
                 or session.expires_at <= timezone.now() or not session.target.is_active
-                or not (actor.is_superuser or actor.role == actor.Role.SUPER_ADMIN)):
+                or not (actor.is_superuser or actor.role == actor.Role.SUPER_ADMIN or can_manage_expert_session(actor, session.target))):
             return actor, validated
         if session.target.account_status == session.target.AccountStatus.SUSPENDED:
             return actor, validated
         if request.method not in ('GET', 'HEAD', 'OPTIONS'):
+            if actor.role == actor.Role.AGENCY:
+                raise PermissionDenied('نشست مدیریتی دفتر فقط برای مشاهده پنل کارشناس است.')
             path = request.path.lower()
             if any(fragment in path for fragment in BLOCKED_PATH_PARTS):
                 raise PermissionDenied('عملیات امنیتی در حالت ورود مدیریتی مجاز نیست.')

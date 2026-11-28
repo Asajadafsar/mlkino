@@ -113,9 +113,10 @@ def _serializer_errors_to_list(errors):
 
 
 def _validation_error(serializer):
+    errors = _serializer_errors_to_list(serializer.errors)
     return error_response(
-        message="اطلاعات ارسالی معتبر نیست.",
-        errors=_serializer_errors_to_list(serializer.errors),
+        message="؛ ".join(error["message"] for error in errors) or "اطلاعات ارسالی معتبر نیست.",
+        errors=errors,
         status_code=400,
     )
 

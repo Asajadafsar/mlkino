@@ -131,6 +131,7 @@ export function FinancialStep({property, setProperty, resource, mode}: ModeStepP
                         label="متراژ (الزامی)"
                         defaultValue={property.area}
                         thousandSeparator
+                        wholeNumber
                         endIcon={<InputAdornment position="end">متر</InputAdornment>}
                     />
                 ),
@@ -158,6 +159,7 @@ export function FinancialStep({property, setProperty, resource, mode}: ModeStepP
                                   label="قیمت کل (الزامی)"
                                   defaultValue={property.totalPrice}
                                   thousandSeparator
+                                  wholeNumber
                                   endIcon={<InputAdornment position="end">تومان</InputAdornment>}
                                   helperText={priceHelperText(property.totalPrice)}
                               />
@@ -173,6 +175,7 @@ export function FinancialStep({property, setProperty, resource, mode}: ModeStepP
                                         label="قیمت متری"
                                         defaultValue={property.pricePerMeter}
                                         thousandSeparator
+                                        wholeNumber
                                         endIcon={
                                             <InputAdornment position="end">تومان</InputAdornment>
                                         }
@@ -225,6 +228,7 @@ export function FinancialStep({property, setProperty, resource, mode}: ModeStepP
                                             label="قیمت رهن"
                                             defaultValue={property.mortgagePrice}
                                             thousandSeparator
+                                            wholeNumber
                                             endIcon={
                                                 <InputAdornment position="end">تومان</InputAdornment>
                                             }
@@ -257,6 +261,7 @@ export function FinancialStep({property, setProperty, resource, mode}: ModeStepP
                                             label="اجاره ماهانه"
                                             defaultValue={property.monthlyRent}
                                             thousandSeparator
+                                            wholeNumber
                                             endIcon={
                                                 <InputAdornment position="end">تومان</InputAdornment>
                                             }
